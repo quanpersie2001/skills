@@ -135,8 +135,8 @@ Pulse keeps worker context intentionally narrow:
 | Tool | Required | Purpose |
 |------|----------|---------|
 | `git` | Yes | Version control |
-| `br` | Yes | Beads CLI for create, update, and close |
-| `bv` | Yes | Bead viewer and graph inspection |
+| `br` | Yes | Beads CLI (Rust) — create, update, close, sync work items |
+| `bv` | Yes | Beads viewer — TUI and graph inspection |
 | Agent Mail or equivalent coordination runtime | Swarm only | Worker orchestration and reservations |
 | `gkg` | Optional | Faster structural discovery |
 | `gh` | Optional | PR automation |
@@ -147,46 +147,56 @@ Pulse keeps worker context intentionally narrow:
 
 ### Codex
 
-Add the local repo marketplace from [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json), then install the `pulse` plugin package defined by [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json).
+This repo ships a Codex-standard repo marketplace in [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) and a packaged plugin at [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json).
+
+The canonical skill layout lives directly under [`plugins/pulse/skills/`](plugins/pulse/skills).
+
+Restart Codex after adding the marketplace, then install the `pulse` plugin from the local repo marketplace.
 
 ### Claude Code
 
-Use [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) as the marketplace index. Claude Code also reads [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json), which enumerates each skill path explicitly.
+This repo ships a Claude Code plugin marketplace in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
 
-## Project Structure
+**1. Add the marketplace:**
 
 ```text
-plugins/pulse/
-  .codex-plugin/plugin.json
-  skills/
-    using-pulse/SKILL.md
-    preflight/SKILL.md
-    exploring/SKILL.md
-    planning/SKILL.md
-    validating/SKILL.md
-    swarming/SKILL.md
-    executing/SKILL.md
-    reviewing/SKILL.md
-    compounding/SKILL.md
-    debugging/SKILL.md
-    gkg/SKILL.md
-    dream/SKILL.md
-    writing-pulse-skills/SKILL.md
-    ...
-.agents/plugins/marketplace.json
-.claude-plugin/plugin.json
-.claude-plugin/marketplace.json
-AGENTS.md
-CONTRIBUTING.md
+/plugin marketplace add quanpersie2001/skills
 ```
 
-## Further Reading
+Claude Code clones the repo and reads `.claude-plugin/marketplace.json` to discover all available skills.
 
-- [Contributing guide](CONTRIBUTING.md)
-- [Pulse reference: Khuym lineage](references/lineage/khuym.md)
-- [Pulse reference: Superpowers lineage](references/lineage/superpowers.md)
-- [Khuym local mirror](references/skills/README.md)
-- [Superpowers local mirror](references/superpowers/README.md)
+**2. Install skills:**
+
+Each skill is installed individually with `/plugin install <skill>@pulse`:
+
+```text
+# Bootstrap — install these first
+/plugin install pulse:using-pulse@pulse
+/plugin install pulse:preflight@pulse
+
+# Delivery chain
+/plugin install pulse:exploring@pulse
+/plugin install pulse:planning@pulse
+/plugin install pulse:validating@pulse
+/plugin install pulse:swarming@pulse
+/plugin install pulse:executing@pulse
+/plugin install pulse:reviewing@pulse
+/plugin install pulse:compounding@pulse
+
+# Support skills
+/plugin install pulse:debugging@pulse
+/plugin install pulse:gkg@pulse
+/plugin install pulse:dream@pulse
+/plugin install pulse:writing-pulse-skills@pulse
+
+# Standalone skills
+/plugin install ai-multimodal@pulse
+/plugin install prompt-leverage@pulse
+/plugin install simplify-code@pulse
+/plugin install systematic-debug-fix@pulse
+```
+
+> **Note:** Both platforms require `git`, `br` (beads CLI), and `bv` (beads viewer) to be installed for the full Pulse workflow. Run `pulse:preflight` to verify tool readiness.
 
 ## License
 

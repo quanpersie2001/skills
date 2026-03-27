@@ -19,23 +19,23 @@ All shipped skills live under [`plugins/pulse/skills/`](plugins/pulse/skills).
 
 ```text
 plugins/pulse/skills/
-  using-pulse/
-  preflight/
-  exploring/
-  planning/
-  validating/
-  swarming/
-  executing/
-  reviewing/
-  compounding/
-  debugging/
-  gkg/
-  dream/
-  writing-pulse-skills/
-  ai-multimodal/
-  prompt-leverage/
-  simplify-code/
-  systematic-debug-fix/
+├── using-pulse/            references/
+├── preflight/              agents/ references/
+├── exploring/              references/
+├── planning/               mcp.json references/
+├── validating/             references/
+├── swarming/               references/
+├── executing/
+├── reviewing/              references/
+├── compounding/            references/
+├── debugging/
+├── gkg/
+├── dream/                  references/
+├── writing-pulse-skills/   references/
+├── ai-multimodal/          references/ scripts/
+├── prompt-leverage/        agents/ references/ scripts/
+├── simplify-code/
+└── systematic-debug-fix/   agents/ references/
 ```
 
 Folder names are filesystem-safe and unprefixed. The namespace belongs in frontmatter:
@@ -117,6 +117,7 @@ Use this shape by default:
 ```text
 my-skill/
 ├── SKILL.md
+├── mcp.json          (optional — skill-specific MCP server config)
 ├── references/
 ├── scripts/
 └── agents/
@@ -126,8 +127,9 @@ Conventions:
 
 - `SKILL.md` is required
 - `references/` holds templates, probes, rubrics, and reference notes that the skill explicitly tells the agent to read
-- `scripts/` holds executable helpers the skill invokes
-- `agents/` holds subagent configuration or prompt files
+- `scripts/` holds executable helpers the skill invokes; add `__pycache__/` to `.gitignore` if scripts are Python
+- `agents/` holds subagent configuration or prompt files (e.g., OpenAI-compatible YAML configs)
+- `mcp.json` declares MCP servers the skill needs at runtime (see `planning/mcp.json` for an example)
 - avoid adding extra human-only files inside skill directories unless they are genuinely part of the runtime contract; contributor-facing docs should live at repo root or under `references/`
 
 `references/` files are never auto-loaded. The `SKILL.md` body must explicitly tell the agent when to read them.
@@ -195,11 +197,11 @@ Public docs and skill changes should preserve these current behaviors:
 
 3. Add `references/`, `scripts/`, or `agents/` only when the skill really needs them.
 
-4. If the skill is exposed to Claude Code, update:
-   - [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json)
-   - [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)
+4. If the skill is exposed to Claude Code, add it to both manifests:
+   - [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) — add a `{"name": "...", "path": "..."}` entry
+   - [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) — add a plugin entry with `name`, `description`, `source`, and `strict`
 
-5. Codex packaging usually does not need a per-skill manifest change because [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json) already points Codex at `./skills/`.
+5. Codex discovers skills automatically from the `./skills/` directory declared in [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json), so no per-skill manifest change is needed for Codex.
 
 6. Update any public docs that mention the changed contract. That often includes:
    - [`README.md`](README.md)
@@ -213,7 +215,9 @@ Public docs and skill changes should preserve these current behaviors:
 
 Minimum check:
 
-1. Install the local repo marketplace in Codex or Claude Code
+1. Add the marketplace and install the skill you changed:
+   - **Codex:** add the repo marketplace from [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json), restart, then install `pulse`
+   - **Claude Code:** `/plugin marketplace add quanpersie2001/skills`, then `/plugin install <skill>@pulse`
 2. Start a fresh session
 3. Ask for something that should trigger the skill
 4. Verify the right skill is discovered and the body instructions are followed
