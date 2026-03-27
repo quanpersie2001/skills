@@ -1,0 +1,39 @@
+{
+  "name": "pulse",
+  "version": "1.0.0",
+  "description": "Pulse: validate-first agentic development ecosystem for planning, validation, swarming, and execution",
+  "author": {
+    "name": "quannv",
+    "url": "https://github.com/quannv-dev"
+  },
+  "homepage": "https://github.com/quannv-dev/skills",
+  "repository": "https://github.com/quannv-dev/skills",
+  "license": "MIT",
+  "keywords": [
+    "pulse",
+    "skills",
+    "agentic-development",
+    "planning",
+    "multi-agent"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Pulse",
+    "shortDescription": "Validate-first skills for agentic software delivery",
+    "longDescription": "Bundles the Pulse workflow skills and standalone utilities for planning, validation, swarming, review, and learning capture.",
+    "developerName": "quannv",
+    "category": "Productivity",
+    "capabilities": [
+      "Plan",
+      "Write",
+      "Review"
+    ],
+    "websiteURL": "https://github.com/quannv-dev/skills",
+    "defaultPrompt": [
+      "Help me route a feature request through the full Pulse workflow.",
+      "Plan and validate a feature before we write code.",
+      "Run a review and compounding pass on completed work."
+    ],
+    "brandColor": "#0F766E"
+  }
+}
