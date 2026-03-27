@@ -81,6 +81,27 @@ If verification evidence is missing, vague, or only asserted in prose, create a 
 If the expected verification artifact path is absent, create a `P1` review bead.
 If it exists and is substantive but not integrated into the current review / merge path, create a `P2` review bead.
 
+### Findings Template
+
+Use this structure for each finding in a review bead:
+
+```markdown
+## Finding: [title]
+- **Severity**: P1 | P2 | P3
+- **Location**: [file:line or module]
+- **Description**: [what's wrong]
+- **Recommendation**: [suggested fix]
+```
+
+### UAT Evidence for Non-Interactive Changes
+
+For changes that cannot be manually walked through (APIs, config, infrastructure, CLI tools), UAT evidence should include:
+
+- Verification command output (e.g., `curl` response, CLI invocation result)
+- Before/after config diff or API response comparison
+- Log output showing the change is active
+- Automated test results covering the modified behavior
+
 ## Review Intake
 
 When review beads already exist, resolve them deliberately before finishing:

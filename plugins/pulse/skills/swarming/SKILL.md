@@ -99,7 +99,7 @@ bv --robot-triage --graph-root <EPIC_ID>
 ### Coordinator responsibilities
 
 - acknowledge real completion
-- resolve or escalate blockers quickly
+- resolve or escalate blockers quickly — for persistent blockers, invoke `pulse:debugging` to investigate root cause before restarting the worker
 - prevent silent file conflicts
 - rebroadcast new locked decisions or corrections
 - keep `.pulse/STATE.md` current
@@ -114,6 +114,16 @@ If context exceeds 65%:
 4. stop cleanly
 
 Do not write the retired global handoff file.
+
+### Worker Monitoring Checklist
+
+Every monitoring cycle, check:
+
+- **Queue balance**: if any worker has 0 beads remaining while others have 2+, rebalance
+- **Stall detection**: no progress from a worker in 2+ cycles — ping, check for blockers, or restart
+- **File conflicts**: two workers touching the same file — pause one and re-sequence the beads
+- **Completion rate**: if < 50% beads closed after 60% elapsed time, escalate to the user
+- **Blocker accumulation**: if 2+ workers report blockers on the same subsystem, pause the swarm and return to planning
 
 ## Phase 5: Swarm Complete
 

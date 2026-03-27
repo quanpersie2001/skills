@@ -58,13 +58,15 @@ Read the bead fully before implementing.
 
 Minimum fields to confirm:
 
-- `dependencies`
-- `files`
-- `verify`
-- `verification_evidence`
-- `testing_mode`
-- `decision_refs`
-- `learning_refs`
+| Field | Purpose |
+|-------|---------|
+| `dependencies` | Upstream bead IDs that must close first |
+| `files` | Files/modules in scope for this bead |
+| `verify` | Concrete verification commands to run |
+| `verification_evidence` | Path to evidence artifact (typically `.pulse/verification/<feature>/<bead-id>.md`) |
+| `testing_mode` | `tdd-required` / `test-after` / `no-test` |
+| `decision_refs` | Locked decisions from CONTEXT.md relevant to this bead |
+| `learning_refs` | Learning file paths to read before implementing |
 
 If any required field is missing, stop and bounce the bead back to validating or planning. Do not guess from free-form prose.
 

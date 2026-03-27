@@ -1,6 +1,8 @@
 ---
 name: prompt-leverage
 description: Strengthen a raw user prompt into an execution-ready instruction set for Codex or another AI agent. Use when the user wants to improve an existing prompt, build a reusable prompting framework, wrap the current request with better structure, add clearer tool rules, or create a hook that upgrades prompts before execution.
+metadata:
+  version: '1.1'
 ---
 
 # Prompt Leverage
@@ -67,3 +69,18 @@ Before finalizing, check the upgraded prompt:
 - gives the agent a clear definition of done
 
 If the prompt is already strong, say so and make only minimal edits.
+
+## Quick Reference: Deficiency → Framework Block
+
+| Prompt Deficiency | Recommended Block |
+|-------------------|-------------------|
+| No success criteria | Verification |
+| Vague scope | Scope Boundaries |
+| Missing context | Context / Background |
+| No error handling guidance | Edge Cases |
+| Unclear output format | Output Format |
+| No tool usage rules | Tool Rules |
+
+## Integration with Pulse
+
+Can be used to strengthen prompts before passing them to `pulse:exploring` or to improve worker instructions in `pulse:swarming` payloads.

@@ -45,16 +45,13 @@ In Pulse, `gkg` is typically exposed through MCP-style tools rather than a singl
 
 The common primitives are:
 
-- `repo_map`
-  - architecture snapshot, top modules, likely entry points
-- `search_codebase_definitions`
-  - find definitions by symbol, concept, or subsystem
-- `get_references`
-  - trace where a symbol is used
-- `get_definition`
-  - fetch a specific definition for a symbol
-- `read_definitions`
-  - read multiple definitions in one pass when comparing patterns
+| Primitive | Command Example | Use Case |
+|-----------|----------------|----------|
+| `repo_map` | `gkg map --scope=module` | Architecture snapshot, top modules, entry points |
+| `search_codebase_definitions` | `gkg search "auth middleware"` | Find definitions by symbol, concept, or subsystem |
+| `get_references` | `gkg refs MyClass` | Trace where a symbol is used |
+| `get_definition` | `gkg def MyClass.method` | Fetch a specific definition |
+| `read_definitions` | `gkg read MyClass OtherClass` | Compare multiple definitions side by side |
 
 If your runtime exposes different names, preserve the behavior, not the exact spelling.
 
@@ -188,7 +185,7 @@ Typical fallback mapping:
 | reference trace | `rg "<symbol>"` and inspect imports/usages manually |
 | pattern comparison | read 2-4 likely files directly |
 
-If the fallback materially weakens discovery confidence, note that in `discovery.md`.
+If the fallback materially weakens discovery confidence, note that in `discovery.md`. Also record that fallback was used (e.g., "gkg unavailable — used rg-based fallback") so downstream skills know the discovery fidelity.
 
 ## Red Flags
 

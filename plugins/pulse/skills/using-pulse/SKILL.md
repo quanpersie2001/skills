@@ -169,6 +169,8 @@ Pause and surface these immediately:
   config.json                  <- feature toggles
   tooling-status.json          <- preflight output
   verification/                <- execution verification evidence artifacts
+  debug-notes/                 <- debugging debug notes for compounding
+  dream-pending/               <- ambiguous dream decisions awaiting approval
   handoffs/
     manifest.json             <- active handoff index
     planning.json             <- planning checkpoint

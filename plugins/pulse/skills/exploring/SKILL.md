@@ -5,8 +5,9 @@ description: >-
   decisions from the user through Socratic dialogue BEFORE research or planning begins.
   Implements GSD discuss-phase + Superpowers brainstorming + CE scope-tiering.
   Trigger phrases: build, add, change, implement, design, figure out what we need,
-  brainstorm, exploring. Output is history/<feature>/CONTEXT.md — the single source
-  of truth for all downstream agents (planning, validating, swarming).
+  brainstorm, exploring, investigate, scope out, what would it take to, evaluate
+  feasibility, assess impact, research approach. Output is history/<feature>/CONTEXT.md
+  — the single source of truth for all downstream agents (planning, validating, swarming).
 metadata:
   version: '1.0'
   ecosystem: pulse

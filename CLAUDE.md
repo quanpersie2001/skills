@@ -1,0 +1,77 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What This Repo Is
+
+Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 13 Pulse ecosystem skills and 4 standalone utility skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+
+## Repository Layout
+
+- `plugins/pulse/skills/` — canonical source for all skill definitions (each skill is a `SKILL.md` file in its own directory)
+- `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — Claude Code compatibility wrappers (not the source of truth)
+- `.agents/plugins/marketplace.json` — Codex marketplace metadata
+- `AGENTS.md` — workflow rules and bead integration (re-read after context compaction)
+- `references/` — upstream/pedagogical material (Superpowers, AI Multimodal, Khuym lineage docs); not part of the shipping plugin
+
+## Key Tools
+
+| Tool | CLI | Purpose |
+|------|-----|---------|
+| Beads CLI | **`br`** (not `bd`) | Create, update, close, sync work items |
+| Beads viewer | `bv` | TUI and graph inspection |
+| Git | `git` | Version control |
+| Agent Mail | — | Worker orchestration (swarm mode only) |
+| GKG | `gkg` | Optional codebase intelligence |
+
+**Important:** The beads CLI binary is `br`. AGENTS.md incorrectly references `bd` in its example commands — substitute `br` everywhere.
+
+## Delivery Chain
+
+The core workflow is a gated, linear pipeline:
+
+```
+pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning → pulse:validating → pulse:swarming → pulse:executing(×N) → pulse:reviewing → pulse:compounding
+```
+
+Three mandatory gates control progression:
+- **GATE 1** (after exploring): Approve `CONTEXT.md`
+- **GATE 2** (after validating): Approve execution — never skip this
+- **GATE 3** (after reviewing): P1 findings must be fixed before merge
+
+## Artifact Locations
+
+```
+.pulse/tooling-status.json           ← preflight writes this
+.pulse/STATE.md                      ← shared state across phases
+.pulse/handoffs/manifest.json        ← owner-scoped pause/resume index
+.pulse/verification/<feature>/*.md   ← execution evidence
+history/<feature>/CONTEXT.md         ← exploring output (source of truth for decisions)
+history/<feature>/approach.md        ← planning synthesis
+.beads/                              ← bead files (planning creates, executing closes)
+.spikes/                             ← spike verification results
+history/learnings/                   ← compounding output
+```
+
+## Editing Skills
+
+Each skill lives at `plugins/pulse/skills/<name>/SKILL.md`. When adding or modifying a skill:
+
+1. The SKILL.md is the entire skill definition — there's no separate code to compile.
+2. Register new skills in both `.claude-plugin/plugin.json` and `.agents/plugins/marketplace.json`.
+3. Use `pulse:writing-pulse-skills` for TDD-style skill development.
+
+## Testing
+
+The main Pulse plugin has no automated test suite. The only test infrastructure is in `references/superpowers/tests/brainstorm-server/` (Node.js, `npm test`), which is reference material and not part of the shipping plugin.
+
+## Session Protocol
+
+```bash
+git status              # Check what changed
+git add <files>         # Stage code changes
+br sync                 # Commit beads changes
+git commit -m "..."     # Commit code
+br sync                 # Commit any new beads changes
+git push                # Push to remote
+```

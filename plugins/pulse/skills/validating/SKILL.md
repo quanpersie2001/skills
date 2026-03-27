@@ -133,6 +133,17 @@ For each spike:
 
 There is no "partial" result.
 
+### Spike Escalation
+
+If the 30-minute time-box expires without a definitive YES or NO:
+
+1. Present findings so far to the user — what was learned and what remains unknown
+2. Offer three options:
+   - Extend by 15 minutes (requires explicit user approval)
+   - Return to `pulse:planning` with an updated risk assessment incorporating what was learned
+   - Proceed with a documented mitigation plan added to the affected beads
+3. Never silently exceed the time-box or treat inconclusive results as YES
+
 ### Step 2.3: Apply spike results
 
 If the spike returns `YES`:

@@ -125,7 +125,9 @@ Always write a debug note when the issue revealed:
 - a missing propagation step
 - an outdated global pattern
 
-Write a temp debug note with:
+Write the debug note to `.pulse/debug-notes/<bead-id>-debug.md` (create the directory if needed). Use this canonical path so `pulse:compounding` can find all debug notes reliably.
+
+Template:
 
 ```markdown
 ## Debug Note: <date> - <classification>
@@ -150,6 +152,8 @@ Say so explicitly in the debug note:
 ```text
 This failure would likely have been prevented if the bead had included learning_refs to <file>.
 ```
+
+After the fix is verified, submit learning candidates to `pulse:compounding` so the debug note gets triaged and propagated. Do not leave debug notes orphaned in `.pulse/debug-notes/` without a compounding pass.
 
 ## Step 7: Handoff
 

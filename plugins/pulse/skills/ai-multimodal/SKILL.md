@@ -1,6 +1,8 @@
 ---
 name: ai-multimodal
-description: Process and generate multimedia content with Google Gemini across audio, images, video, and documents. Use when working with screenshots, OCR, PDFs, transcription, visual analysis, structured extraction, image generation, video generation, media pre-processing, or SDK-level multimodal integrations. Includes bundled CLI scripts for analyze/transcribe/extract/generate/generate-video plus deeper references for advanced features like TTS, image editing, YouTube analysis, structured JSON schemas, and live music generation.
+description: Process and generate multimedia content with Google Gemini when advanced multimodal processing beyond basic file reading is needed — Gemini-powered analysis, generation, or transformation of audio, images, video, and documents. Use when working with screenshots requiring OCR, PDF extraction, audio transcription, visual analysis, structured extraction, image generation, video generation, media pre-processing, or SDK-level multimodal integrations. Not needed when Claude can handle the task natively (e.g., viewing an image or reading a short PDF). Includes bundled CLI scripts for analyze/transcribe/extract/generate/generate-video plus deeper references for advanced features like TTS, image editing, YouTube analysis, structured JSON schemas, and live music generation.
+metadata:
+  version: '1.1'
 license: MIT
 allowed-tools:
   - Bash
@@ -137,3 +139,9 @@ Load for detailed guidance:
 
 - [API Docs](https://ai.google.dev/gemini-api/docs/)
 - [Pricing](https://ai.google.dev/pricing)
+
+## Integration with Pulse
+
+During `pulse:executing`, invoke this skill when beads require multimodal asset processing, media analysis, or content generation. Feed outputs back into the bead's verification evidence at `.pulse/verification/<feature>/<bead-id>.md`.
+
+Write/Edit tools are available for extending or creating processing scripts, not for modifying reference documentation.

@@ -4,7 +4,8 @@ description: >-
   Use when you need a manual dream-style consolidation pass over Codex artifacts
   and existing Khuym learnings, including bootstrap-first scans, recurring-window
   updates, ambiguity resolution for merge/create new/skip, and approval-gated
-  critical-pattern proposals.
+  critical-pattern proposals. Also invoke when the user says 'consolidate learnings',
+  'synthesize knowledge base', 'review what we've learned', or 'clean up learnings'.
 metadata:
   version: "1.0"
   ecosystem: "pulse"
@@ -109,6 +110,10 @@ Return a concise run summary with:
 - Files rewritten, files created, and skipped candidates
 - Whether `history/learnings/dream-run-provenance.md` was updated
 - Any pending ambiguous decisions or critical-pattern approvals
+
+### Persisting Ambiguous Decisions
+
+When a consolidation candidate is ambiguous (unclear merge target, conflicting signals, or requires user judgment), write it to `.pulse/dream-pending/<candidate-slug>.md` instead of discarding it. Include the candidate content, the options considered, and why the decision is blocked. These pending items are picked up on the next dream run or can be resolved manually by the user.
 
 ## Hard Rules
 

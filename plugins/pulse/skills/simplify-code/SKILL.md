@@ -1,6 +1,8 @@
 ---
 name: simplify-code
-description: "Review a git diff or explicit file scope for reuse, code quality, efficiency, clarity, and standards issues, then optionally apply safe Codex-driven fixes. Use when the user asks to \"simplify code\", \"review changed code\", \"check for code reuse\", \"review code quality\", \"review efficiency\", \"simplify changes\", \"clean up code\", \"refactor changes\", or \"run simplify\"."
+description: "Review and simplify code for reuse, quality, efficiency, and clarity. Use when the user asks to review, simplify, clean up, or refactor code changes — whether from a git diff or explicit file scope. Optionally applies safe Codex-driven fixes."
+metadata:
+  version: '1.1'
 ---
 
 # Simplify Code
@@ -167,3 +169,7 @@ Close with a brief result:
 - whether validation ran
 
 If the code is already clean for this rubric, say that directly instead of manufacturing edits.
+
+## Integration with Pulse
+
+Can be invoked during `pulse:reviewing` to provide code quality analysis, or during `pulse:executing` when implementation beads need cleanup before verification.
