@@ -10,8 +10,34 @@ metadata:
 
 Bootstrap meta-skill. Load this after `pulse:preflight`. It tells you which Pulse skill to invoke next, how the phases chain together, and how Pulse pauses and resumes safely.
 
+## Plugin Onboarding
+
+Before any normal bootstrap, verify that the current repo is onboarded for the Pulse plugin.
+
+Run `scripts/onboard_pulse.py --repo-root <repo-root>` from this skill directory and inspect the JSON result.
+
+- If `status = "up_to_date"`: proceed immediately.
+- If onboarding is missing or stale:
+  - summarize what the script wants to create or update
+  - if `requires_confirmation = true`, explain that an existing `compact_prompt` was found and Pulse will preserve it unless the user explicitly approves replacement
+  - ask before making repo changes
+  - after approval, run `scripts/onboard_pulse.py --repo-root <repo-root> --apply`
+  - only use `--allow-compact-prompt-replace` when the user explicitly approved replacing the repo's existing compaction prompt
+
+Onboarding installs or updates:
+
+- root `AGENTS.md` from the plugin's `AGENTS.template.md`
+- repo-local `.codex/config.toml`
+- repo-local `.codex/hooks.json`
+- repo-local `.codex/hooks/pulse_*.py`
+- `.pulse/onboarding.json`
+
+If onboarding is not complete, do not continue into the rest of the Pulse workflow.
+
 ## Before Anything Else
 
+0. Confirm Pulse onboarding is current via `.pulse/onboarding.json`
+   → If missing or stale: return to Plugin Onboarding above
 1. Read `.pulse/tooling-status.json`.
 2. If it is missing, invoke `pulse:preflight` first.
 3. Respect `recommended_mode` from preflight:
@@ -61,6 +87,8 @@ When in doubt, start with `pulse:exploring`.
 
 On every session start:
 
+0. Confirm Pulse onboarding is current via `.pulse/onboarding.json`
+   → If missing or stale: return to Plugin Onboarding above
 1. Ensure `.pulse/` exists.
 2. Ensure `.pulse/STATE.md` exists. If missing, create:
 
