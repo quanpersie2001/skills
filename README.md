@@ -145,13 +145,33 @@ Pulse keeps worker context intentionally narrow:
 
 ## Installation
 
-### Codex
+### Install In Codex
 
-This repo ships a Codex-standard repo marketplace in [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) and a packaged plugin at [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json).
+Codex plugins install from a **local marketplace** that lives inside the cloned repo. After you clone this repository, Codex reads [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) to discover the `pulse` plugin, whose package manifest is at [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json).
 
-The canonical skill layout lives directly under [`plugins/pulse/skills/`](plugins/pulse/skills).
+**1. Clone the repo:**
 
-Restart Codex after adding the marketplace, then install the `pulse` plugin from the local repo marketplace.
+```bash
+git clone https://github.com/quannvdev/skills.git
+```
+
+**2. Register the local marketplace:**
+
+Open Codex, point it at the cloned directory, and add the marketplace from `.agents/plugins/marketplace.json`. Restart Codex after registering.
+
+**3. Install the plugin:**
+
+Install the `pulse` plugin from the local repo marketplace. Codex discovers all skills automatically from the `./skills/` directory declared in the plugin manifest.
+
+#### Verify The Plugin Layout
+
+After installation, confirm these paths exist in the cloned repo:
+
+```text
+.agents/plugins/marketplace.json          <- repo marketplace (lists the pulse plugin)
+plugins/pulse/.codex-plugin/plugin.json   <- Codex package manifest
+plugins/pulse/skills/                     <- canonical skill source (auto-discovered)
+```
 
 ### Claude Code
 

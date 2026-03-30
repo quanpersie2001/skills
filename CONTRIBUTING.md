@@ -13,6 +13,15 @@ These paths matter most:
 - [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) exposes the Claude Code marketplace entries
 - [`AGENTS.md`](AGENTS.md), [`README.md`](README.md), and this file are public contract docs and must stay in sync with the actual skills
 
+## Plugin Packaging Overview
+
+This repository is structured as a **Codex plugin repo**. It ships a single plugin, `pulse`, located at [`plugins/pulse/`](plugins/pulse).
+
+- The Codex package manifest lives at [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json). It declares the plugin name, version, skill directory, and interface metadata.
+- The repo-level marketplace at [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) exposes the packaged `pulse` plugin to Codex. When Codex opens a clone of this repo, it reads the marketplace file and offers `pulse` for installation.
+- Skill discovery is automatic. Codex scans the `./skills/` directory declared in the plugin manifest, so individual skills do not need per-skill manifest entries for Codex.
+- Claude Code uses a separate compatibility layer at [`.claude-plugin/`](.claude-plugin) with its own `plugin.json` and `marketplace.json`.
+
 ## Where Skills Live
 
 All shipped skills live under [`plugins/pulse/skills/`](plugins/pulse/skills).

@@ -14,14 +14,15 @@ Bootstrap meta-skill. Load this after `pulse:preflight`. It tells you which Puls
 
 Before any normal bootstrap, verify that the current repo is onboarded for the Pulse plugin.
 
-Run `scripts/onboard_pulse.py --repo-root <repo-root>` from this skill directory and inspect the JSON result.
+Requires **Node.js 18+**. Run `node scripts/onboard_pulse.mjs --repo-root <repo-root>` from this skill directory and inspect the JSON result.
 
 - If `status = "up_to_date"`: proceed immediately.
+- If `status = "missing_runtime"`: Node.js 18+ is not available -- ask the user to install it before continuing.
 - If onboarding is missing or stale:
   - summarize what the script wants to create or update
   - if `requires_confirmation = true`, explain that an existing `compact_prompt` was found and Pulse will preserve it unless the user explicitly approves replacement
   - ask before making repo changes
-  - after approval, run `scripts/onboard_pulse.py --repo-root <repo-root> --apply`
+  - after approval, run `node scripts/onboard_pulse.mjs --repo-root <repo-root> --apply`
   - only use `--allow-compact-prompt-replace` when the user explicitly approved replacing the repo's existing compaction prompt
 
 Onboarding installs or updates:
@@ -29,7 +30,7 @@ Onboarding installs or updates:
 - root `AGENTS.md` from the plugin's `AGENTS.template.md`
 - repo-local `.codex/config.toml`
 - repo-local `.codex/hooks.json`
-- repo-local `.codex/hooks/pulse_*.py`
+- repo-local `.codex/hooks/pulse_*.mjs`
 - `.pulse/onboarding.json`
 
 If onboarding is not complete, do not continue into the rest of the Pulse workflow.
@@ -54,7 +55,7 @@ If onboarding is not complete, do not continue into the rest of the Pulse workfl
 | 1 | `pulse:using-pulse` | This file. Routing, go mode, priority rules, resume contract | After preflight on any Pulse session |
 | 2 | `pulse:exploring` | Identify gray areas, lock decisions, write `CONTEXT.md` | Feature request is vague, new, or has unresolved intent |
 | 3 | `pulse:planning` | Research, synthesize, and decompose into executable beads | Decisions are locked and we need a concrete plan |
-| 4 | `pulse:validating` | Verify the plan, materialize spikes, and polish beads | Plan exists and must be verified before code is written |
+| 4 | `pulse:validating` | Verify phase contract, story map, and bead graph before execution | Stories and beads exist; need to prove the phase is actually execution-ready |
 | 5 | `pulse:swarming` | Launch and tend a worker pool for swarm execution | Preflight recommends `swarm` and execution is approved |
 | 6 | `pulse:executing` | Implement beads in either worker mode or single-worker mode | Direct execution is happening |
 | 7 | `pulse:reviewing` | 4 specialist reviewers plus a final synthesizer, artifact verification, and UAT | Execution is complete and quality must be verified |
@@ -129,15 +130,36 @@ If the manifest contains active entries:
 
 ## Go Mode
 
-Go mode is the full Pulse pipeline with exactly 3 human gates. Load `references/go-mode-pipeline.md` for the step-by-step flow.
+Go mode chains all skills end-to-end with exactly 3 human gates. Load `references/go-mode-pipeline.md` for the complete step-by-step sequence.
 
-The standard sequence is:
+**Trigger:** User says `/go [feature]`, "run the full pipeline", or "go mode".
 
-```text
+**The 3 gates -- never skip these:**
+
+```
+GATE 1 (after exploring):
+  Present history/<feature>/CONTEXT.md to user.
+  Ask: "Decisions locked. Approve CONTEXT.md before planning?"
+  HARD-GATE: do not invoke planning until user approves.
+
+GATE 2 (after validating):
+  Present: phase exit state, story count, bead count, risk summary, spike results.
+  Ask: "Phase verified. Approve execution?"
+  HARD-GATE: do not invoke swarming until user approves.
+
+GATE 3 (after reviewing):
+  Present: P1 count, P2 count, P3 count.
+  If P1 > 0: "P1 findings block merge. Fix before proceeding?"
+  If P1 = 0: "Review complete. Approve merge?"
+  HARD-GATE: do not merge or close epic until user responds.
+```
+
+**Go mode sequence:**
+```
 preflight -> using-pulse -> exploring -> [GATE 1]
 -> planning -> validating -> [GATE 2]
 -> swarming + executing xN OR executing(single-worker)
--> reviewing -> [GATE 3] -> compounding
+-> reviewing -> [GATE 3] -> compounding -> DONE
 ```
 
 The branch depends on `.pulse/tooling-status.json`:
@@ -173,8 +195,10 @@ Quick mode never skips review entirely. It only reduces depth.
 3. `CONTEXT.md` is the source of truth for product and architectural decisions.
 4. Planning owns `critical-patterns.md` ingestion and must embed relevant learnings into beads. Workers execute from bead context first.
 5. Planning defines `spike_question` for every HIGH-risk item. Validating owns spike bead creation and spike execution.
-6. Preflight decides whether execution goes through `swarming` or directly through `executing`.
-7. Never skip validating. Not for "obvious" plans, not for small changes.
+6. GATE 2 is the most critical gate. Execution is irreversible. If there is any doubt about the plan's soundness, do not approve. Loop back to validating.
+7. Spike failures halt the pipeline. A failed spike means the approach is broken. Do not proceed to swarming; return to planning.
+8. Preflight decides whether execution goes through `swarming` or directly through `executing`.
+9. Never skip validating. Not for "obvious" plans, not for small changes.
 
 ## Red Flags
 
@@ -210,6 +234,8 @@ history/<feature>/
   CONTEXT.md                  <- locked decisions from exploring
   discovery.md                <- research findings from planning
   approach.md                 <- synthesis, risk map, spike questions
+  phase-contract.md           <- entry state, exit state, demo, unlocks, pivot signals
+  story-map.md                <- story sequence inside the phase; maps stories to beads
 
 history/learnings/
   critical-patterns.md        <- promoted critical learnings
@@ -228,8 +254,8 @@ Each skill reads upstream artifacts and writes downstream artifacts:
 |---|---|---|
 | exploring | user conversation | `history/<feature>/CONTEXT.md` |
 | gkg | codebase structure, definitions, references | planning-ready discovery findings |
-| planning | `CONTEXT.md`, relevant learnings, optional `pulse:gkg` findings | `discovery.md`, `approach.md`, canonical bead files |
-| validating | beads, `approach.md`, `CONTEXT.md` | validated beads, `.spikes/` results |
+| planning | `CONTEXT.md`, relevant learnings, optional `pulse:gkg` findings | `discovery.md`, `approach.md`, `phase-contract.md`, `story-map.md`, canonical bead files |
+| validating | phase-contract.md, story-map.md, .beads/*, approach.md, CONTEXT.md | validated phase, `.spikes/` results |
 | swarming | validated beads, `tooling-status.json`, `STATE.md` | coordinator mail state, coordinator handoff, updated `STATE.md` |
 | executing | bead file, `STATE.md`, `CONTEXT.md` | implementation commits, `.pulse/verification/` evidence, `br close`, worker handoff if needed |
 | reviewing | diff, `CONTEXT.md`, `approach.md` | review beads, artifact verification results, UAT outcome |
