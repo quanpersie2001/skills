@@ -26,6 +26,13 @@ Load when the user presents a feature request, asks to build or change something
 requirements are fuzzy enough that downstream agents would need to make implementation assumptions.
 Skip for one-line fixes where all decisions are self-evident.
 
+## Config Check
+
+If `.pulse/config.json` contains `"skip_exploring": true`, this skill should be skipped in the pipeline. However:
+- Still require CONTEXT.md to exist before planning proceeds
+- If no CONTEXT.md exists and exploring is skipped, warn the user that planning will proceed without locked decisions
+- Quick mode already bypasses exploring — this config is for standard/deep features where the user has pre-written CONTEXT.md
+
 ---
 
 ## Process

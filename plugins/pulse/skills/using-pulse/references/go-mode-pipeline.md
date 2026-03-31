@@ -1,7 +1,7 @@
-# Go Mode Pipeline
+# Go Mode Pipeline — Step-by-Step Reference
 
-Load this file when running Pulse end-to-end.
-
+> Load this when running Pulse end-to-end. Contains the detailed sequence, gate conditions, fallback paths, and config options.
+>
 > Source patterns: CE `/lfg` + `/slfg`, GSD phase loop with plan-checker and verifier, Pulse architecture v2.
 
 ## Overview
@@ -72,7 +72,7 @@ Read `.pulse/tooling-status.json` after preflight:
 
 ---
 
-## Step 0: Preflight
+## Step 0: Preflight + Bootstrap
 
 Run `pulse:preflight`.
 
@@ -84,48 +84,66 @@ Outputs:
 
 Do not enter the rest of Go mode until preflight returns `PASS` or `DEGRADED`.
 
+After preflight passes, bootstrap the pipeline:
+
+1. Run State Bootstrap from `pulse:using-pulse` (check `.pulse/`, read `critical-patterns.md`).
+2. Determine feature slug from the user's description (lowercase-hyphenated, e.g. `agent-email-inbox`).
+3. Create `history/<feature>/` if it does not exist.
+4. Write `.pulse/STATE.md`:
+   ```text
+   focus: <feature>
+   phase: go-mode/exploring
+   pipeline: go
+   last_updated: <timestamp>
+   ```
+
 ---
 
 ## Step 1: Exploring
 
-Invoke `pulse:exploring`.
+**Invoke:** Load `pulse:exploring` skill.
 
-Output:
+**Input:** User's feature description.
 
-- `history/<feature>/CONTEXT.md`
+**The pulse:exploring skill will:**
 
-Update state:
+- Classify domain (SEE / CALL / RUN / READ / ORGANIZE)
+- Identify gray areas via Socratic Q&A
+- Lock decisions with stable IDs (D1, D2, ...)
+- Write `history/<feature>/CONTEXT.md`
+- Self-review `CONTEXT.md`
 
-```text
-phase: go-mode/gate-1
-```
+**Update STATE.md:** `phase: go-mode/gate-1`
 
 ---
 
 ## Gate 1: Approve CONTEXT.md
 
-Hard stop. Do not proceed until the user approves the locked decisions.
+```text
+HARD-GATE: Do not proceed until user explicitly approves.
 
 Present:
+  "Exploration complete for [feature].
+   [N] decisions locked in history/<feature>/CONTEXT.md.
+   [M] open questions noted.
 
-- feature name
-- number of locked decisions
-- up to 5 key decisions
-- any unresolved questions
+   Key decisions:
+   - D1: [summary]
+   - D2: [summary]
+   ... (max 5, then 'see CONTEXT.md for full list')
 
-If approved -> continue to planning.
-If not -> loop back to exploring.
+   Approve decisions and proceed to planning? (yes / revise / show full CONTEXT.md)"
+```
+
+If user says `revise`, loop back to exploring. If user says `yes`, proceed to Step 2.
 
 ---
 
 ## Step 2: Planning (Whole Feature)
 
-Invoke `pulse:planning`.
+**Invoke:** Load `pulse:planning` skill.
 
-Inputs:
-
-- `history/<feature>/CONTEXT.md`
-- `history/learnings/critical-patterns.md` if present
+**Input:** `history/<feature>/CONTEXT.md`, `history/learnings/critical-patterns.md`.
 
 **The first planning pass will:**
 
@@ -137,39 +155,36 @@ Inputs:
 
 **Important:** this step does **not** create beads yet.
 
-Update state:
-
-```text
-phase: go-mode/gate-2
-```
+**Update STATE.md:** `phase: go-mode/gate-2`
 
 ---
 
 ## Gate 2: Approve phase-plan.md
 
-Hard stop. Do not proceed until the user approves the phase/story shape.
+```text
+HARD-GATE: Do not proceed until user explicitly approves.
 
 Present:
+  "Planning complete for [feature].
+   Proposed phases:
+   - Phase 1: [name] -> [real-world outcome]
+   - Phase 2: [name] -> [real-world outcome]
+   - Phase 3: [name] -> [real-world outcome]
 
-- feature name
-- proposed phases with real-world outcomes
-- stories inside each phase
-- which phase will be prepared first
+   Stories inside each phase are documented in history/<feature>/phase-plan.md.
 
-If approved -> continue to current-phase preparation.
-If not -> return to the planning pass that owns `phase-plan.md`.
+   Approve this phase/story breakdown before current-phase preparation? (yes / revise / show full phase-plan.md)"
+```
+
+If user says `revise`, return to the planning pass that owns `phase-plan.md`. If user says `yes`, proceed to Step 3.
 
 ---
 
 ## Step 3: Planning (Current Phase Prep)
 
-Invoke `pulse:planning` again in current-phase preparation mode.
+**Invoke:** Load `pulse:planning` again in current-phase preparation mode.
 
-Inputs:
-
-- approved `phase-plan.md`
-- `approach.md`
-- `CONTEXT.md`
+**Input:** approved `phase-plan.md`, `approach.md`, `CONTEXT.md`.
 
 **The second planning pass will:**
 
@@ -190,61 +205,50 @@ Important planning contract:
 - planners do not create spike beads
 - planners embed relevant learnings into bead descriptions
 
-Update state:
-
-```text
-phase: go-mode/validating
-```
+**Update STATE.md:** `phase: go-mode/validating`
 
 ---
 
 ## Step 4: Validating (Current Phase)
 
-Invoke `pulse:validating`.
+**Invoke:** Load `pulse:validating` skill.
 
-Inputs:
+**Input:** current phase beads, `phase-plan.md`, current phase contract/story map, `approach.md`, `CONTEXT.md`.
 
-- current phase beads
-- `phase-plan.md`
-- current phase contract/story map
-- `approach.md`
-- `CONTEXT.md`
+**The pulse:validating skill will:**
 
-Validating responsibilities:
-
-- run the plan-checker loop (<=3 iterations, 8 dimensions)
-- confirm bead schema and graph health
-- materialize spike beads from `spike_question`
-- execute spikes
-- embed spike findings back into the affected beads
+- Phase 0: orient on the current phase and confirm the phase plan was approved
+- Phase 1: plan-checker loop (<=3 iterations, 8 dimensions)
+- Phase 2: spike execution for current-phase HIGH-risk items
+- Phase 3: bead polishing (`bv --robot-suggest`, `--robot-insights`, `--robot-priority`)
+- Phase 4: current-phase exit-state readiness review
 
 If a spike returns `NO`, stop and go back to planning.
 
 If execution or debugging reveals that the issue is no longer a local bug but an architectural mismatch, pause the pipeline and send the work back to `pulse:planning` or `pulse:validating` before continuing.
 
-Update state:
-
-```text
-phase: go-mode/gate-3
-```
+**Update STATE.md:** `phase: go-mode/gate-3`
 
 ---
 
 ## Gate 3: Approve Current-Phase Execution
 
-Hard stop. This is the most critical gate.
+```text
+HARD-GATE: This is the most critical gate. Do not proceed until user explicitly approves.
 
 Present:
+  "Validation complete for [feature], Phase <n>.
+   [N] beads ready for current-phase execution.
+   Risk: [X] HIGH items -> spikes: [all passed / N failed]
 
-- current phase name and number
-- bead count
-- HIGH-risk items
-- spike results
-- unresolved concerns, if any
-- execution mode: `swarm` or `single-worker`
+   Any unresolved concerns: [list or 'none']
 
-If approved -> continue.
-If not -> loop back to planning or validating as needed.
+   Execution mode: [swarm / single-worker] (from .pulse/tooling-status.json)
+
+   Current phase verified. Approve execution? (yes / review beads / no - revise plan)"
+```
+
+If user says `no` or `revise`, return to planning or validating. If user says `yes`, proceed to Step 5.
 
 ---
 
@@ -252,7 +256,7 @@ If not -> loop back to planning or validating as needed.
 
 Use `pulse:swarming` if preflight recommends `swarm`, otherwise invoke `pulse:executing` directly.
 
-**The swarming skill will:**
+**The pulse:swarming skill will:**
 
 - initialize the coordination runtime
 - spawn workers for the current phase bead set
@@ -266,46 +270,49 @@ After current-phase execution completes:
 - if `phase-plan.md` shows later phases still pending -> return to Step 3 for the next phase
 - if the current phase was the final phase -> proceed to Step 6
 
-Update state: either `phase: go-mode/planning-next-phase` or `phase: go-mode/reviewing`
+**Update STATE.md:** either `phase: go-mode/planning-next-phase` or `phase: go-mode/reviewing`
 
 ---
 
 ## Step 6: Reviewing
 
-Invoke `pulse:reviewing` only after the final phase swarm completes.
+**Invoke:** Load `pulse:reviewing` skill only after the final phase swarm completes.
 
-Review model:
+**The pulse:reviewing skill will:**
 
-- agents 1-4 are specialist reviewers
-- agent 5 is the final synthesizer and always runs last
-- review remains mandatory in both normal and quick mode
+- dispatch 5 specialist review agents (agents 1-4 are specialists, agent 5 is the final synthesizer and always runs last)
+- run 3-level artifact verification
+- run human UAT
+- run final finishing tasks
 
-Outputs:
+Review remains mandatory in both normal and quick mode.
 
-- review beads
-- artifact verification result
-- UAT result
-
-Update state:
-
-```text
-phase: go-mode/gate-4
-```
+**Update STATE.md:** `phase: go-mode/gate-4`
 
 ---
 
 ## Gate 4: Approve Merge
 
-Hard stop. Never auto-merge.
+```text
+HARD-GATE: Never auto-merge.
 
 Present:
+  "Review complete for [feature].
+   P1 (blocks merge): [count] - [titles if any]
+   P2 (should fix):   [count]
+   P3 (nice to have): [count]"
 
-- P1 count
-- P2 count
-- P3 count
-- any open UAT failures
+IF P1 > 0:
+  "P1 findings block merge. Options:
+   (a) Fix P1s now
+   (b) Show P1 details
+   (c) Override (requires explicit user confirmation)"
 
-If P1 exists, merge is blocked until the user chooses a fix path.
+IF P1 = 0:
+  "No blocking findings.
+   Ready to [create PR / merge to main / keep branch].
+   Approve? (yes / show P2s first / no)"
+```
 
 If fix beads are created, execute them and re-run reviewing before presenting Gate 4 again.
 
@@ -313,7 +320,25 @@ If fix beads are created, execute them and re-run reviewing before presenting Ga
 
 ## Step 7: Compounding
 
-Invoke `pulse:compounding`.
+**Invoke:** Load `pulse:compounding` skill.
+
+**Input:** full feature history (`CONTEXT.md`, `approach.md`, `phase-plan.md`, review findings, execution notes).
+
+**The pulse:compounding skill will:**
+
+- dispatch 3 analysis subagents: patterns / decisions / failures
+- write `history/learnings/YYYYMMDD-<feature>.md`
+- promote critical items to `history/learnings/critical-patterns.md`
+- optionally index via CASS
+
+**Final update STATE.md:**
+
+```text
+focus: (none)
+phase: idle
+last_feature: <feature>
+last_updated: <timestamp>
+```
 
 Output:
 
@@ -399,11 +424,39 @@ When resuming:
 
 ---
 
+## Config Options (.pulse/config.json)
+
+Absent = enabled. Only set to disable.
+
+```json
+{
+  "go_mode": {
+    "skip_exploring": false,
+    "skip_compounding": false,
+    "auto_approve_gates": false,
+    "spike_on_medium_risk": false
+  },
+  "validating": {
+    "plan_checker_max_iterations": 3,
+    "bead_polish_rounds": 3
+  },
+  "reviewing": {
+    "parallel_agents": true,
+    "serial_threshold": 6
+  }
+}
+```
+
+---
+
 ## Quick Mode Pipeline (Reference)
 
 For small fixes (<=3 files, LOW risk, no gray areas):
 
 ```text
+preflight
+  -> verify tooling, write STATE.md
+  |
 planning (lightweight)
   -> one-phase plan
   -> approval gate

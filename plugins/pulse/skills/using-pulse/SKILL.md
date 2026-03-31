@@ -86,16 +86,55 @@ When in doubt, start with `pulse:exploring`.
 
 ## Communication Contract
 
-Every Pulse skill should communicate in practical, scenario-first language. This applies to planning summaries, validation reports, reviewing findings, gate presentations, and handoffs.
+This is the default way models should communicate anywhere inside the Pulse workflow unless a narrower skill requires something stricter.
 
-When explaining a decision, finding, or phase:
+### The default tone
 
-- start with what becomes true or what is wrong
-- describe the current system behavior
-- explain why that matters using a concrete example
-- name the action needed next
+- practical first, abstract second
+- scenario-first, not jargon-first
+- explain what happens in real life or in the real system before naming the technical property
+- translate decision IDs, invariants, and architecture terms into plain language
+- prefer "here is what the code does today" over "here is the category of bug"
 
-Do not rely on jargon, internal labels, or reviewer shorthand without first translating them into plain language. If a busy teammate could not understand the output in one read, rewrite it.
+### What a good response sounds like
+
+When presenting a plan, finding, blocker, or handoff, the model should usually answer in this order:
+
+1. **Plain-language summary** -- what is happening or what is proposed
+2. **Current behavior or current state** -- what the system does today
+3. **Why it matters** -- what requirement, decision, or goal this affects
+4. **Concrete scenario** -- one realistic example with values, timestamps, requests, user actions, or ordering
+5. **Next step** -- the smallest credible fix, revision, or decision needed
+
+### What to avoid
+
+- terse shorthand like "violates D5", "non-monotonic", "race condition", "coverage gap", or "architecture concern" without immediate explanation
+- summaries that assume the reader remembers the diff or the planning session
+- abstract labels with no example of what would actually happen
+- explanations that begin with terminology and only later reveal the user-visible problem
+
+### Translation rule
+
+If you use technical language, immediately translate it.
+
+Examples:
+
+- Instead of: `This write is non-monotonic.`
+  Say: `An older update can overwrite a newer timestamp, so the system can think the user was last active earlier than they really were.`
+
+- Instead of: `Violates D5.`
+  Say: `Decision D5 says the fallback should use the most recent inbound user message time. Right now the code uses webhook ingest time instead, which can drift from the real message time.`
+
+### Scope
+
+Apply this tone to:
+
+- planning summaries and story explanations
+- validating failures and approval summaries
+- reviewing findings and gate presentations
+- swarming blocker reports and handoffs
+
+If a skill gives a structured format, keep the structure but make the content follow this tone.
 
 ## State Bootstrap
 
@@ -215,7 +254,7 @@ Quick mode never skips review entirely. It only reduces depth.
 3. `CONTEXT.md` is the source of truth for product and architectural decisions.
 4. Planning owns `critical-patterns.md` ingestion and must embed relevant learnings into beads. Workers execute from bead context first.
 5. Planning defines `spike_question` for every HIGH-risk item. Validating owns spike bead creation and spike execution.
-6. GATE 2 is the most critical gate. Execution is irreversible. If there is any doubt about the plan's soundness, do not approve. Loop back to validating.
+6. GATE 3 is the most critical gate. Execution is irreversible. If there is any doubt about the plan's soundness, do not approve. Loop back to validating.
 7. Spike failures halt the pipeline. A failed spike means the approach is broken. Do not proceed to swarming; return to planning.
 8. Preflight decides whether execution goes through `swarming` or directly through `executing`.
 9. Never skip validating. Not for "obvious" plans, not for small changes.
@@ -232,6 +271,7 @@ Pause and surface these immediately:
 - a worker ignores bead verification criteria or bead file scope
 - review is skipped because the change "looks small"
 - debugging keeps patching after repeated failed fixes instead of handing the work back for re-planning or re-validation
+- `manifest.json` lists an active handoff but the referenced owner file is missing, or an owner file exists without a matching manifest entry
 
 ## File Quick Reference
 

@@ -37,6 +37,10 @@ Pulse uses five review roles:
 - agents 1-4 are specialist reviewers
 - agent 5 is the learnings synthesizer and always runs last
 
+### Design Note: 4+1 Architecture
+
+Pulse separates the learnings synthesizer (agent 5) from specialist review (agents 1-4) because the synthesizer needs to see all 4 specialist outputs to identify cross-cutting patterns. Running a combined 5th specialist in parallel would duplicate observations already covered by the other 4. Agent 5 runs after the specialists complete, not truly in parallel with them.
+
 ### Dispatch semantics
 
 - default: agents 1-4 in parallel, then agent 5
