@@ -1,7 +1,8 @@
-# Story Map: <Phase Name>
+# Story Map: Phase <N> - <Phase Name>
 
 **Date**: <YYYY-MM-DD>
-**Phase Contract**: `history/<feature>/phase-contract.md`
+**Phase Plan**: `history/<feature>/phase-plan.md`
+**Phase Contract**: `history/<feature>/phase-<n>-contract.md`
 **Approach Reference**: `history/<feature>/approach.md`
 
 ---
@@ -16,8 +17,7 @@ flowchart LR
     S3 --> X[Exit State]
 ```
 
-Replace the placeholder story nodes with the actual story names. If multiple
-stories can run in parallel, show that explicitly:
+Replace the placeholder story nodes with the actual story names. If multiple stories can run in parallel, show that explicitly:
 
 ```mermaid
 flowchart LR
@@ -32,11 +32,11 @@ flowchart LR
 
 ## 2. Story Table
 
-| Story | Purpose | Why Now | Contributes To | Creates | Unlocks | Done Looks Like |
-|-------|---------|---------|----------------|---------|---------|-----------------|
-| Story 1: `<name>` | `<purpose>` | `<why first>` | `<phase exit-state item>` | `<artifacts/capability>` | `<next story>` | `<observable proof>` |
-| Story 2: `<name>` | `<purpose>` | `<why next>` | `<phase exit-state item>` | `<artifacts/capability>` | `<next story>` | `<observable proof>` |
-| Story 3: `<name>` | `<purpose>` | `<why last>` | `<phase exit-state item>` | `<artifacts/capability>` | `<what comes after phase>` | `<observable proof>` |
+| Story | What Happens In This Story | Why Now | Contributes To | Creates | Unlocks | Done Looks Like |
+|-------|-----------------------------|---------|----------------|---------|---------|-----------------|
+| Story 1: `<name>` | `<practical outcome>` | `<why first>` | `<phase exit-state item>` | `<artifact or capability>` | `<next story>` | `<observable proof>` |
+| Story 2: `<name>` | `<practical outcome>` | `<why next>` | `<phase exit-state item>` | `<artifact or capability>` | `<next story>` | `<observable proof>` |
+| Story 3: `<name>` | `<practical outcome>` | `<why last>` | `<phase exit-state item>` | `<artifact or capability>` | `<what comes after phase>` | `<observable proof>` |
 
 ---
 
@@ -44,7 +44,7 @@ flowchart LR
 
 ### Story 1: <Name>
 
-- **Purpose**: `<what this story makes true>`
+- **What Happens In This Story**: `<what becomes true after this story>`
 - **Why Now**: `<why it belongs before the next story>`
 - **Contributes To**: `<which exit-state statement this story advances>`
 - **Creates**: `<code, contract, data, capability>`
@@ -56,7 +56,7 @@ flowchart LR
 
 ### Story 2: <Name>
 
-- **Purpose**: `<what this story makes true>`
+- **What Happens In This Story**: `<what becomes true after this story>`
 - **Why Now**: `<why it belongs here>`
 - **Contributes To**: `<which exit-state statement this story advances>`
 - **Creates**: `<code, contract, data, capability>`
@@ -68,7 +68,7 @@ flowchart LR
 
 ### Story 3: <Name>
 
-- **Purpose**: `<what this story makes true>`
+- **What Happens In This Story**: `<what becomes true after this story>`
 - **Why Now**: `<why it closes the phase>`
 - **Contributes To**: `<which exit-state statement this story advances>`
 - **Creates**: `<code, contract, data, capability>`
@@ -78,27 +78,25 @@ flowchart LR
   - `<bead theme 1>`
   - `<bead theme 2>`
 
-Remove any unused story sections and keep only the stories the phase actually
-needs.
+Remove any unused story sections and keep only the stories the phase actually needs.
 
 ---
 
-## 4. Closure Check
+## 4. Story Order Check
 
-> If every story reaches its "Done Looks Like" line, should the phase exit state
-> be true?
+> If a human reads only this file, the first question they should not need to ask is "why is Story 1 first?"
 
-- [ ] Yes — the story set fully closes the phase loop
-- [ ] No — missing story or exit-state coverage remains
+- [ ] Story 1 is obviously first
+- [ ] Every later story builds on or de-risks an earlier story
+- [ ] If every story reaches "Done Looks Like", the phase exit state should be true
 
-If "No", revise the map before creating beads.
+If any box is unchecked, revise the map before creating beads.
 
 ---
 
 ## 5. Story-To-Bead Mapping
 
-> Fill this in after bead creation so downstream validation and swarming can see
-> how the narrative maps to executable work.
+> Fill this in after bead creation so validating and swarming can see how the narrative maps to executable work.
 
 | Story | Beads | Notes |
 |-------|-------|-------|

@@ -1,8 +1,8 @@
-# Phase Contract: <Phase Name>
+# Phase Contract: Phase <N> - <Phase Name>
 
 **Date**: <YYYY-MM-DD>
-**Phase Slug**: <phase-slug>
-**Whole Plan Reference**: `<optional path or summary>`
+**Feature**: <feature-slug>
+**Phase Plan Reference**: `history/<feature>/phase-plan.md`
 **Based on**:
 - `history/<feature>/CONTEXT.md`
 - `history/<feature>/discovery.md`
@@ -10,27 +10,18 @@
 
 ---
 
-## 1. Why This Phase Exists
+## 1. What This Phase Changes
 
-> Explain in plain language why this phase is the next small loop to close.
+> Explain the phase in practical terms first. Someone should be able to picture what is different after this lands.
 
-`<2-4 sentences on why this phase matters now, not later.>`
+`<2-4 sentences describing the real-world/system change this phase delivers.>`
 
 ---
 
-## 2. Whole Plan Fit
+## 2. Why This Phase Exists Now
 
-### What Comes Before
-
-- `<prior capability or assumption already in place>`
-
-### What This Phase Contributes
-
-- `<specific capability this phase adds to the larger plan>`
-
-### What It Unlocks Next
-
-- `<next phase or capability that becomes possible>`
+- `<why this phase is first or why it follows the previous one>`
+- `<what would be blocked or riskier if this phase were skipped>`
 
 ---
 
@@ -56,9 +47,9 @@
 
 ---
 
-## 5. Demo Story
+## 5. Demo Walkthrough
 
-> The simplest walkthrough that proves the phase is real.
+> The simplest walkthrough that proves this phase is real.
 
 `<In one short paragraph: "A user can now..." or "The system can now...">`
 
@@ -70,16 +61,15 @@
 
 ---
 
-## 6. Story Outline
+## 6. Story Sequence At A Glance
 
-> Stories are the internal narrative slices inside the phase. They explain why
-> the work order makes sense before beads are created.
+> Stories explain why the internal order of this phase makes sense before beads are created.
 
-| Story | Purpose | Why Now | Unlocks | Done Looks Like |
-|-------|---------|---------|---------|-----------------|
-| Story 1: `<name>` | `<purpose>` | `<why first>` | `<what it unlocks>` | `<observable done>` |
-| Story 2: `<name>` | `<purpose>` | `<why next>` | `<what it unlocks>` | `<observable done>` |
-| Story 3: `<name>` | `<purpose>` | `<why last>` | `<what it unlocks>` | `<observable done>` |
+| Story | What Happens | Why Now | Unlocks Next | Done Looks Like |
+|-------|--------------|---------|--------------|-----------------|
+| Story 1: `<name>` | `<practical outcome>` | `<why first>` | `<what it unlocks>` | `<observable done>` |
+| Story 2: `<name>` | `<practical outcome>` | `<why next>` | `<what it unlocks>` | `<observable done>` |
+| Story 3: `<name>` | `<practical outcome>` | `<why last>` | `<what it unlocks>` | `<observable done>` |
 
 ---
 
@@ -93,28 +83,27 @@ flowchart LR
     S3 --> B[Exit State]
 ```
 
-If the phase has fewer than 3 stories, remove the unused nodes and keep the
-diagram aligned to the actual sequence.
+If the phase has fewer than 3 stories, remove the unused nodes and keep the diagram aligned to the actual sequence.
 
 ---
 
 ## 8. Out Of Scope
 
-- `<thing intentionally not solved here>`
-- `<adjacent idea deferred to later>`
+- `<thing intentionally not solved in this phase>`
+- `<adjacent idea deferred to a later phase>`
 
 ---
 
 ## 9. Success Signals
 
 - `<how we know this phase genuinely worked>`
-- `<what reviewers/UAT should specifically confirm>`
+- `<what reviewers or UAT should specifically confirm>`
 
 ---
 
 ## 10. Failure / Pivot Signals
 
-> If any of these happen, do not blindly continue the whole plan.
+> If any of these happen, do not blindly continue to later phases.
 
 - `<signal that means the phase design is wrong>`
 - `<signal that means the current approach should pivot>`

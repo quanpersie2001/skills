@@ -1,6 +1,6 @@
 ---
 name: pulse:using-pulse
-description: Bootstrap meta-skill for the Pulse agentic development ecosystem. Load after pulse:preflight on any Pulse project. Lists the Pulse skills with routing logic, full go-mode flow with 3 human gates, lightweight quick mode, priority rules, resume handling, and shared state contracts.
+description: Bootstrap meta-skill for the Pulse agentic development ecosystem. Load after pulse:preflight on any Pulse project. Lists the Pulse skills with routing logic, full go-mode flow with 4 human gates, lightweight quick mode, priority rules, resume handling, and shared state contracts.
 metadata:
   version: '2.1'
   ecosystem: pulse
@@ -54,8 +54,8 @@ If onboarding is not complete, do not continue into the rest of the Pulse workfl
 | 0 | `pulse:preflight` | Validate tooling and choose runtime mode | Starting, resuming, or before any execution-capable flow |
 | 1 | `pulse:using-pulse` | This file. Routing, go mode, priority rules, resume contract | After preflight on any Pulse session |
 | 2 | `pulse:exploring` | Identify gray areas, lock decisions, write `CONTEXT.md` | Feature request is vague, new, or has unresolved intent |
-| 3 | `pulse:planning` | Research, synthesize, and decompose into executable beads | Decisions are locked and we need a concrete plan |
-| 4 | `pulse:validating` | Verify phase contract, story map, and bead graph before execution | Stories and beads exist; need to prove the phase is actually execution-ready |
+| 3 | `pulse:planning` | Research + synthesis → `phase-plan.md`, then current-phase contract/story map + beads | Decisions are locked and we need the full phase/story breakdown and current-phase preparation |
+| 4 | `pulse:validating` | Verify the current phase contract, story map, and bead graph before execution | The phase plan is approved and the current phase has stories and beads; need to prove the current phase is actually execution-ready |
 | 5 | `pulse:swarming` | Launch and tend a worker pool for swarm execution | Preflight recommends `swarm` and execution is approved |
 | 6 | `pulse:executing` | Implement beads in either worker mode or single-worker mode | Direct execution is happening |
 | 7 | `pulse:reviewing` | 4 specialist reviewers plus a final synthesizer, artifact verification, and UAT | Execution is complete and quality must be verified |
@@ -83,6 +83,19 @@ Given a user request, determine the first skill:
 | Resume interrupted work | Resume Logic | Read the handoff manifest first |
 
 When in doubt, start with `pulse:exploring`.
+
+## Communication Contract
+
+Every Pulse skill should communicate in practical, scenario-first language. This applies to planning summaries, validation reports, reviewing findings, gate presentations, and handoffs.
+
+When explaining a decision, finding, or phase:
+
+- start with what becomes true or what is wrong
+- describe the current system behavior
+- explain why that matters using a concrete example
+- name the action needed next
+
+Do not rely on jargon, internal labels, or reviewer shorthand without first translating them into plain language. If a busy teammate could not understand the output in one read, rewrite it.
 
 ## State Bootstrap
 
@@ -130,11 +143,11 @@ If the manifest contains active entries:
 
 ## Go Mode
 
-Go mode chains all skills end-to-end with exactly 3 human gates. Load `references/go-mode-pipeline.md` for the complete step-by-step sequence.
+Go mode chains all skills end-to-end with exactly 4 human gates. Load `references/go-mode-pipeline.md` for the complete step-by-step sequence.
 
 **Trigger:** User says `/go [feature]`, "run the full pipeline", or "go mode".
 
-**The 3 gates -- never skip these:**
+**The 4 gates -- never skip these:**
 
 ```
 GATE 1 (after exploring):
@@ -142,12 +155,17 @@ GATE 1 (after exploring):
   Ask: "Decisions locked. Approve CONTEXT.md before planning?"
   HARD-GATE: do not invoke planning until user approves.
 
-GATE 2 (after validating):
+GATE 2 (after whole-feature planning):
+  Present history/<feature>/phase-plan.md to user.
+  Ask: "Phase breakdown complete. Approve this shape before current-phase preparation?"
+  HARD-GATE: do not prepare the current phase or create beads until user approves.
+
+GATE 3 (after validating the current phase):
   Present: phase exit state, story count, bead count, risk summary, spike results.
-  Ask: "Phase verified. Approve execution?"
+  Ask: "Current phase verified. Approve execution?"
   HARD-GATE: do not invoke swarming until user approves.
 
-GATE 3 (after reviewing):
+GATE 4 (after reviewing):
   Present: P1 count, P2 count, P3 count.
   If P1 > 0: "P1 findings block merge. Fix before proceeding?"
   If P1 = 0: "Review complete. Approve merge?"
@@ -157,9 +175,11 @@ GATE 3 (after reviewing):
 **Go mode sequence:**
 ```
 preflight -> using-pulse -> exploring -> [GATE 1]
--> planning -> validating -> [GATE 2]
+-> planning (whole feature) -> [GATE 2]
+-> planning (current phase prep) -> validating -> [GATE 3]
 -> swarming + executing xN OR executing(single-worker)
--> reviewing -> [GATE 3] -> compounding -> DONE
+   -> if later phases remain: loop back to current phase prep
+-> reviewing (after final phase) -> [GATE 4] -> compounding -> DONE
 ```
 
 The branch depends on `.pulse/tooling-status.json`:
@@ -234,8 +254,9 @@ history/<feature>/
   CONTEXT.md                  <- locked decisions from exploring
   discovery.md                <- research findings from planning
   approach.md                 <- synthesis, risk map, spike questions
-  phase-contract.md           <- entry state, exit state, demo, unlocks, pivot signals
-  story-map.md                <- story sequence inside the phase; maps stories to beads
+  phase-plan.md               <- whole feature phase breakdown (approved before current-phase prep)
+  phase-<n>-contract.md       <- current phase entry state, exit state, demo, unlocks, pivot signals
+  phase-<n>-story-map.md      <- story sequence inside the current phase; maps stories to beads
 
 history/learnings/
   critical-patterns.md        <- promoted critical learnings
@@ -254,8 +275,8 @@ Each skill reads upstream artifacts and writes downstream artifacts:
 |---|---|---|
 | exploring | user conversation | `history/<feature>/CONTEXT.md` |
 | gkg | codebase structure, definitions, references | planning-ready discovery findings |
-| planning | `CONTEXT.md`, relevant learnings, optional `pulse:gkg` findings | `discovery.md`, `approach.md`, `phase-contract.md`, `story-map.md`, canonical bead files |
-| validating | phase-contract.md, story-map.md, .beads/*, approach.md, CONTEXT.md | validated phase, `.spikes/` results |
+| planning | `CONTEXT.md`, relevant learnings, optional `pulse:gkg` findings | `discovery.md`, `approach.md`, `phase-plan.md`, `phase-<n>-contract.md`, `phase-<n>-story-map.md`, canonical bead files |
+| validating | phase-plan.md, phase-<n>-contract.md, phase-<n>-story-map.md, .beads/*, approach.md, CONTEXT.md | validated current phase, `.spikes/` results |
 | swarming | validated beads, `tooling-status.json`, `STATE.md` | coordinator mail state, coordinator handoff, updated `STATE.md` |
 | executing | bead file, `STATE.md`, `CONTEXT.md` | implementation commits, `.pulse/verification/` evidence, `br close`, worker handoff if needed |
 | reviewing | diff, `CONTEXT.md`, `approach.md` | review beads, artifact verification results, UAT outcome |

@@ -1,6 +1,6 @@
 ---
 name: pulse:reviewing
-description: Post-execution quality gate for the Pulse ecosystem. Use after execution completes. Runs 4 specialist reviewers plus a final learnings synthesizer, then performs artifact verification, human UAT, and finishing. Converts findings into review beads and keeps P1 findings blocking.
+description: Post-execution quality verification for the Pulse ecosystem. Invoke after the final phase swarm completes. Runs 5 parallel specialist review agents, 3-level artifact verification, human UAT, and finishing (PR, cleanup, epic close). Review issues become beads instead of per-finding markdown files; P1 still blocks merge while P2/P3 become non-blocking follow-up beads. Absorbs finishing responsibilities and hands off to compounding.
 metadata:
   version: '1.1'
   ecosystem: pulse
@@ -9,6 +9,17 @@ metadata:
 # Reviewing
 
 Reviewing is the final automated gate before merge.
+
+## Communication Standard
+
+Reviewing is where terse technical shorthand is most dangerous. The default tone here is:
+
+- explain the bug in plain language first
+- then show the evidence
+- then give one concrete failure scenario
+- then give the smallest credible fix direction
+
+If a finding makes sense only to someone who already read the diff carefully, it is not written well enough yet.
 
 ## Inputs
 
@@ -48,7 +59,7 @@ Use `references/review-agent-prompts.md`.
 
 ### Review bead rules
 
-Each distinct issue becomes a review bead.
+Each distinct issue becomes a review bead. The full review write-up lives in the bead body itself: plain-language summary, current behavior, why it matters, concrete failure scenario, evidence, proposed solutions, and acceptance criteria.
 
 - `P1` -> blocking bead on the current merge path
 - `P2` -> non-blocking follow-up bead
@@ -135,6 +146,13 @@ Before handoff to compounding:
 3. present merge options to the user
 4. close the epic only when the current path is actually complete
 5. archive state as needed
+
+When presenting serious findings to the user, do not stop at terse reviewer shorthand. Translate the finding into:
+
+- what the code does today
+- why that breaks the intended behavior
+- one concrete scenario showing the failure
+- the smallest credible fix direction
 
 ## Quick Mode
 

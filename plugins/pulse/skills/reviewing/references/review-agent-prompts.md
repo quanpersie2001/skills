@@ -20,6 +20,13 @@ Use P1 only for genuine blockers.
 If you find nothing in your area, say so explicitly.
 If the evidence for a concern is missing or only implied, say that explicitly instead of guessing.
 If a verification artifact appears in the diff you were given, inspect it directly. Otherwise, say that artifact verification belongs to the separate artifact-verification phase instead of guessing.
+
+CRITICAL RULES:
+- Do not flag pipeline artifacts (history/, .pulse/) for deletion.
+- Do not stop at shorthand like "X violates D5" or "this is non-monotonic." Explain what the code is doing now in plain language.
+- Every serious finding must explain the bug the way you would explain it to a teammate who did not read the diff.
+- Include one concrete scenario with real values, timestamps, requests, or user actions whenever that makes the risk easier to picture.
+- If you cite a decision ID, explain what that decision means in practice instead of assuming the reader remembers it.
 ```
 
 ## Agent 1: code-quality
@@ -33,6 +40,14 @@ Look for:
 - missing error handling
 - unsafe typing
 - violations of locked decisions in CONTEXT.md
+
+OUTPUT FORMAT:
+- In each finding body, prefer this order:
+  1. plain-language summary of the issue
+  2. what the code does today
+  3. why that conflicts with the requirement or decision
+  4. one concrete scenario that shows the failure
+  5. smallest credible fix direction
 ```
 
 ## Agent 2: architecture
@@ -46,6 +61,10 @@ Look for:
 - broken boundaries
 - public API drift
 - architectural violations of approach.md
+
+OUTPUT FORMAT:
+- Explain architecture problems as behavior problems first, architecture problems second.
+- If the risk is abstract, force it into a concrete "here is what would happen" scenario.
 ```
 
 ## Agent 3: security
@@ -54,6 +73,9 @@ Look for:
 Focus on authentication, authorization, injection risk, secret handling, data exposure, and security misconfiguration.
 
 Escalate to P1 only when there is a credible exploit path or production-breaking security issue.
+
+OUTPUT FORMAT:
+- For P1 findings, make the attack path concrete enough that a non-security specialist can picture the exploit.
 ```
 
 ## Agent 4: test-coverage
@@ -68,6 +90,9 @@ Look for:
 - missing integration coverage for new user flows or endpoints
 - missing or unverified proof that the new behavior was actually exercised
 - missing or vague verification artifacts that are present in the diff, or signs that the diff claims verification without showing proof
+
+OUTPUT FORMAT:
+- If a missing test matters because of a realistic failure mode, describe that failure mode directly instead of only naming the uncovered branch.
 ```
 
 ## Agent 5: learnings-synthesizer

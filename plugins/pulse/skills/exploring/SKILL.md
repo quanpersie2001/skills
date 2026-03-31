@@ -199,7 +199,7 @@ After CONTEXT.md passes review:
 2. Present to user:
    > "Decisions captured. CONTEXT.md written to `history/<feature>/CONTEXT.md`.
    > CONTEXT.md is now the single source of truth for all downstream agents.
-   > Invoke the pulse:planning skill to research and plan."
+   > Invoke the pulse:planning skill to research the codebase, show the proposed phases and stories, and then wait for approval before current-phase preparation."
 
 <HARD-GATE>
 Do NOT invoke planning, write code, create beads, or take any implementation action.

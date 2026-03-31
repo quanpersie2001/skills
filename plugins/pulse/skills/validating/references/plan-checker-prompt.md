@@ -16,8 +16,9 @@ You receive:
 - `history/<feature>/CONTEXT.md`
 - `history/<feature>/discovery.md`
 - `history/<feature>/approach.md`
-- `history/<feature>/phase-contract.md`
-- `history/<feature>/story-map.md`
+- `history/<feature>/phase-plan.md`
+- `history/<feature>/phase-<n>-contract.md`
+- `history/<feature>/phase-<n>-story-map.md`
 
 Read all inputs in full before verifying.
 
@@ -32,15 +33,16 @@ The canonical schema includes `verification_evidence` and `testing_mode`; if `te
 Pulse plans at four levels:
 
 ```text
-Whole Plan
-  -> Phase
-    -> Stories
-      -> Beads
+Whole Feature
+  -> Phase Plan
+    -> Current Phase
+      -> Stories
+        -> Beads
 ```
 
 You are verifying the last three levels:
 
-- is the **phase** clear and worth executing?
+- is the **current phase** clear and worth executing?
 - do the **stories** explain why the internal order makes sense?
 - do the **beads** actually implement those stories without structural failure?
 
@@ -55,6 +57,7 @@ Produce a report in exactly this format:
 ```text
 PLAN VERIFICATION REPORT
 Feature: <feature name>
+Current phase: Phase <n> - <name>
 Stories reviewed: <N>
 Beads reviewed: <N>
 Date: <today>
@@ -104,9 +107,9 @@ PRIORITY FIXES (if FAIL):
 
 ## Dimension 1: Phase Contract Clarity
 
-**The question:** Is this phase defined as a clear small loop?
+**The question:** Is this current phase defined as a clear small loop?
 
-Check `phase-contract.md` for:
+Check `phase-<n>-contract.md` for:
 
 - why this phase exists now
 - entry state
@@ -116,12 +119,12 @@ Check `phase-contract.md` for:
 - out of scope
 - failure or pivot signals
 
-PASS if the phase can be explained simply and its exit state is observable.
+PASS if the current phase can be explained simply and its exit state is observable.
 
 FAIL if:
 
 - the exit state is vague or aspirational
-- the demo story does not actually prove the phase
+- the demo story does not actually prove the current phase
 - the phase sounds like a work bucket instead of a capability slice
 - the phase cannot explain why it exists now
 
@@ -131,7 +134,7 @@ FAIL if:
 
 **The question:** Do the stories tell a coherent internal build story?
 
-Check `story-map.md` for every story:
+Check `phase-<n>-story-map.md` for every story:
 
 - purpose
 - why now
@@ -145,7 +148,7 @@ PASS if:
 - each story has a clear job
 - Story 1 has an obvious reason to exist first
 - later stories clearly depend on or build on earlier stories
-- if all stories finish, the phase should close
+- if all stories finish, the current phase should close
 
 FAIL if:
 
@@ -179,7 +182,7 @@ FAIL if:
 
 Check:
 
-- story sequence in `story-map.md`
+- story sequence in `phase-<n>-story-map.md`
 - bead dependencies in `.beads/`
 - cycles
 - missing bead references
@@ -270,7 +273,7 @@ PASS if:
 
 FAIL if:
 
-- the bead graph could finish while the phase is still not demoable
+- the bead graph could finish while the current phase is still not demoable
 - the exit state depends on missing work
 - a HIGH-risk item has no spike coverage
 - the phase still feels incomplete even with all beads done
@@ -285,7 +288,7 @@ Do not fail this dimension merely because spike beads do not yet exist. Spike be
 
 Do not:
 
-- redesign the phase
+- redesign the current phase
 - praise the plan
 - suggest new product scope
 - assume hidden context

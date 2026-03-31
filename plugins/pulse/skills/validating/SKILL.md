@@ -36,6 +36,19 @@ This skill verifies all of that. It is not enough for the bead graph to look tid
 
 Skipping validating is still the fastest path to expensive rework.
 
+## Communication Standard
+
+Validation output must explain risk the way an implementer or user can picture it.
+
+When reporting a failing dimension, spike result, or approval summary:
+
+- state what the current phase is trying to make true
+- describe what is wrong in the current plan or bead set
+- explain why that would fail in a real scenario
+- name the smallest credible repair
+
+Do not stop at labels like "dependency issue", "story order problem", or "risk alignment problem" without translating them into plain language.
+
 ## Prerequisites
 
 You need all of these:
@@ -43,8 +56,9 @@ You need all of these:
 - `history/<feature>/CONTEXT.md`
 - `history/<feature>/discovery.md`
 - `history/<feature>/approach.md`
-- `history/<feature>/phase-contract.md`
-- `history/<feature>/story-map.md`
+- `history/<feature>/phase-<n>-contract.md`
+- `history/<feature>/phase-<n>-story-map.md`
+- `history/<feature>/phase-plan.md`
 - `.beads/` for this epic
 
 If any are missing, stop and return to `pulse:planning`.
@@ -93,8 +107,9 @@ Inputs:
 - history/<feature>/CONTEXT.md
 - history/<feature>/discovery.md
 - history/<feature>/approach.md
-- history/<feature>/phase-contract.md
-- history/<feature>/story-map.md
+- history/<feature>/phase-<n>-contract.md
+- history/<feature>/phase-<n>-story-map.md
+- history/<feature>/phase-plan.md
 Role: plan-checker
 ```
 
@@ -121,8 +136,8 @@ The plan-checker verifies 8 dimensions:
 
 ### Repair routing
 
-- Phase contract unclear -> revise `phase-contract.md`
-- Story order or story scope unclear -> revise `story-map.md`
+- Phase contract unclear -> revise `phase-<n>-contract.md`
+- Story order or story scope unclear -> revise `phase-<n>-story-map.md`
 - Decision/gap issue -> revise story map and/or beads
 - Dependency/scope/test issue -> revise beads
 - Exit state not convincingly reachable -> revise contract, story map, or approach
@@ -196,7 +211,7 @@ If the 30-minute time-box expires without a definitive YES or NO:
 **If YES:**
 
 - add the finding summary to the affected beads
-- update `story-map.md` if the story now has tighter constraints
+- update `phase-<n>-story-map.md` if the story now has tighter constraints
 - treat the validated constraint as locked for execution
 
 **If NO:**
@@ -255,13 +270,19 @@ Use it to catch:
 
 Fix all CRITICAL flags before moving on. MINOR flags are judgment calls but should be considered carefully.
 
+When asking a model to perform the bead-refinement pass, use this prompt:
+
+```text
+Check over each bead super carefully-- are you sure it makes sense? Is it optimal? Could we change anything to make the system work better for users? If so, revise the beads. It's a lot easier and faster to operate in "plan space" before we start implementing these things! Use /effort max.
+```
+
 ### Story-to-bead coherence check
 
-Before leaving Phase 3, inspect `history/<feature>/story-map.md`:
+Before leaving Phase 3, inspect `history/<feature>/phase-<n>-story-map.md`:
 
 - every story should map to at least one bead
 - every bead should belong to a story
-- if a story has too many beads, it may be too large
+- if a story has many beads, confirm the decomposition is still coherent and each bead has a clear reason to exist
 - if a bead spans multiple unrelated stories, the decomposition is muddy
 
 ---
@@ -279,8 +300,8 @@ Ask these questions explicitly:
 
 If any answer is "no" or "not sure", do not approve execution. Route back:
 
-- phase meaning problem -> `phase-contract.md`
-- story decomposition problem -> `story-map.md`
+- phase meaning problem -> `phase-<n>-contract.md`
+- story decomposition problem -> `phase-<n>-story-map.md`
 - implementation granularity problem -> `.beads/`
 - architecture/risk problem -> `approach.md` and maybe replanning
 
@@ -296,7 +317,9 @@ Present a structured summary:
 VALIDATION COMPLETE — APPROVAL REQUIRED BEFORE EXECUTION
 
 Phase Summary:
-- Phase: <name>
+- Phase: <Phase n — name>
+- Phase contract: history/<feature>/phase-<n>-contract.md
+- Story map: history/<feature>/phase-<n>-story-map.md
 - Stories: <N>
 - Beads: <N>
 - Demo story: <one line>

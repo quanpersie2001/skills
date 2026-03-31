@@ -1,6 +1,6 @@
 {
   "name": "pulse",
-  "version": "2.2.2",
+  "version": "2.2.4",
   "description": "Pulse: validate-first multi-agent skills for phase contracts, stories, swarming, and execution",
   "skills": [
     { "name": "pulse:using-pulse", "path": "../plugins/pulse/skills/using-pulse/SKILL.md" },

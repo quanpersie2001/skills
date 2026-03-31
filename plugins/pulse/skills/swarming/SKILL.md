@@ -1,6 +1,6 @@
 ---
 name: pulse:swarming
-description: Orchestrates parallel worker agents for Pulse feature execution. Use only when preflight recommends swarm mode and validating has approved execution. Initializes the coordinator runtime, spawns bounded workers, monitors coordination, resolves blockers, and hands off to reviewing when all beads are closed.
+description: Orchestrates parallel worker agents for phase execution. Use after the pulse:validating skill approves the current phase for execution. Initializes the coordinator runtime, spawns bounded workers, monitors coordination, resolves blockers, and hands off either to planning for the next phase or to reviewing after the final phase. The orchestrator TENDS — it never implements beads directly.
 metadata:
   version: '1.1'
   ecosystem: pulse
@@ -13,11 +13,25 @@ You are the orchestrator. You launch workers, monitor the graph, resolve coordin
 
 You do not implement beads directly.
 
+## Communication Standard
+
+Blocker reports, conflict reports, and handoffs should be written so a busy teammate can understand them in one read.
+
+Prefer:
+
+- what is blocked
+- what is happening right now
+- one concrete example of the collision or failure
+- what needs to happen next
+
+Do not hide the real issue behind labels like "reservation conflict", "startup drift", or "runtime blocker" without explaining the practical effect.
+
 ## When to Use
 
 Invoke only if all are true:
 
 - `pulse:validating` has approved execution
+- Current-phase beads are in `open` status and approved for execution
 - `.pulse/tooling-status.json` says `recommended_mode=swarm`
 - the coordination runtime is actually available
 
@@ -127,13 +141,34 @@ Every monitoring cycle, check:
 
 ## Phase 5: Swarm Complete
 
-When no beads remain in progress and the live graph shows no executable work left:
+When no current-phase beads remain in progress and the live graph shows no executable work left for this phase:
 
 1. run a final graph check
-2. confirm all swarm-created work is closed or intentionally deferred
+2. confirm all current-phase swarm-created work is closed or intentionally deferred
 3. update `.pulse/STATE.md`
 4. clear the active worker list
-5. hand off to `pulse:reviewing`
+5. inspect `history/<feature>/phase-plan.md` and `.pulse/STATE.md`
+6. determine whether more phases remain:
+
+If more phases remain:
+
+```
+Active skill: swarming -> COMPLETE
+Swarm: <EPIC_ID> - current phase complete
+Next: planning for Phase <n+1>
+```
+
+Hand off with: "Swarm execution complete for the current phase. Return to pulse:planning to prepare the next phase."
+
+If this was the final phase:
+
+```
+Active skill: swarming -> COMPLETE
+Swarm: <EPIC_ID> - final phase complete
+Next: reviewing
+```
+
+Hand off with: "Swarm execution complete for the final phase. Invoke pulse:reviewing skill."
 
 ## Red Flags
 
