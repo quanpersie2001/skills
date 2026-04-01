@@ -1,223 +1,276 @@
+<div align="center">
+
 # Pulse
 
-Pulse is a packaged skill plugin for Codex and Claude Code. It turns ambiguous requests into validated, implemented, reviewed, and compounded changes through a gated, bead-driven workflow built around `git`, `br`, `bv`, and optional coordination tooling.
+**A validate-first agentic delivery system for Claude Code and Codex**
 
-Pulse is downstream of two important upstream systems:
+[![Version](https://img.shields.io/badge/version-2.3.1-0F766E?style=flat-square)](plugins/pulse/.claude-plugin/plugin.json)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](docs/legal/terms.md)
+[![Skills](https://img.shields.io/badge/skills-18-8B5CF6?style=flat-square)](plugins/pulse/skills)
 
-- [Khuym](references/lineage/khuym.md), which provides most of the validate-first chain and Flywheel-style bead workflow
-- [Superpowers](references/lineage/superpowers.md), which contributes the strongest behavioral discipline around brainstorming, verification, debugging, and skill design
+*Stop agents from hallucinating requirements, skipping verification, and producing unauditable work.*
 
-The plugin does not copy either one verbatim. Pulse keeps the validate-first flow, but adds its own runtime bootstrap, owner-scoped handoffs, stronger bead contracts, review-intake discipline, and debugging escalation rules.
+</div>
 
-## What Ships
+---
 
-Pulse currently packages:
+## What is Pulse?
 
-- 13 Pulse ecosystem skills under [`plugins/pulse/skills/`](plugins/pulse/skills)
-- 4 standalone utility skills bundled into the same plugin
-- Codex package metadata in [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json)
-- Codex marketplace metadata in [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json)
-- Claude Code compatibility manifests in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)
+Pulse wraps AI agents in a **gated delivery chain**. Every decision is locked before planning starts. Every plan is approved before code is written. Every bead of work is verified before it's closed. Every feature is reviewed before it merges.
 
-The canonical skill source lives in [`plugins/pulse/skills/`](plugins/pulse/skills). The `.claude-plugin/marketplace.json` exposes the plugin for Claude Code installation.
+Without this structure, agents skip steps. With it, they can't.
 
-## Core Workflow
+Pulse ships as **18 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled code. No runtime to install beyond the tools you already use.
 
-Sessions start with bootstrap, then move through the delivery chain.
+---
+
+## Lineage
+
+Pulse is downstream of everal strong agentic-development systems and distills the parts that fit this repo owner's actual workflow:
+
+- **[Khuym](https://github.com/hoangnb24/skills/tree/main)**, which provides most of the validate-first chain and Flywheel-style bead workflow
+- **[Superpowers](https://github.com/obra/superpowers)**, which contributes the strongest behavioral discipline around brainstorming, verification, debugging, and skill design
+- **[Flywheel](https://agent-flywheel.com/complete-guide)** contributes the operational backbone: beads, `bv`, Agent Mail, swarm execution, and the habit of turning plans into live work graphs instead of loose TODO lists.
+- **[Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin)** contributes parallel review, severity-based findings, and the compound-learning loop that feeds future work.
+- **[GSD](https://github.com/gsd-build/get-shit-done)** contributes the philosophy: discuss first, research second, plan third, and do not execute until the plan has been verified.
+
+---
+
+## The Delivery Chain
 
 ```mermaid
-flowchart LR
-    A["pulse:preflight"] --> B["pulse:using-pulse"]
-    B --> C["pulse:exploring"]
-    C --> G1{"Gate 1<br/>Approve CONTEXT.md?"}
-    G1 -->|Approved| D["pulse:planning"]
-    G1 -->|Revise| C
-    D --> E["pulse:validating"]
-    E --> G2{"Gate 2<br/>Approve execution?"}
-    G2 -->|Swarm| F["pulse:swarming"]
-    G2 -->|Single-worker| H["pulse:executing"]
-    F --> H
-    H --> I["pulse:reviewing"]
-    I --> G3{"Gate 3<br/>P1 findings fixed?"}
-    G3 -->|Yes| J["pulse:compounding"]
-    G3 -->|No| K["pulse:debugging"]
-    K --> H
+flowchart TD
+    PF["`**pulse:preflight**
+    validate tooling`"]
+    UP["`**pulse:using-pulse**
+    route the session`"]
+    BR["`**pulse:brainstorming**
+    design spec *(optional)*`"]
+    EX["`**pulse:exploring**
+    lock decisions → CONTEXT.md`"]
+    PL["`**pulse:planning**
+    research + phase plan + beads`"]
+    VA["`**pulse:validating**
+    8-dim check + spikes`"]
+    SW["`**pulse:swarming**
+    launch N workers`"]
+    WK["`**pulse:executing**
+    implement bead-by-bead`"]
+    RV["`**pulse:reviewing**
+    4 specialists + UAT`"]
+    CP["`**pulse:compounding**
+    capture learnings`"]
+
+    PF --> UP
+    UP -->|idea unclear| BR
+    UP -->|intent clear| EX
+    BR --> EX
+
+    EX -->|"🔒 GATE 1 — approve CONTEXT.md"| PL
+    PL -->|"🔒 GATE 2 — approve phase plan"| VA
+    VA -->|"🔒 GATE 3 — approve execution (swarm)"| SW
+    VA -->|"🔒 GATE 3 — approve execution (single)"| WK
+    SW -->|spawns| WK
+    WK -->|more phases| PL
+    WK -->|final phase| RV
+    SW -->|final phase| RV
+    RV -->|"🔒 GATE 4 — approve merge"| CP
+
+    style BR stroke-dasharray:5 5
+    style SW fill:#fef3c7
+    style WK fill:#fef3c7
 ```
 
-The delivery chain itself is still:
+### The 4 Human Gates
 
-```text
-pulse:exploring → pulse:planning → pulse:validating → pulse:swarming → pulse:executing(×N) → pulse:reviewing → pulse:compounding
-```
+Every gate is a hard stop. Nothing proceeds without explicit approval.
 
-The difference is that the delivery chain is always preceded by `pulse:preflight` and `pulse:using-pulse`, and may route through `pulse:debugging` or `pulse:gkg` as support skills.
+| | Gate | Blocks what |
+|---|---|---|
+| 🔒 **Gate 1** | After exploring | Planning starts |
+| 🔒 **Gate 2** | After phase plan | Beads are created |
+| 🔒 **Gate 3** | After validating | Code is written |
+| 🔒 **Gate 4** | After reviewing | Feature merges (P1 findings block this) |
 
-## Workflow Contracts
-
-These are the core rules the plugin currently enforces:
-
-- Never execute without `pulse:validating`. GATE 2 is mandatory, including quick mode.
-- `history/<feature>/CONTEXT.md` is the source of truth for locked product and architectural decisions.
-- Runtime readiness is decided by `pulse:preflight`, which writes `.pulse/tooling-status.json` and chooses `swarm`, `single-worker`, `planning-only`, or `blocked`.
-- Pause and resume use owner-scoped handoffs under `.pulse/handoffs/`, indexed by `.pulse/handoffs/manifest.json`. Pulse no longer uses a single global `.pulse/HANDOFF.json`.
-- Beads are structured contracts, not loose tickets. The canonical schema includes `dependencies`, `files`, `verify`, `verification_evidence`, `testing_mode`, `decision_refs`, and `learning_refs`.
-- `testing_mode` supports selective TDD. Only beads marked `tdd-required` must carry explicit red/green steps.
-- `pulse:executing` must write substantive verification evidence before a bead is considered close-ready, normally under `.pulse/verification/<feature>/<bead-id>.md`.
-- `pulse:reviewing` includes specialist review, artifact verification, review intake, and human UAT. `P1` findings always block merge.
-- `pulse:debugging` contains an Architecture Suspicion Gate. If fixes stop converging, the work must go back upstream to planning or validating instead of receiving endless patch attempts.
-
-## Artifact Flow
-
-```text
-.pulse/tooling-status.json             <- pulse:preflight
-.pulse/STATE.md                        <- shared state across phases
-.pulse/handoffs/manifest.json          <- resume index
-.pulse/handoffs/*.json                 <- owner-scoped handoff files
-history/<feature>/CONTEXT.md           <- exploring
-history/<feature>/discovery.md         <- planning research
-history/<feature>/approach.md          <- planning synthesis + risk map
-.beads/                                <- planning creates, executing closes
-.spikes/                               <- validating spike artifacts
-.pulse/verification/<feature>/*.md     <- execution evidence
-history/learnings/                     <- compounding output
-```
+---
 
 ## Skill Catalog
 
-### Bootstrap and Meta
+### Core Chain
 
-| Skill | Purpose |
-|-------|---------|
-| `pulse:preflight` | Validate tool/runtime readiness, pick execution mode, and write `.pulse/tooling-status.json` |
-| `pulse:using-pulse` | Route the session, define go mode, quick mode, pause/resume rules, and shared contracts |
-| `pulse:writing-pulse-skills` | Create or improve Pulse skills with a pressure-tested skill-TDD workflow |
-
-### Delivery Chain
-
-| Skill | Purpose |
-|-------|---------|
-| `pulse:exploring` | Socratic decision extraction into `history/<feature>/CONTEXT.md` |
-| `pulse:planning` | Codebase research, approach synthesis, bead decomposition, and learning propagation |
-| `pulse:validating` | 8-dimension plan verification, spike execution, and bead polish before execution |
-| `pulse:swarming` | Coordinator-only orchestration for multi-worker execution |
-| `pulse:executing` | Worker loop with bead scope discipline, selective TDD support, and verification evidence |
-| `pulse:reviewing` | Specialist review, artifact verification, review intake, human UAT, and finishing |
-| `pulse:compounding` | Durable learning capture and propagation decisions |
+| Skill | Role |
+|-------|------|
+| `pulse:preflight` | Checks `git`, `br`, `bv`, and coordination runtime; writes `.pulse/tooling-status.json`; chooses `swarm / single-worker / planning-only / blocked` |
+| `pulse:using-pulse` | Session router; manages go-mode, quick mode, micro mode, resume from handoffs |
+| `pulse:brainstorming` | Turns vague intent into an approved design spec via one-question-at-a-time dialogue |
+| `pulse:exploring` | Socratic decision extraction into `history/<feature>/CONTEXT.md`; assigns stable D1, D2... IDs |
+| `pulse:planning` | Codebase research → `approach.md` + `phase-plan.md` → bead decomposition |
+| `pulse:validating` | 8-dimension plan-checker, spike execution for HIGH-risk items, bead schema gate |
+| `pulse:swarming` | Coordinator-only orchestration for parallel workers via Agent Mail |
+| `pulse:executing` | Per-bead worker loop: claim → implement → verify → commit → close |
+| `pulse:reviewing` | 4 parallel specialist reviewers + learnings synthesizer + artifact verification + UAT |
+| `pulse:compounding` | Captures durable learnings into `history/learnings/` with propagation triage |
 
 ### Support Skills
 
-| Skill | Purpose |
-|-------|---------|
-| `pulse:debugging` | Root-cause debugging for blocked workers, failing verification, and UAT breakage |
-| `pulse:gkg` | Codebase intelligence support for architecture snapshots, symbol tracing, and discovery acceleration when `gkg` is available |
-| `pulse:dream` | Manual consolidation of Codex artifacts into durable learnings |
+| Skill | Role |
+|-------|------|
+| `pulse:debugging` | Root-cause blocked work; architecture suspicion gate escalates unfixable issues back to planning |
+| `pulse:systematic-debug-fix` | Multi-bug tracker discipline: investigate before fixing, verify each fix, regression tests for all |
+| `pulse:gkg` | Codebase intelligence via `gkg` tool or `rg` fallback; saves findings to `discovery.md` |
+| `pulse:dream` | Consolidates Codex history into durable Pulse learnings with provenance tracking |
+| `pulse:ai-multimodal` | Gemini-powered image/audio/video/document processing with bundled scripts |
+| `pulse:simplify-code` | 4-lens code review (reuse, quality, efficiency, clarity) with optional safe fixes |
+| `pulse:prompt-leverage` | Upgrades raw prompts into structured execution-ready prompts |
+| `pulse:writing-pulse-skills` | TDD workshop for creating and improving Pulse skills (RED → GREEN → REFACTOR) |
 
-### Standalone Skills
+---
 
-| Skill | Purpose |
-|-------|---------|
-| `ai-multimodal` | Audio, image, video, and document workflows via Gemini plus bundled scripts |
-| `prompt-leverage` | Upgrade a raw prompt into a stronger execution-ready prompt |
-| `simplify-code` | Parallel review for reuse, clarity, efficiency, and code quality, with optional safe fixes |
-| `systematic-debug-fix` | Root-cause-first debugging and regression lock-down outside the main Pulse chain |
+## Key Concepts
 
-## Scoped Memory Model
+### Beads
+Work items with a strict schema. Planning creates them, executing closes them.
 
-Pulse keeps worker context intentionally narrow:
+```
+id, title, phase, story
+files          ← exact list of files the worker may touch
+verify         ← exact commands that must pass before close
+verification_evidence ← path where evidence is written
+testing_mode   ← standard | tdd-required
+risk           ← LOW | MEDIUM | HIGH
+dependencies   ← upstream bead IDs
+learning_refs  ← relevant learning file paths
+decision_refs  ← CONTEXT.md decision IDs (D1, D2...)
+```
 
-- planners search `history/learnings/` and read `critical-patterns.md`
-- planners embed only relevant learning file paths into each bead's `learning_refs`
-- workers read the learnings referenced by their bead, not the full corpus
-- compounding decides whether a new lesson is global, bead-local, or planner-only
+### Institutional Memory
+Learnings flow upward through three propagation paths:
+
+```
+global-critical  →  history/learnings/critical-patterns.md  (all future planners read this)
+bead-local       →  embedded in bead learning_refs           (workers read at implementation time)
+planner-only     →  planning reference only
+```
+
+### Context Budget
+Any long-running skill writes a handoff and stops at **65% context**. The next session resumes from `.pulse/handoffs/manifest.json` — no work is lost.
+
+### Pipeline Modes
+
+| Mode | When |
+|------|------|
+| **Full** | Multi-phase feature, swarm available |
+| **Single-worker** | Multi-phase feature, no swarm |
+| **Quick** | ≤3 files, no HIGH risk, no new API surface |
+| **Micro** | Single file, trivial — skips planning/validating/reviewing |
+| **Planning-only** | No execution tools available |
+
+---
+
+## Artifact Map
+
+```
+.pulse/
+  tooling-status.json        ← preflight output
+  STATE.md                   ← shared state
+  handoffs/manifest.json     ← resume index
+  handoffs/<owner>.json      ← per-actor checkpoints
+  verification/<feature>/    ← per-bead execution evidence
+  debug-notes/               ← debugging notes → compounding
+  dream-pending/             ← ambiguous learnings awaiting approval
+
+history/<feature>/
+  CONTEXT.md                 ← locked decisions (source of truth)
+  discovery.md               ← codebase research
+  approach.md                ← synthesis + risk map
+  phase-plan.md              ← whole-feature phase breakdown
+  phase-<n>-contract.md      ← phase entry/exit/demo/pivots
+  phase-<n>-story-map.md     ← stories → beads mapping
+
+history/learnings/
+  critical-patterns.md       ← globally promoted patterns
+  YYYYMMDD-<slug>.md         ← individual learning entries
+
+.beads/                      ← bead files (br managed)
+.spikes/                     ← spike execution results
+```
+
+---
 
 ## Requirements
 
 | Tool | Required | Purpose |
 |------|----------|---------|
 | `git` | Yes | Version control |
-| `br` | Yes | Beads CLI (Rust) — create, update, close, sync work items |
-| `bv` | Yes | Beads viewer — TUI and graph inspection |
-| Agent Mail or equivalent coordination runtime | Swarm only | Worker orchestration and reservations |
-| `gkg` | Optional | Faster structural discovery |
-| `gh` | Optional | PR automation |
+| `br` | Yes | Beads CLI — create, update, close, sync work items |
+| `bv` | Yes | Beads viewer — TUI + `bv --robot-priority` for worker bead selection |
+| Node.js 18+ | Yes | Pulse onboarding script |
+| Agent Mail | Swarm only | Worker coordination runtime |
+| `gkg` | Optional | Faster codebase intelligence |
 
-`pulse:preflight` is the only place that decides whether these are ready enough for the requested mode.
+Run `pulse:preflight` to check your environment before starting.
+
+---
 
 ## Installation
 
-### Install In Codex
-
-Codex plugins install from a **local marketplace** that lives inside the cloned repo. After you clone this repository, Codex reads [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) to discover the `pulse` plugin, whose package manifest is at [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json).
-
-**1. Clone the repo:**
-
-```bash
-git clone https://github.com/quannvdev/skills.git
-```
-
-**2. Register the local marketplace:**
-
-Open Codex, point it at the cloned directory, and add the marketplace from `.agents/plugins/marketplace.json`. Restart Codex after registering.
-
-**3. Install the plugin:**
-
-Install the `pulse` plugin from the local repo marketplace. Codex discovers all skills automatically from the `./skills/` directory declared in the plugin manifest.
-
-#### Verify The Plugin Layout
-
-After installation, confirm these paths exist in the cloned repo:
-
-```text
-.agents/plugins/marketplace.json          <- repo marketplace (lists the pulse plugin)
-plugins/pulse/.codex-plugin/plugin.json   <- Codex package manifest
-plugins/pulse/skills/                     <- canonical skill source (auto-discovered)
-```
-
 ### Claude Code
 
-This repo ships a Claude Code plugin marketplace in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json).
+```bash
+# Add the marketplace
+/plugin marketplace add quanpersie2001/pulse
 
-**1. Add the marketplace:**
-
-```text
-/plugin marketplace add quanpersie2001/skills
+# Install all skills at once
+/plugin install pulse@pulse
 ```
 
-Claude Code clones the repo and reads `.claude-plugin/marketplace.json` to discover all available skills.
+Or install individual skills:
 
-**2. Install skills:**
-
-Each skill is installed individually with `/plugin install <skill>@pulse`:
-
-```text
-# Bootstrap — install these first
-/plugin install pulse:using-pulse@pulse
+```bash
 /plugin install pulse:preflight@pulse
-
-# Delivery chain
+/plugin install pulse:using-pulse@pulse
 /plugin install pulse:exploring@pulse
-/plugin install pulse:planning@pulse
-/plugin install pulse:validating@pulse
-/plugin install pulse:swarming@pulse
-/plugin install pulse:executing@pulse
-/plugin install pulse:reviewing@pulse
-/plugin install pulse:compounding@pulse
-
-# Support skills
-/plugin install pulse:debugging@pulse
-/plugin install pulse:gkg@pulse
-/plugin install pulse:dream@pulse
-/plugin install pulse:writing-pulse-skills@pulse
-
-# Standalone skills
-/plugin install ai-multimodal@pulse
-/plugin install prompt-leverage@pulse
-/plugin install simplify-code@pulse
-/plugin install systematic-debug-fix@pulse
+# ... etc
 ```
 
-> **Note:** Both platforms require `git`, `br` (beads CLI), and `bv` (beads viewer) to be installed for the full Pulse workflow. Run `pulse:preflight` to verify tool readiness.
+### Codex
 
-## License
+1. Clone this repo
+2. Register `.agents/plugins/marketplace.json` as a local marketplace in Codex
+3. Install the `pulse` plugin — all 18 skills are discovered automatically
 
-MIT
+---
+
+## Getting Started
+
+```bash
+# 1. Check your environment
+pulse:preflight
+
+# 2. Start a session
+pulse:using-pulse
+
+# 3. Describe what you want to build — Pulse routes you from there
+```
+
+For a full walkthrough, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+---
+
+## Contributing
+
+See [`plugins/pulse/CONTRIBUTING.md`](plugins/pulse/CONTRIBUTING.md) for skill structure, TDD discipline, naming conventions, versioning, and the PR process.
+
+```bash
+# Bump version before opening a PR
+./scripts/bump-version.sh minor   # new skill or behavior change
+./scripts/bump-version.sh patch   # doc fix or wording
+```
+
+---
+
+<div align="center">
+
+MIT License
+
+</div>

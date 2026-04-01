@@ -26,7 +26,7 @@ Do not explore, plan, validate, swarm, or execute until this skill finishes.
 - `.pulse/STATE.md` update with the latest preflight result
 - One of three outcomes: `PASS`, `DEGRADED`, or `FAIL`
 
-Load `references/tool-readiness-matrix.md` before Phase 2.
+Load `references/tool-readiness-matrix.md` before Phase 3.
 
 ## Hard Rules
 
@@ -68,7 +68,39 @@ last_updated: <timestamp>
    - `execution-only`
    - `resume`
 
-## Phase 2: Validate Core Tooling
+## Phase 2: Check Onboarding
+
+Verify that the Pulse plugin is properly onboarded in the current repo.
+
+Run `node --version` first.
+
+- If `node` is missing or reports a version below 18: set `onboarding` to `NEEDS_SETUP` and include a blocker entry: "Node.js 18+ required for onboarding — install or upgrade before continuing." Do not proceed to the onboarding script.
+
+If Node.js 18+ is available, run from this skill's directory:
+
+```bash
+node scripts/onboard_pulse.mjs --repo-root <project_root>
+```
+
+Interpret the result:
+
+- `status = "up_to_date"` — onboarding is current. Set `onboarding = PASS`.
+- `.pulse/onboarding.json` is absent (script exits with `status = "missing"`) — set `onboarding = NEEDS_SETUP`.
+- `.pulse/onboarding.json` exists but `plugin_version` inside it does not match the version in the plugin's `plugin.json` — set `onboarding = STALE`.
+
+For `NEEDS_SETUP` or `STALE`:
+
+1. Summarize what the script wants to create or update.
+2. If `requires_confirmation = true`, explain that an existing `compact_prompt` was found and Pulse will preserve it unless the user explicitly approves replacement.
+3. Ask the user before making any repo changes.
+4. After approval, run: `node scripts/onboard_pulse.mjs --repo-root <project_root> --apply`
+   - Only pass `--allow-compact-prompt-replace` when the user explicitly approved replacing the existing compaction prompt.
+5. If the apply run succeeds, update `onboarding` to `PASS` and continue.
+6. If the apply run fails, set `onboarding` to `NEEDS_SETUP` and add a blocker entry.
+
+`NEEDS_SETUP` or an unresolved `STALE` both set preflight result to `FAIL`.
+
+## Phase 3: Validate Core Tooling
 
 Check the tools that Pulse depends on structurally:
 
@@ -95,7 +127,7 @@ Rules:
 - If a command exists but the minimal call errors, mark it unavailable
 - If `br` or `bv` is unavailable, include the install references from `references/tool-readiness-matrix.md` in the failure report
 
-## Phase 3: Validate Execution Runtime
+## Phase 4: Validate Execution Runtime
 
 If the requested mode can lead to execution, validate the coordination runtime.
 
@@ -121,7 +153,7 @@ Decision rules:
 - If requested mode is `execution-only` and the user explicitly asked for swarm mode:
   - coordination unavailable -> stop and present the downgrade decision
 
-## Phase 4: Validate Optional Accelerators
+## Phase 5: Validate Optional Accelerators
 
 Check optional helpers if relevant:
 
@@ -136,7 +168,7 @@ Record impact instead:
 - `gh` missing -> no automated PR creation
 - docs or web MCP missing -> research becomes manual or local-only
 
-## Phase 5: Decide Outcome
+## Phase 6: Decide Outcome
 
 Choose exactly one result:
 
@@ -147,6 +179,7 @@ Choose exactly one result:
   - at least one optional capability is missing, or swarm must downgrade to single-worker
 - `FAIL`
   - any required tool for the requested mode is unavailable
+  - onboarding is `NEEDS_SETUP` or `STALE` and could not be resolved in Phase 2
 
 Also choose `recommended_mode`:
 
@@ -155,7 +188,7 @@ Also choose `recommended_mode`:
 - `planning-only`
 - `blocked`
 
-## Phase 6: Write Artifacts
+## Phase 7: Write Artifacts
 
 Write `.pulse/tooling-status.json` with this shape:
 
@@ -166,6 +199,7 @@ Write `.pulse/tooling-status.json` with this shape:
   "requested_mode": "full-pipeline",
   "recommended_mode": "single-worker",
   "status": "degraded",
+  "onboarding": "PASS",
   "tools": {
     "git": { "status": "ready", "check": "git rev-parse --show-toplevel" },
     "br": { "status": "ready", "check": "br --help" },
@@ -192,7 +226,7 @@ resume_manifest: .pulse/handoffs/manifest.json
 last_updated: <timestamp>
 ```
 
-## Phase 7: Present Result
+## Phase 8: Present Result
 
 Use this response shape:
 
@@ -202,6 +236,7 @@ PREFLIGHT COMPLETE
 Status: PASS | DEGRADED | FAIL
 Requested mode: <mode>
 Recommended mode: <mode>
+Onboarding: PASS | NEEDS_SETUP | STALE
 
 Ready:
 - <tool>

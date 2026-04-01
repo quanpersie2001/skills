@@ -53,6 +53,7 @@ If onboarding is not complete, do not continue into the rest of the Pulse workfl
 |---|---|---|---|
 | 0 | `pulse:preflight` | Validate tooling and choose runtime mode | Starting, resuming, or before any execution-capable flow |
 | 1 | `pulse:using-pulse` | This file. Routing, go mode, priority rules, resume contract | After preflight on any Pulse session |
+| 1b | `pulse:brainstorming` | Turn vague intent into an approved design spec via structured dialogue | Idea is unformed, product direction is unclear, or design needs validation before locking decisions |
 | 2 | `pulse:exploring` | Identify gray areas, lock decisions, write `CONTEXT.md` | Feature request is vague, new, or has unresolved intent |
 | 3 | `pulse:planning` | Research + synthesis → `phase-plan.md`, then current-phase contract/story map + beads | Decisions are locked and we need the full phase/story breakdown and current-phase preparation |
 | 4 | `pulse:validating` | Verify the current phase contract, story map, and bead graph before execution | The phase plan is approved and the current phase has stories and beads; need to prove the current phase is actually execution-ready |
@@ -71,7 +72,8 @@ Given a user request, determine the first skill:
 
 | Request type | First skill | Notes |
 |---|---|---|
-| Vague or new feature | `pulse:exploring` | Start here if intent or scope is still fuzzy |
+| Unformed idea / design unclear | `pulse:brainstorming` | Use when what to build isn't clear yet; produces spec before exploring |
+| Vague or new feature (what is clear, how is not) | `pulse:exploring` | Start here if intent is clear but implementation decisions are fuzzy |
 | Clear implementation request | `pulse:planning` | Skip exploring only if decisions are already locked |
 | Small, low-risk fix | `pulse:planning` in lightweight mode | Still validate before execution |
 | "Review my code" | `pulse:reviewing` | Load directly |
@@ -81,6 +83,7 @@ Given a user request, determine the first skill:
 | Agent blocked or failing | `pulse:debugging` | Load directly; if fixes stop converging or the failure hops subsystems, route back to `pulse:planning` or `pulse:validating` |
 | "/go" or "run the full pipeline" | Go Mode | See `references/go-mode-pipeline.md` |
 | Resume interrupted work | Resume Logic | Read the handoff manifest first |
+| Trivial single-file task | Micro Mode | See Micro Mode section below; confirm with user before entering |
 
 When in doubt, start with `pulse:exploring`.
 
@@ -246,6 +249,56 @@ Classify as quick mode only if all are true:
 - no unresolved intent
 
 Quick mode never skips review entirely. It only reduces depth.
+
+## Micro Mode
+
+Micro mode is for genuinely trivial tasks that do not warrant the full Pulse pipeline or even quick mode.
+
+### When micro mode applies
+
+All of the following must be true:
+
+- single-file change (at most one file modified)
+- zero new dependencies introduced
+- estimated 1-2 beads maximum
+- no architectural decisions required
+- no gray areas or unresolved intent
+
+If any condition is false, fall back to quick mode or the full pipeline.
+
+### User-facing trigger
+
+Before entering micro mode, tell the user:
+
+> "This task looks trivial. I'll run in micro-mode: abbreviated exploring → single-bead execute → done. Planning, validating, swarming, and reviewing will be skipped. Confirm?"
+
+Do not proceed until the user confirms.
+
+### Micro mode flow
+
+```text
+exploring (abbreviated) -> executing (single-worker, single bead) -> DONE
+```
+
+**Abbreviated exploring** means: capture only the what, where, and done-criteria. Skip gray-area probing and decision locking beyond the minimum needed to execute safely.
+
+**Single-bead execute** means: create one bead with `br`, implement it, verify it, close it.
+
+**Done** means: the change is committed. No reviewing gate, no handoff ceremony.
+
+### What micro mode skips
+
+- `pulse:planning`
+- `pulse:validating`
+- `pulse:swarming`
+- `pulse:reviewing`
+- `pulse:compounding` — micro mode does not produce durable learnings; skip compounding unless an unexpected non-obvious insight emerged
+
+### What micro mode does NOT skip
+
+- Pulse onboarding check
+- `pulse:preflight` (tooling-status.json must exist)
+- Bead verification criteria (the bead still needs `verify` and evidence)
 
 ## Priority Rules
 

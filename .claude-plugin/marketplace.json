@@ -9,10 +9,112 @@
   },
   "plugins": [
     {
-      "name": "pulse",
-      "description": "Validate-first multi-agent skills for phase contracts, stories, swarming, and execution. Includes 13 Pulse ecosystem skills and 4 standalone utilities.",
-      "source": "./plugins/pulse",
-      "version": "2.2.4"
+      "name": "pulse:brainstorming",
+      "description": "Turn vague intent into an approved design spec through structured dialogue before planning begins",
+      "source": "./plugins/pulse/skills/brainstorming",
+      "strict": false
+    },
+    {
+      "name": "pulse:preflight",
+      "description": "Validate required tools, choose full or degraded mode, and write project tooling status before any Pulse workflow",
+      "source": "./plugins/pulse/skills/preflight",
+      "strict": false
+    },
+    {
+      "name": "pulse:using-pulse",
+      "description": "Bootstrap meta-skill: routing, go mode, skill catalog, state bootstrap/resume",
+      "source": "./plugins/pulse/skills/using-pulse",
+      "strict": false
+    },
+    {
+      "name": "pulse:exploring",
+      "description": "Extract locked decisions via Socratic dialogue before planning begins",
+      "source": "./plugins/pulse/skills/exploring",
+      "strict": false
+    },
+    {
+      "name": "pulse:planning",
+      "description": "Research codebase, write a phase contract and story map, then decompose into executable beads",
+      "source": "./plugins/pulse/skills/planning",
+      "strict": false
+    },
+    {
+      "name": "pulse:validating",
+      "description": "Verify phase contract, story map, and bead graph; spike HIGH risk; polish execution readiness",
+      "source": "./plugins/pulse/skills/validating",
+      "strict": false
+    },
+    {
+      "name": "pulse:swarming",
+      "description": "Launch and tend parallel worker agents via Agent Mail",
+      "source": "./plugins/pulse/skills/swarming",
+      "strict": false
+    },
+    {
+      "name": "pulse:executing",
+      "description": "Per-agent worker loop: self-route from bead graph, implement, close, report",
+      "source": "./plugins/pulse/skills/executing",
+      "strict": false
+    },
+    {
+      "name": "pulse:reviewing",
+      "description": "5 parallel review agents, 3-level artifact verification, UAT gate",
+      "source": "./plugins/pulse/skills/reviewing",
+      "strict": false
+    },
+    {
+      "name": "pulse:compounding",
+      "description": "Capture learnings (patterns/decisions/failures) into history/learnings/",
+      "source": "./plugins/pulse/skills/compounding",
+      "strict": false
+    },
+    {
+      "name": "pulse:dream",
+      "description": "Manual dream-style consolidation over artifacts into durable Pulse learnings",
+      "source": "./plugins/pulse/skills/dream",
+      "strict": false
+    },
+    {
+      "name": "pulse:debugging",
+      "description": "Systematic debugging for blocked workers, test failures, and build errors",
+      "source": "./plugins/pulse/skills/debugging",
+      "strict": false
+    },
+    {
+      "name": "pulse:systematic-debug-fix",
+      "description": "Root-cause-first bug fixing combining systematic debugging with fix tracking and regression lock-down",
+      "source": "./plugins/pulse/skills/systematic-debug-fix",
+      "strict": false
+    },
+    {
+      "name": "pulse:gkg",
+      "description": "Codebase intelligence via gkg tool for architecture and dependency analysis",
+      "source": "./plugins/pulse/skills/gkg",
+      "strict": false
+    },
+    {
+      "name": "pulse:ai-multimodal",
+      "description": "Process and generate multimedia content with Google Gemini for advanced multimodal analysis",
+      "source": "./plugins/pulse/skills/ai-multimodal",
+      "strict": false
+    },
+    {
+      "name": "pulse:simplify-code",
+      "description": "Review and simplify code for reuse, quality, efficiency, and clarity",
+      "source": "./plugins/pulse/skills/simplify-code",
+      "strict": false
+    },
+    {
+      "name": "pulse:prompt-leverage",
+      "description": "Upgrade raw prompts into stronger execution-ready prompts",
+      "source": "./plugins/pulse/skills/prompt-leverage",
+      "strict": false
+    },
+    {
+      "name": "pulse:writing-pulse-skills",
+      "description": "TDD-for-skills meta-skill with pressure testing and persuasion psychology",
+      "source": "./plugins/pulse/skills/writing-pulse-skills",
+      "strict": false
     }
   ]
 }

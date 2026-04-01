@@ -149,6 +149,16 @@ Institutional knowledge prevents re-solving solved problems. This phase is manda
 cat history/learnings/critical-patterns.md
 ```
 
+### Step 0.1.1: Check institutional memory staleness
+
+After reading `critical-patterns.md`, read `.pulse/STATE.md` and look for the `last_compounding_run` field or any record of the last feature where compounding completed.
+
+Count how many features have completed (reached reviewing/compounding) since that record. If the count is greater than 3, or if `STATE.md` has no `last_compounding_run` record at all, emit this warning before continuing:
+
+> ⚠️ Institutional memory may be stale — consider running pulse:compounding after this feature completes.
+
+This is a warning only. Do not block planning. Continue immediately after surfacing it.
+
 ### Step 0.2: Search for domain-relevant learnings
 
 Extract 3-5 keywords from the feature name and `CONTEXT.md`, then run focused searches:
