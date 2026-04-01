@@ -2,23 +2,5 @@
   "name": "pulse",
   "version": "2.2.4",
   "description": "Pulse: validate-first multi-agent skills for phase contracts, stories, swarming, and execution",
-  "skills": [
-    { "name": "pulse:using-pulse", "path": "../plugins/pulse/skills/using-pulse/SKILL.md" },
-    { "name": "pulse:preflight", "path": "../plugins/pulse/skills/preflight/SKILL.md" },
-    { "name": "pulse:exploring", "path": "../plugins/pulse/skills/exploring/SKILL.md" },
-    { "name": "pulse:planning", "path": "../plugins/pulse/skills/planning/SKILL.md" },
-    { "name": "pulse:validating", "path": "../plugins/pulse/skills/validating/SKILL.md" },
-    { "name": "pulse:swarming", "path": "../plugins/pulse/skills/swarming/SKILL.md" },
-    { "name": "pulse:executing", "path": "../plugins/pulse/skills/executing/SKILL.md" },
-    { "name": "pulse:reviewing", "path": "../plugins/pulse/skills/reviewing/SKILL.md" },
-    { "name": "pulse:compounding", "path": "../plugins/pulse/skills/compounding/SKILL.md" },
-    { "name": "pulse:dream", "path": "../plugins/pulse/skills/dream/SKILL.md" },
-    { "name": "pulse:debugging", "path": "../plugins/pulse/skills/debugging/SKILL.md" },
-    { "name": "pulse:gkg", "path": "../plugins/pulse/skills/gkg/SKILL.md" },
-    { "name": "pulse:writing-pulse-skills", "path": "../plugins/pulse/skills/writing-pulse-skills/SKILL.md" },
-    { "name": "ai-multimodal", "path": "../plugins/pulse/skills/ai-multimodal/SKILL.md" },
-    { "name": "prompt-leverage", "path": "../plugins/pulse/skills/prompt-leverage/SKILL.md" },
-    { "name": "simplify-code", "path": "../plugins/pulse/skills/simplify-code/SKILL.md" },
-    { "name": "systematic-debug-fix", "path": "../plugins/pulse/skills/systematic-debug-fix/SKILL.md" }
-  ]
+  "skills": "./plugins/pulse/skills"
 }

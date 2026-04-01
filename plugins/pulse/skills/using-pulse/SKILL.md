@@ -1,5 +1,5 @@
 ---
-name: pulse:using-pulse
+name: using-pulse
 description: Bootstrap meta-skill for the Pulse agentic development ecosystem. Load after pulse:preflight on any Pulse project. Lists the Pulse skills with routing logic, full go-mode flow with 4 human gates, lightweight quick mode, priority rules, resume handling, and shared state contracts.
 metadata:
   version: '2.1'

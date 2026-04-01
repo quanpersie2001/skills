@@ -1,5 +1,5 @@
 ---
-name: pulse:preflight
+name: preflight
 description: Use when starting any Pulse workflow, resuming a Pulse session, or before planning or execution when tool readiness may block the flow. Validate required tools, choose full or degraded mode, and write the project tooling status before proceeding.
 metadata:
   version: '1.1'

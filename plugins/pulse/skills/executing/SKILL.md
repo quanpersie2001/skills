@@ -1,5 +1,5 @@
 ---
-name: pulse:executing
+name: executing
 description: >-
   Per-agent implementation loop for the Pulse ecosystem. Use in two modes: worker mode
   under pulse:swarming, or degraded standalone single-worker mode when preflight does not

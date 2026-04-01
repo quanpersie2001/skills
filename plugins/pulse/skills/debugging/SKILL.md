@@ -1,5 +1,5 @@
 ---
-name: pulse:debugging
+name: debugging
 description: Systematic debugging for blocked work, test failures, build errors, runtime crashes, and integration issues in Pulse. Checks bead-local learning_refs first, then uses targeted global learning lookups when needed. Writes debug notes and learning candidates for compounding instead of assuming workers should read the entire global memory.
 metadata:
   version: '1.1'

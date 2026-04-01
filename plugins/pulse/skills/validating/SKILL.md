@@ -1,5 +1,5 @@
 ---
-name: pulse:validating
+name: validating
 description: |
   The critical gate between planning and execution in the Pulse ecosystem. Load this skill after planning completes and before swarming begins. Verifies the phase contract, story map, and bead graph across 8 structural dimensions, executes time-boxed spikes for HIGH-risk items, polishes beads with bv graph analytics, and requires explicit user approval before any code is written. Prevents executing unclear phases, malformed story breakdowns, unknown blockers, and redundant duplicate work.
 metadata:

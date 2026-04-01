@@ -1,5 +1,5 @@
 ---
-name: pulse:gkg
+name: gkg
 description: Use when asked about codebase architecture, finding files or definitions related to a feature, tracing symbol relationships, checking how a module is wired, or when pulse:planning needs a discovery snapshot and gkg is available.
 metadata:
   version: '1.0'

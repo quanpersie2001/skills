@@ -1,5 +1,5 @@
 ---
-name: pulse:compounding
+name: compounding
 description: Capture durable learnings from completed Pulse work so future planning gets smarter and future beads carry the right context. Invoke after reviewing completes and the feature is merged, or after a debugging session uncovers a non-obvious root cause. Produces learning files, promotes only truly global rules to critical-patterns.md, and classifies the rest for planner-only or bead-local propagation.
 metadata:
   version: '1.1'

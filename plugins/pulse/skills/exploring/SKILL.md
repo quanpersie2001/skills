@@ -1,5 +1,5 @@
 ---
-name: pulse:exploring
+name: exploring
 description: >-
   Use before any feature work, refactor, or behavior modification. Extracts locked
   decisions from the user through Socratic dialogue BEFORE research or planning begins.
