@@ -1,0 +1,257 @@
+{
+  "skill_name": "pulse (all skills)",
+  "evals": [
+    {
+      "id": 1,
+      "skill": "preflight",
+      "skill_path": "plugins/pulse/skills/preflight",
+      "prompt": "I'm starting work on a new feature. Run pulse:preflight to check whether my environment is ready for the Pulse workflow.",
+      "expected_output": "Agent checks git, br, bv, and coordination runtime availability; writes .pulse/tooling-status.json with PASS/DEGRADED/FAIL and a recommended_mode; presents a clear status summary.",
+      "files": [],
+      "expectations": [
+        "Agent attempts to check for git, br, and bv tool availability",
+        "Agent writes or describes writing .pulse/tooling-status.json",
+        "Agent reports a recommended_mode (swarm, single-worker, planning-only, or blocked)",
+        "Agent does NOT immediately start implementing features or creating beads"
+      ]
+    },
+    {
+      "id": 2,
+      "skill": "using-pulse",
+      "skill_path": "plugins/pulse/skills/using-pulse",
+      "prompt": "I just ran preflight and it passed. I want to add a dark mode toggle to our React app. What Pulse skill should I use next and why?",
+      "expected_output": "Agent consults the skill catalog, identifies the request as a new feature with fuzzy decisions, routes to pulse:brainstorming or pulse:exploring, and explains the routing decision with the go-mode pipeline context.",
+      "files": [],
+      "expectations": [
+        "Agent routes the user to pulse:brainstorming or pulse:exploring as the next step",
+        "Agent references the Pulse skill catalog or routing table",
+        "Agent does NOT jump directly to planning or executing",
+        "Agent explains why the chosen skill is appropriate for a new feature request"
+      ]
+    },
+    {
+      "id": 3,
+      "skill": "brainstorming",
+      "skill_path": "plugins/pulse/skills/brainstorming",
+      "prompt": "I want to add a notification system to my app. Help me brainstorm how to approach this.",
+      "expected_output": "Agent asks ONE clarifying question at a time (not a batch), eventually proposes 2-3 approaches with trade-offs, presents a design for approval, writes a spec doc, runs self-review, and hands off to pulse:exploring. Does NOT write code.",
+      "files": [],
+      "expectations": [
+        "Agent asks clarifying questions one at a time, not in a batch",
+        "Agent proposes 2-3 distinct approaches with trade-offs",
+        "Agent does NOT write any code or create beads during brainstorming",
+        "Agent identifies the terminal state as handing off to pulse:exploring"
+      ]
+    },
+    {
+      "id": 4,
+      "skill": "exploring",
+      "skill_path": "plugins/pulse/skills/exploring",
+      "prompt": "I want to add user authentication with OAuth to our Node.js API. Let's explore what decisions we need to lock before planning.",
+      "expected_output": "Agent classifies scope, asks sequential Socratic questions (one at a time), assigns decision IDs (D1, D2...), and writes history/<feature>/CONTEXT.md. Does NOT start planning or create beads.",
+      "files": [],
+      "expectations": [
+        "Agent asks questions one at a time with a HARD-GATE between each",
+        "Agent assigns stable decision IDs (D1, D2, etc.) as decisions are locked",
+        "Agent outputs or describes writing history/<feature>/CONTEXT.md",
+        "Agent does NOT create beads, write code, or invoke pulse:planning prematurely"
+      ]
+    },
+    {
+      "id": 5,
+      "skill": "prompt-leverage",
+      "skill_path": "plugins/pulse/skills/prompt-leverage",
+      "prompt": "Make this prompt better: 'fix the login bug'",
+      "expected_output": "Agent transforms the vague prompt into a structured, execution-ready version with Objective, Context, Tool Rules, Output Contract, and Done Criteria blocks. Explains what changed.",
+      "files": [],
+      "expectations": [
+        "Agent produces a significantly more structured and detailed version of the input prompt",
+        "Agent includes at least 3 of the framework blocks (Objective, Context, Tool Rules, Output Contract, Verification, Done Criteria)",
+        "Agent explains what was changed and why",
+        "Output is clearly more actionable than the original 'fix the login bug'"
+      ]
+    },
+    {
+      "id": 6,
+      "skill": "gkg",
+      "skill_path": "plugins/pulse/skills/gkg",
+      "prompt": "Use pulse:gkg to find all files related to authentication in the current codebase and give me an architecture snapshot.",
+      "expected_output": "Agent checks .pulse/tooling-status.json for gkg readiness, uses gkg primitives (or rg fallback), summarizes architecture findings, and notes where results are saved (discovery.md).",
+      "files": [],
+      "expectations": [
+        "Agent checks for gkg availability before running commands",
+        "Agent uses gkg primitives (map, search, refs) or falls back to rg if unavailable",
+        "Agent produces an architecture summary or discovery notes",
+        "Agent saves or describes saving findings to history/<feature>/discovery.md"
+      ]
+    },
+    {
+      "id": 7,
+      "skill": "planning",
+      "skill_path": "plugins/pulse/skills/planning",
+      "prompt": "Exploring is complete. CONTEXT.md is at history/auth-oauth/CONTEXT.md. Now run pulse:planning to research the codebase and produce a phase plan for the OAuth feature.",
+      "expected_output": "Agent reads CONTEXT.md and critical-patterns.md, runs discovery, writes approach.md and phase-plan.md, waits for human approval of the phase plan, then writes current-phase contract/story map and beads using `br`.",
+      "files": [],
+      "expectations": [
+        "Agent reads CONTEXT.md before doing anything else",
+        "Agent checks history/learnings/critical-patterns.md for institutional learnings",
+        "Agent produces or describes producing a phase-plan.md and approach.md",
+        "Agent pauses for human approval before creating beads for the current phase"
+      ]
+    },
+    {
+      "id": 8,
+      "skill": "validating",
+      "skill_path": "plugins/pulse/skills/validating",
+      "prompt": "Planning is done. The phase contract and story map are written. Run pulse:validating to verify the current phase is execution-ready.",
+      "expected_output": "Agent enforces the bead schema, runs the plan-checker across 8 dimensions, executes spike beads for HIGH-risk items, polishes beads with bv, asks exit-readiness questions, and requires explicit user approval before saying execution can start.",
+      "files": [],
+      "expectations": [
+        "Agent checks that required bead fields (files, verify, dependencies) are present",
+        "Agent runs or describes a plan-checker verification across multiple dimensions",
+        "Agent requires explicit user approval before declaring execution-ready",
+        "Agent does NOT start implementing beads itself"
+      ]
+    },
+    {
+      "id": 9,
+      "skill": "swarming",
+      "skill_path": "plugins/pulse/skills/swarming",
+      "prompt": "Validating passed and execution is approved. Run pulse:swarming to coordinate the worker agents for this phase.",
+      "expected_output": "Agent confirms swarm readiness, initializes coordination runtime, spawns worker subagents running pulse:executing, enters a poll-act monitor loop, and never directly implements beads itself.",
+      "files": [],
+      "expectations": [
+        "Agent initializes or describes initializing the coordination runtime (project/agent registration)",
+        "Agent spawns worker subagents running pulse:executing (not implementing beads directly)",
+        "Agent enters a monitoring loop checking worker inbox and topic",
+        "Agent updates or describes updating .pulse/STATE.md with worker tracking"
+      ]
+    },
+    {
+      "id": 10,
+      "skill": "executing",
+      "skill_path": "plugins/pulse/skills/executing",
+      "prompt": "I'm a worker agent. Run pulse:executing in single-worker mode to implement the next available bead.",
+      "expected_output": "Agent determines it's in single-worker mode, reads bead graph via `bv --robot-priority`, claims the top bead, reads it fully including locked decisions, implements it respecting TDD, runs verification commands, commits per-bead, and loops.",
+      "files": [],
+      "expectations": [
+        "Agent determines execution mode (single-worker vs swarm worker)",
+        "Agent uses bv --robot-priority (or describes using it) to claim the next bead",
+        "Agent reads the full bead including learning_refs before implementing",
+        "Agent commits after each bead and writes verification evidence"
+      ]
+    },
+    {
+      "id": 11,
+      "skill": "reviewing",
+      "skill_path": "plugins/pulse/skills/reviewing",
+      "prompt": "Execution is complete for the OAuth feature. Run pulse:reviewing to verify quality before merge.",
+      "expected_output": "Agent runs 4-5 specialist review agents (code quality, architecture, security, tests, synthesis), converts findings to P1/P2/P3 review beads, performs artifact verification, runs UAT against CONTEXT.md decisions, and blocks merge on P1s.",
+      "files": [],
+      "expectations": [
+        "Agent spawns or describes spawning multiple specialist review agents (at least code quality, security, tests)",
+        "Agent creates review beads for findings with P1/P2/P3 severity",
+        "Agent performs artifact verification (checking verification files exist and are substantive)",
+        "Agent blocks merge if P1 beads exist and requires them to be resolved first"
+      ]
+    },
+    {
+      "id": 12,
+      "skill": "compounding",
+      "skill_path": "plugins/pulse/skills/compounding",
+      "prompt": "The OAuth feature is merged. Run pulse:compounding to capture what we learned.",
+      "expected_output": "Agent gathers context from feature history/beads/reviews, runs pattern/decision/failure analysis, writes learning files under history/learnings/, promotes only global rules to critical-patterns.md, and updates STATE.md.",
+      "files": [],
+      "expectations": [
+        "Agent gathers context from feature history, review findings, and debug notes",
+        "Agent analyzes through pattern, decision, and failure lenses",
+        "Agent writes learning files to history/learnings/ with domain/severity/propagation metadata",
+        "Agent only promotes genuinely global patterns to critical-patterns.md, not everything"
+      ]
+    },
+    {
+      "id": 13,
+      "skill": "debugging",
+      "skill_path": "plugins/pulse/skills/debugging",
+      "prompt": "A worker is stuck: the OAuth callback test is failing with 'Cannot read property token of undefined'. Debug this with pulse:debugging.",
+      "expected_output": "Agent classifies the issue (test failure), checks bead learning_refs first, reproduces the failure with the exact command, traces root cause, writes a debug note, and hands off to compounding for learning propagation.",
+      "files": [],
+      "expectations": [
+        "Agent classifies the issue type before starting (test failure vs build vs runtime)",
+        "Agent checks bead-local learning_refs before doing a global search",
+        "Agent identifies and states a clear root cause sentence",
+        "Agent writes a debug note to .pulse/debug-notes/ and recommends compounding"
+      ]
+    },
+    {
+      "id": 14,
+      "skill": "systematic-debug-fix",
+      "skill_path": "plugins/pulse/skills/systematic-debug-fix",
+      "prompt": "There are 3 known bugs in the payment module: (1) double-charge on retry, (2) webhook signature validation failing on some providers, (3) refund amount rounding error. Fix them systematically.",
+      "expected_output": "Agent creates a tracker with all 3 issues, sequences them by dependency, investigates each before fixing, verifies each fix with a narrow test, adds regression coverage, and reports status for all items.",
+      "files": [],
+      "expectations": [
+        "Agent creates an issue tracker listing all 3 bugs with IDs and status",
+        "Agent investigates (reproduces + traces root cause) before applying any fix",
+        "Agent applies fixes one at a time and verifies each individually",
+        "Agent adds regression tests or coverage for each fixed bug"
+      ]
+    },
+    {
+      "id": 15,
+      "skill": "simplify-code",
+      "skill_path": "plugins/pulse/skills/simplify-code",
+      "prompt": "Review and simplify my recent code changes. Run pulse:simplify-code in review-only mode.",
+      "expected_output": "Agent determines scope (git diff or specified files), spawns 4 parallel review sub-agents (reuse, quality, efficiency, clarity), aggregates structured findings with file/line/category/fix, and reports a summary without making any changes.",
+      "files": [],
+      "expectations": [
+        "Agent determines the review scope from git diff or explicit files",
+        "Agent launches multiple specialist review sub-agents or lenses (at least 2 of: reuse, quality, efficiency, clarity)",
+        "Agent aggregates findings with file, line, category, and suggested fix",
+        "Agent does NOT modify any files in review-only mode"
+      ]
+    },
+    {
+      "id": 16,
+      "skill": "writing-pulse-skills",
+      "skill_path": "plugins/pulse/skills/writing-pulse-skills",
+      "prompt": "I want to create a new Pulse skill called 'pulse:dependency-audit' that automatically audits npm dependencies for security issues. Use pulse:writing-pulse-skills to develop it with TDD.",
+      "expected_output": "Agent runs RED phase (define purpose, craft pressure scenarios, run without skill to capture rationalizations), then GREEN phase (write minimal SKILL.md addressing those rationalizations), then validates. Documents in CREATION-LOG.md.",
+      "files": [],
+      "expectations": [
+        "Agent runs a RED phase: defines the skill purpose and creates pressure scenarios to expose failure modes",
+        "Agent runs a GREEN phase: writes a SKILL.md that addresses the documented rationalizations",
+        "Agent verifies the skill by rerunning pressure scenarios after writing",
+        "Agent documents the TDD process in a CREATION-LOG.md"
+      ]
+    },
+    {
+      "id": 17,
+      "skill": "dream",
+      "skill_path": "plugins/pulse/skills/dream",
+      "prompt": "Run pulse:dream to consolidate learnings from recent Pulse work into the knowledge base.",
+      "expected_output": "Agent detects bootstrap vs recurring mode, selects Codex sources, extracts durable candidates, classifies each (match/ambiguous/no-match), updates learning files with provenance, stores ambiguous items in dream-pending/, and never auto-edits critical-patterns.md without approval.",
+      "files": [],
+      "expectations": [
+        "Agent detects whether this is a bootstrap-first or recurring consolidation run",
+        "Agent extracts learning candidates and classifies them (match/ambiguous/no-match)",
+        "Agent writes provenance markers when updating learning files",
+        "Agent does NOT auto-edit critical-patterns.md — requires explicit approval for promotions"
+      ]
+    },
+    {
+      "id": 18,
+      "skill": "ai-multimodal",
+      "skill_path": "plugins/pulse/skills/ai-multimodal",
+      "prompt": "I have a screenshot of our app's dashboard (dashboard.png). Use pulse:ai-multimodal to analyze it and extract all visible UI text and component labels.",
+      "expected_output": "Agent checks for GEMINI_API_KEY and Gemini setup, uses gemini_batch_process.py or the analyze script on the image, extracts all visible text/labels, and returns structured results.",
+      "files": [],
+      "expectations": [
+        "Agent checks for GEMINI_API_KEY or Gemini setup before proceeding",
+        "Agent uses or describes using a bundled Gemini script (gemini_batch_process.py or similar) rather than just reading the file natively",
+        "Agent returns structured extracted text/labels from the image",
+        "Agent mentions rate limits or format constraints relevant to image processing"
+      ]
+    }
+  ]
+}

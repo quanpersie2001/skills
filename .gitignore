@@ -20,3 +20,8 @@ history
 references/**
 !references/lineage/
 !references/lineage/**
+
+# Eval workspace (generated artifacts)
+pulse-eval-workspace/iteration-*/
+pulse-eval-workspace/*.html
+pulse-eval-workspace/benchmark*.json
