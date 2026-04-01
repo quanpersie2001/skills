@@ -9,7 +9,9 @@ Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation
 ## Repository Layout
 
 - `plugins/pulse/skills/` — canonical source for all skill definitions (each skill is a `SKILL.md` file in its own directory)
-- `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` — Claude Code compatibility wrappers (not the source of truth)
+- `.claude-plugin/marketplace.json` — Claude Code marketplace (points to `plugins/pulse/`)
+- `plugins/pulse/.claude-plugin/plugin.json` — Claude Code plugin manifest
+- `plugins/pulse/.codex-plugin/plugin.json` — Codex plugin manifest
 - `.agents/plugins/marketplace.json` — Codex marketplace metadata
 - `AGENTS.md` — workflow rules and bead integration (re-read after context compaction)
 - `references/` — upstream/pedagogical material (Superpowers, AI Multimodal, Khuym lineage docs); not part of the shipping plugin
@@ -58,7 +60,7 @@ history/learnings/                   ← compounding output
 Each skill lives at `plugins/pulse/skills/<name>/SKILL.md`. When adding or modifying a skill:
 
 1. The SKILL.md is the entire skill definition — there's no separate code to compile.
-2. Register new skills in both `.claude-plugin/plugin.json` and `.agents/plugins/marketplace.json`.
+2. Skills are auto-discovered — no per-skill registration needed in manifests.
 3. Use `pulse:writing-pulse-skills` for TDD-style skill development.
 
 ## Testing

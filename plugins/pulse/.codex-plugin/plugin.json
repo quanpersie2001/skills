@@ -1,13 +1,13 @@
 {
   "name": "pulse",
-  "version": "2.0.0",
+  "version": "2.2.4",
   "description": "Pulse: validate-first agentic development ecosystem for planning, validation, swarming, and execution",
   "author": {
     "name": "quanpersie2001",
     "url": "https://github.com/quanpersie2001"
   },
-  "homepage": "https://github.com/quanpersie2001/skills",
-  "repository": "https://github.com/quanpersie2001/skills",
+  "homepage": "https://github.com/quanpersie2001/pulse",
+  "repository": "https://github.com/quanpersie2001/pulse",
   "license": "MIT",
   "keywords": [
     "pulse",
@@ -28,9 +28,9 @@
       "Write",
       "Review"
     ],
-    "privacyPolicyURL": "https://github.com/quanpersie2001/skills/blob/main/docs/legal/privacy.md",
-    "termsOfServiceURL": "https://github.com/quanpersie2001/skills/blob/main/docs/legal/terms.md",
-    "websiteURL": "https://github.com/quanpersie2001/skills",
+    "privacyPolicyURL": "https://github.com/quanpersie2001/pulse/blob/main/docs/legal/privacy.md",
+    "termsOfServiceURL": "https://github.com/quanpersie2001/pulse/blob/main/docs/legal/terms.md",
+    "websiteURL": "https://github.com/quanpersie2001/pulse",
     "defaultPrompt": [
       "Onboard this repository for Pulse and start with using-pulse.",
       "Plan and validate a feature before we write code.",

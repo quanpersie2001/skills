@@ -19,7 +19,7 @@ Pulse currently packages:
 - Codex marketplace metadata in [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json)
 - Claude Code compatibility manifests in [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json)
 
-The canonical skill source lives in [`plugins/pulse/skills/`](plugins/pulse/skills). The root `.claude-plugin/*.json` files are compatibility wrappers for Claude Code, not a second source of truth.
+The canonical skill source lives in [`plugins/pulse/skills/`](plugins/pulse/skills). The `.claude-plugin/marketplace.json` exposes the plugin for Claude Code installation.
 
 ## Core Workflow
 

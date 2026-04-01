@@ -11,7 +11,7 @@
     {
       "name": "pulse",
       "description": "Validate-first multi-agent skills for phase contracts, stories, swarming, and execution. Includes 13 Pulse ecosystem skills and 4 standalone utilities.",
-      "source": "./",
+      "source": "./plugins/pulse",
       "version": "2.2.4"
     }
   ]
