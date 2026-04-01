@@ -9,6 +9,12 @@
   },
   "plugins": [
     {
+      "name": "pulse",
+      "description": "Pulse: validate-first multi-agent skills for phase contracts, stories, swarming, and execution",
+      "source": "./plugins/pulse",
+      "strict": false
+    },
+    {
       "name": "pulse:brainstorming",
       "description": "Turn vague intent into an approved design spec through structured dialogue before planning begins",
       "source": "./plugins/pulse/skills/brainstorming",
