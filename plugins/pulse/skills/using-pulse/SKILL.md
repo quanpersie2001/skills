@@ -31,7 +31,10 @@ Onboarding installs or updates:
 - repo-local `.codex/config.toml`
 - repo-local `.codex/hooks.json`
 - repo-local `.codex/hooks/pulse_*.mjs`
+- repo-local `.codex/pulse_state.mjs`
+- repo-local `.codex/pulse_status.mjs`
 - `.pulse/onboarding.json`
+- `.pulse/state.json`
 
 If onboarding is not complete, do not continue into the rest of the Pulse workflow.
 
@@ -40,8 +43,9 @@ If onboarding is not complete, do not continue into the rest of the Pulse workfl
 0. Confirm Pulse onboarding is current via `.pulse/onboarding.json`
    → If missing or stale: return to Plugin Onboarding above
 1. Read `.pulse/tooling-status.json`.
-2. If it is missing, invoke `pulse:preflight` first.
-3. Respect `recommended_mode` from preflight:
+2. If `.codex/pulse_status.mjs` exists, run `node .codex/pulse_status.mjs --json` for a quick read-only orientation snapshot.
+3. If it is missing, invoke `pulse:preflight` first.
+4. Respect `recommended_mode` from preflight:
    - `swarm` -> full multi-worker flow is allowed
    - `single-worker` -> skip `pulse:swarming` and execute directly with `pulse:executing`
    - `planning-only` -> do not start execution
@@ -155,9 +159,10 @@ phase: idle
 last_updated: <timestamp>
 ```
 
-3. Ensure `.pulse/config.json` exists. If missing, create `{}`.
-4. Ensure `.pulse/handoffs/manifest.json` exists. If missing, create an empty manifest as defined in `references/handoff-contract.md`.
-5. If `history/learnings/critical-patterns.md` exists, note its presence in state.
+3. Ensure `.pulse/state.json` exists. If missing, create a normalized routing mirror.
+4. Ensure `.pulse/config.json` exists. If missing, create `{}`.
+5. Ensure `.pulse/handoffs/manifest.json` exists. If missing, create an empty manifest as defined in `references/handoff-contract.md`.
+6. If `history/learnings/critical-patterns.md` exists, note its presence in state.
    - Planning must read it.
    - Executing does not need to read it wholesale; planners must embed relevant learnings into beads.
 

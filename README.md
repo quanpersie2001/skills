@@ -6,7 +6,7 @@
 
 [![Version](https://img.shields.io/badge/version-2.3.1-0F766E?style=flat-square)](plugins/pulse/.claude-plugin/plugin.json)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](docs/legal/terms.md)
-[![Skills](https://img.shields.io/badge/skills-18-8B5CF6?style=flat-square)](plugins/pulse/skills)
+[![Skills](https://img.shields.io/badge/skills-20-8B5CF6?style=flat-square)](plugins/pulse/skills)
 
 *Stop agents from hallucinating requirements, skipping verification, and producing unauditable work.*
 
@@ -20,7 +20,7 @@ Pulse wraps AI agents in a **gated delivery chain**. Every decision is locked be
 
 Without this structure, agents skip steps. With it, they can't.
 
-Pulse ships as **18 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled code. No runtime to install beyond the tools you already use.
+Pulse ships as **20 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled code. No runtime to install beyond the tools you already use.
 
 ---
 
@@ -101,7 +101,7 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 | Skill | Role |
 |-------|------|
 | `pulse:preflight` | Checks `git`, `br`, `bv`, and coordination runtime; writes `.pulse/tooling-status.json`; chooses `swarm / single-worker / planning-only / blocked` |
-| `pulse:using-pulse` | Session router; manages go-mode, quick mode, micro mode, resume from handoffs |
+| `pulse:using-pulse` | Session router; manages go-mode, quick mode, micro mode, resume from handoffs, and repo-local Pulse status scouting |
 | `pulse:brainstorming` | Turns vague intent into an approved design spec via one-question-at-a-time dialogue |
 | `pulse:exploring` | Socratic decision extraction into `history/<feature>/CONTEXT.md`; assigns stable D1, D2... IDs |
 | `pulse:planning` | Codebase research → `approach.md` + `phase-plan.md` → bead decomposition |
@@ -123,6 +123,8 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 | `pulse:simplify-code` | 4-lens code review (reuse, quality, efficiency, clarity) with optional safe fixes |
 | `pulse:prompt-leverage` | Upgrades raw prompts into structured execution-ready prompts |
 | `pulse:writing-pulse-skills` | TDD workshop for creating and improving Pulse skills (RED → GREEN → REFACTOR) |
+| `bootstrap-project-context` | Standalone repo-onboarding utility that forces a docs-first, source-grounded architecture pass before implementation |
+| `refresh-project-docs` | Standalone docs-sync utility that rewrites README and related docs to match the current repo state in evergreen language |
 
 ---
 
@@ -172,6 +174,7 @@ Any long-running skill writes a handoff and stops at **65% context**. The next s
 ```
 .pulse/
   tooling-status.json        ← preflight output
+  state.json                 ← machine-readable routing mirror
   STATE.md                   ← shared state
   handoffs/manifest.json     ← resume index
   handoffs/<owner>.json      ← per-actor checkpoints
@@ -237,7 +240,7 @@ Or install individual skills:
 
 1. Clone this repo
 2. Register `.agents/plugins/marketplace.json` as a local marketplace in Codex
-3. Install the `pulse` plugin — all 18 skills are discovered automatically
+3. Install the `pulse` plugin — all 20 skills are discovered automatically
 
 ---
 
@@ -254,6 +257,8 @@ pulse:using-pulse
 ```
 
 For a full walkthrough, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+If the repo has been onboarded, you can also run `node .codex/pulse_status.mjs --json` for a fast read-only snapshot of Pulse onboarding, state, tooling, and handoff status.
 
 ---
 

@@ -11,6 +11,7 @@ FILES=(
   "$ROOT/plugins/pulse/.claude-plugin/plugin.json"
   "$ROOT/plugins/pulse/.codex-plugin/plugin.json"
   "$ROOT/.agents/plugins/marketplace.json"
+  "$ROOT/.claude-plugin/marketplace.json"
 )
 
 # Read current version from first file

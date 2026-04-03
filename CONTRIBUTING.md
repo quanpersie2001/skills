@@ -9,7 +9,7 @@ These paths matter most:
 - [`plugins/pulse/skills/`](plugins/pulse/skills) is the only source of truth for skill content
 - [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json) is the Codex package manifest
 - [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) exposes the packaged `pulse` plugin to Codex
-- [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) enumerates every skill path for Claude Code
+- [`plugins/pulse/.claude-plugin/plugin.json`](plugins/pulse/.claude-plugin/plugin.json) enumerates every skill path for Claude Code
 - [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) exposes the Claude Code marketplace entries
 - [`AGENTS.md`](AGENTS.md), [`README.md`](README.md), and this file are public contract docs and must stay in sync with the actual skills
 
@@ -28,23 +28,25 @@ All shipped skills live under [`plugins/pulse/skills/`](plugins/pulse/skills).
 
 ```text
 plugins/pulse/skills/
-├── using-pulse/            references/
-├── preflight/              agents/ references/
-├── exploring/              references/
-├── planning/               mcp.json references/
-├── validating/             references/
-├── swarming/               references/
+├── using-pulse/               references/ scripts/ templates/
+├── preflight/                 agents/ references/
+├── exploring/                 references/
+├── planning/                  mcp.json references/
+├── validating/                references/
+├── swarming/                  references/
 ├── executing/
-├── reviewing/              references/
-├── compounding/            references/
+├── reviewing/                 references/
+├── compounding/               references/
 ├── debugging/
 ├── gkg/
-├── dream/                  references/
-├── writing-pulse-skills/   references/
-├── ai-multimodal/          references/ scripts/
-├── prompt-leverage/        agents/ references/ scripts/
+├── dream/                     references/
+├── writing-pulse-skills/      references/
+├── ai-multimodal/             references/ scripts/
+├── prompt-leverage/           agents/ references/ scripts/
+├── bootstrap-project-context/ agents/ references/
+├── refresh-project-docs/      agents/ references/
 ├── simplify-code/
-└── systematic-debug-fix/   agents/ references/
+└── systematic-debug-fix/      agents/ references/
 ```
 
 Folder names are filesystem-safe and unprefixed. The namespace belongs in frontmatter:
@@ -206,9 +208,7 @@ Public docs and skill changes should preserve these current behaviors:
 
 3. Add `references/`, `scripts/`, or `agents/` only when the skill really needs them.
 
-4. If the skill is exposed to Claude Code, add it to both manifests:
-   - [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) — add a `{"name": "...", "path": "..."}` entry
-   - [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) — add a plugin entry with `name`, `description`, `source`, and `strict`
+4. If the skill is exposed to Claude Code, add it to [`plugins/pulse/.claude-plugin/plugin.json`](plugins/pulse/.claude-plugin/plugin.json) with a `{"name": "...", "path": "..."}` entry.
 
 5. Codex discovers skills automatically from the `./skills/` directory declared in [`plugins/pulse/.codex-plugin/plugin.json`](plugins/pulse/.codex-plugin/plugin.json), so no per-skill manifest change is needed for Codex.
 
@@ -243,6 +243,7 @@ When editing chain skills, also test the surrounding contract:
 - `preflight` and `using-pulse` still route correctly
 - quick mode still includes validating and reviewing
 - owner-scoped handoffs still point at `.pulse/handoffs/manifest.json`
+- `node .codex/pulse_status.mjs --json` still renders a valid read-only status snapshot after onboarding changes
 - bead schema changes still line up across planning, validating, executing, and reviewing
 
 ## Documentation Rules

@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/pulse_session_start.mjs",
+            "statusMessage": "Pulse: session bootstrap"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/pulse_pre_tool_use.mjs",
+            "statusMessage": "Pulse: shell guardrails"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/pulse_stop.mjs",
+            "statusMessage": "Pulse: end-of-turn check"
+          }
+        ]
+      }
+    ]
+  }
+}

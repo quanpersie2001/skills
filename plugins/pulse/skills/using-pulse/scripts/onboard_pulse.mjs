@@ -5,6 +5,8 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { buildDefaultState, normalizePulseState } from "./pulse_state.mjs";
+
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const USING_PULSE_DIR = path.dirname(path.dirname(SCRIPT_PATH));
 const PLUGIN_ROOT = path.dirname(path.dirname(USING_PULSE_DIR));
@@ -20,6 +22,7 @@ const MANAGED_HOOK_FILENAMES = [
   "pulse_pre_tool_use.mjs",
   "pulse_stop.mjs",
 ];
+const MANAGED_SUPPORT_FILENAMES = ["pulse_status.mjs", "pulse_state.mjs"];
 const LEGACY_HOOK_FILENAMES = [
   "pulse_session_start.py",
   "pulse_pre_tool_use.py",
@@ -79,6 +82,17 @@ function readTemplate() {
 
 function readTextIfExists(filePath) {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+}
+
+function readJsonIfExists(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 function ensureParent(filePath) {
@@ -205,10 +219,12 @@ function renderCompactPromptBlock() {
     "",
     "STOP. Before doing anything else:",
     "1. Read AGENTS.md completely.",
-    "2. If present, read .pulse/HANDOFF.json and .pulse/STATE.md.",
-    "3. Re-open the active feature CONTEXT.md before more planning or edits.",
-    "4. Re-open the current bead or task before running more implementation commands.",
-    "5. Check the current worktree state with git status before resuming.",
+    "2. If present, run `node .codex/pulse_status.mjs --json` for a quick Pulse status snapshot.",
+    "3. Read .pulse/tooling-status.json, .pulse/state.json, and .pulse/STATE.md if they exist.",
+    "4. Read .pulse/handoffs/manifest.json and any active owner handoff you are resuming.",
+    "5. Re-open the active feature CONTEXT.md before more planning or edits.",
+    "6. Re-open the current bead or task before running more implementation commands.",
+    "7. Check the current worktree state with git status before resuming.",
     "",
     "After completing these steps, briefly confirm what context you restored and only then continue.",
     '"""',
@@ -409,6 +425,20 @@ function hookScriptsNeedUpdate(repoRoot) {
   return false;
 }
 
+function supportScriptsNeedUpdate(repoRoot) {
+  const codexDir = path.join(repoRoot, ".codex");
+
+  for (const name of MANAGED_SUPPORT_FILENAMES) {
+    const source = fs.readFileSync(path.join(USING_PULSE_DIR, "scripts", name), "utf8");
+    const targetPath = path.join(codexDir, name);
+    if (!fs.existsSync(targetPath) || fs.readFileSync(targetPath, "utf8") !== source) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function writeHookScripts(repoRoot) {
   const hooksDir = path.join(repoRoot, ".codex", "hooks");
   fs.mkdirSync(hooksDir, { recursive: true });
@@ -424,6 +454,22 @@ function writeHookScripts(repoRoot) {
   for (const name of MANAGED_HOOK_FILENAMES) {
     const source = path.join(HOOK_TEMPLATES_DIR, name);
     const target = path.join(hooksDir, name);
+    fs.copyFileSync(source, target);
+    fs.chmodSync(target, 0o755);
+    written.push(path.relative(repoRoot, target));
+  }
+  return written;
+}
+
+function writeSupportScripts(repoRoot) {
+  const codexDir = path.join(repoRoot, ".codex");
+  fs.mkdirSync(codexDir, { recursive: true });
+
+  const written = [];
+  for (const name of MANAGED_SUPPORT_FILENAMES) {
+    const sourceDir = name === "pulse_status.mjs" ? "templates" : "scripts";
+    const source = path.join(USING_PULSE_DIR, sourceDir, name);
+    const target = path.join(codexDir, name);
     fs.copyFileSync(source, target);
     fs.chmodSync(target, 0o755);
     written.push(path.relative(repoRoot, target));
@@ -457,6 +503,7 @@ export function checkRepo(repoRoot) {
   const configPath = path.join(repoRoot, ".codex", "config.toml");
   const hooksPath = path.join(repoRoot, ".codex", "hooks.json");
   const onboardingPath = path.join(repoRoot, ".pulse", "onboarding.json");
+  const statePath = path.join(repoRoot, ".pulse", "state.json");
 
   const agentsText = readTextIfExists(agentsPath);
   const agentsExists = agentsText.trim() !== "";
@@ -521,6 +568,18 @@ export function checkRepo(repoRoot) {
     actions.push("sync_pulse_hook_scripts");
   }
 
+  if (supportScriptsNeedUpdate(repoRoot)) {
+    actions.push("sync_pulse_support_scripts");
+  }
+
+  const state = readJsonIfExists(statePath);
+  const normalizedState = normalizePulseState(state);
+  const stateNeedsWrite =
+    !state || JSON.stringify(state, null, 2) !== JSON.stringify(normalizedState, null, 2);
+  if (stateNeedsWrite) {
+    actions.push("write_.pulse/state.json");
+  }
+
   if (onboarding.plugin_version !== pluginVersion) {
     actions.push("write_.pulse/onboarding.json");
   }
@@ -538,6 +597,7 @@ export function checkRepo(repoRoot) {
       hooks_exists: fs.existsSync(hooksPath),
       compact_prompt_conflict: compactPromptConflict,
       onboarding_state: Object.keys(onboarding).length > 0 ? onboarding : null,
+      state_exists: fs.existsSync(statePath),
       runtime,
     },
   };
@@ -556,11 +616,13 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
   const configPath = path.join(repoRoot, ".codex", "config.toml");
   const hooksPath = path.join(repoRoot, ".codex", "hooks.json");
   const onboardingPath = path.join(repoRoot, ".pulse", "onboarding.json");
+  const statePath = path.join(repoRoot, ".pulse", "state.json");
 
   ensureParent(agentsPath);
   ensureParent(configPath);
   ensureParent(hooksPath);
   ensureParent(onboardingPath);
+  ensureParent(statePath);
 
   const mergedAgents = mergeAgentsContent(readTextIfExists(agentsPath), template);
   fs.writeFileSync(agentsPath, mergedAgents.text, "utf8");
@@ -571,7 +633,15 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
   const hooksResult = mergeHooksJson(hooksPath);
   fs.writeFileSync(hooksPath, hooksResult.text, "utf8");
 
+  const defaultState = buildDefaultState();
+  const nextState = normalizePulseState({
+    ...defaultState,
+    ...readJsonIfExists(statePath),
+  });
+  fs.writeFileSync(statePath, `${JSON.stringify(nextState, null, 2)}\n`, "utf8");
+
   const hookScripts = writeHookScripts(repoRoot);
+  const supportScripts = writeSupportScripts(repoRoot);
 
   const onboardingNotes = [];
   let status = "complete";
@@ -593,6 +663,8 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
       config_changes: configResult.changes,
       hook_changes: hooksResult.changes,
       hook_scripts: hookScripts,
+      support_scripts: supportScripts,
+      state_file: path.relative(repoRoot, statePath),
     },
     notes: onboardingNotes,
   };

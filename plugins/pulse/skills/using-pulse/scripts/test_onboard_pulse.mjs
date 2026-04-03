@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { applyRepo, checkRepo, getNodeRuntimeStatus } from "./onboard_pulse.mjs";
+import { main as pulseStatusMain } from "./pulse_status.mjs";
 
 test("applyRepo creates full repo onboarding with node-based hooks", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
@@ -22,7 +23,10 @@ test("applyRepo creates full repo onboarding with node-based hooks", () => {
     assert.ok(fs.existsSync(path.join(root, ".codex", "config.toml")));
     assert.ok(fs.existsSync(path.join(root, ".codex", "hooks.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "onboarding.json")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "state.json")));
     assert.ok(fs.existsSync(path.join(root, ".codex", "hooks", "pulse_session_start.mjs")));
+    assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_state.mjs")));
+    assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_status.mjs")));
     assert.match(
       fs.readFileSync(path.join(root, ".codex", "hooks.json"), "utf8"),
       /node \.codex\/hooks\/pulse_session_start\.mjs/,
@@ -107,6 +111,31 @@ test("checkRepo flags stale python hook commands and legacy hook files", () => {
     assert.ok(result.actions.includes("install_pulse_hook_entries"));
     assert.ok(result.actions.includes("sync_pulse_hook_scripts"));
   } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("pulse status scout renders json for an onboarded repo", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+  const originalStdoutWrite = process.stdout.write;
+  const chunks = [];
+
+  try {
+    applyRepo(root, false);
+    process.stdout.write = (chunk) => {
+      chunks.push(String(chunk));
+      return true;
+    };
+
+    const exitCode = pulseStatusMain(["--repo-root", root, "--json"]);
+    assert.equal(exitCode, 0);
+
+    const payload = JSON.parse(chunks.join(""));
+    assert.equal(payload.repo_root, root);
+    assert.equal(payload.state_json.exists, true);
+    assert.equal(payload.handoff_manifest.active_count, 0);
+  } finally {
+    process.stdout.write = originalStdoutWrite;
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

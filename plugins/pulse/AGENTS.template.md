@@ -7,8 +7,9 @@ Use `pulse:using-pulse` first in this repo unless you are resuming an already ap
 
 1. Read this file at session start and again after any context compaction.
 2. If `.pulse/onboarding.json` is missing or outdated, stop and run `pulse:using-pulse` before continuing.
-3. If `.pulse/handoffs/manifest.json` exists, do not auto-resume. Surface the saved state and wait for user confirmation.
-4. If `history/learnings/critical-patterns.md` exists, read it before planning or execution work.
+3. If `.codex/pulse_status.mjs` exists, use `node .codex/pulse_status.mjs --json` for a fast read-only status snapshot.
+4. If `.pulse/handoffs/manifest.json` exists, do not auto-resume. Surface the saved state and wait for user confirmation.
+5. If `history/learnings/critical-patterns.md` exists, read it before planning or execution work.
 
 ## Chain
 
@@ -37,6 +38,7 @@ pulse:preflight
 ```
 .pulse/
   onboarding.json     ← onboarding state for the Pulse plugin
+  state.json          ← machine-readable routing/status mirror
   STATE.md            ← current phase and focus
   handoffs/
     manifest.json     ← pause/resume artifact

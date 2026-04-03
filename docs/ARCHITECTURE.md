@@ -67,10 +67,11 @@ Validates the environment before any Pulse work begins.
 - Runs `node scripts/onboard_pulse.mjs` to verify or apply repo onboarding (AGENTS.md, `.codex/` hooks, `.pulse/onboarding.json`)
 - Checks coordination runtime health (determines swarm vs single-worker capability)
 - Writes `.pulse/tooling-status.json` with outcome and `recommended_mode`
+- Maintains `.pulse/state.json` as a lightweight machine-readable routing mirror
 - **Modes:** `swarm`, `single-worker`, `planning-only`, `blocked`
 - **Hard rule:** Never proceeds past FAIL. All downstream skills depend on this artifact.
 
-**Outputs:** `.pulse/tooling-status.json`, `.pulse/STATE.md`
+**Outputs:** `.pulse/tooling-status.json`, `.pulse/state.json`, `.pulse/STATE.md`
 
 ---
 
@@ -78,6 +79,7 @@ Validates the environment before any Pulse work begins.
 The routing brain. Loaded after preflight on every session.
 
 - Reads `tooling-status.json` and `STATE.md` to understand current context
+- Uses `node .codex/pulse_status.mjs --json` as a fast read-only scout when the repo is onboarded
 - Presents the skill catalog and routes the user's intent to the correct first skill
 - Manages go-mode (full pipeline, 4 gates), quick mode (3 files or fewer), and micro mode (single-file trivial tasks)
 - Handles resume: reads `.pulse/handoffs/manifest.json`, presents active handoffs, asks which to resume
@@ -129,6 +131,26 @@ Locks all implementation decisions before planning begins.
 **Inputs:** User intent, `references/gray-area-probes.md`, `references/context-template.md`  
 **Outputs:** `history/<feature>/CONTEXT.md`  
 **Next skill:** `pulse:planning`
+
+---
+
+## Runtime State Artifacts
+
+Pulse uses both human-readable and machine-readable runtime state:
+
+```text
+.pulse/
+  tooling-status.json   -> preflight result and recommended mode
+  state.json            -> lightweight routing/status mirror
+  STATE.md              -> human-readable current phase and focus
+  handoffs/manifest.json -> owner-scoped resume index
+```
+
+Rules:
+- `state.json` is a convenience mirror, not the source of truth for planning artifacts
+- `STATE.md` remains the narrative status file
+- handoff manifests remain owner-scoped and are not replaced by a global handoff file
+- `node .codex/pulse_status.mjs --json` is a read-only scout, not a workflow gate
 
 ---
 
@@ -299,6 +321,10 @@ Each learning is classified and written to `history/learnings/YYYYMMDD-<slug>.md
 ## Support Skills
 
 These skills operate outside the main chain and are invoked on demand.
+
+Standalone utilities also ship outside the core chain:
+- `bootstrap-project-context` for docs-first, source-grounded repo onboarding
+- `refresh-project-docs` for syncing README and related docs to the current repo state in evergreen language
 
 ```mermaid
 flowchart LR
