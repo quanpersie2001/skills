@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 13 Pulse ecosystem skills and 4 standalone utility skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 13 Pulse ecosystem skills and 6 standalone utility skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ## Repository Layout
 
@@ -45,6 +45,7 @@ Three mandatory gates control progression:
 
 ```
 .pulse/tooling-status.json           ← preflight writes this
+.pulse/state.json                    ← machine-readable routing mirror
 .pulse/STATE.md                      ← shared state across phases
 .pulse/handoffs/manifest.json        ← owner-scoped pause/resume index
 .pulse/verification/<feature>/*.md   ← execution evidence

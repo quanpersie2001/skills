@@ -169,10 +169,10 @@ Support routing may also invoke `pulse:debugging`, `pulse:gkg`, or `pulse:dream`
 
 - Never execute without `pulse:validating`
 - `history/<feature>/CONTEXT.md` is the source of truth
-- quick mode still validates and reviews; it only reduces depth
+- `small_change` mode still validates and reviews; it only reduces depth
 - `P1` review findings always block merge
 - pause/resume uses `.pulse/handoffs/manifest.json` plus owner-scoped handoff files under `.pulse/handoffs/`
-- chain skills should update `.pulse/STATE.md` when they change phase ownership
+- chain skills should update `.pulse/state.json` and `.pulse/STATE.md` when they change phase ownership
 
 ### Bead Contract
 
@@ -241,7 +241,7 @@ For Pulse ecosystem skills, use [`pulse:writing-pulse-skills`](plugins/pulse/ski
 When editing chain skills, also test the surrounding contract:
 
 - `preflight` and `using-pulse` still route correctly
-- quick mode still includes validating and reviewing
+- `small_change` mode still includes validating and reviewing
 - owner-scoped handoffs still point at `.pulse/handoffs/manifest.json`
 - `node .codex/pulse_status.mjs --json` still renders a valid read-only status snapshot after onboarding changes
 - bead schema changes still line up across planning, validating, executing, and reviewing
@@ -253,6 +253,26 @@ When editing chain skills, also test the surrounding contract:
 - never commit absolute local filesystem paths such as `/Users/...`
 - verify links point to real files
 - treat drift between docs and shipped skills as a bug
+
+This repo treats these as errors:
+- a Markdown link uses an absolute local path
+- a repository-relative Markdown link points to a missing target
+
+Run:
+
+```bash
+bash scripts/check-markdown-links.sh
+```
+
+For repo-level verification, also run:
+
+```bash
+bash scripts/sync-skills.sh --dry-run
+```
+
+### Scout-First Startup
+
+On onboarded repos, skills should prefer `node .codex/pulse_status.mjs --json` as the first quick orientation step before opening deeper state files. The scout aggregates onboarding, tooling status, state mirror, handoff manifest, and learnings presence into a single read-only JSON snapshot that lets agents decide what to read next without opening every file individually.
 
 ## Standalone Skills
 

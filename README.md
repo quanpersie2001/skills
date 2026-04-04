@@ -24,6 +24,53 @@ Pulse ships as **20 skills** — each a `SKILL.md` file loaded into context at i
 
 ---
 
+## What A Pulse Run Looks Like
+
+Ask for a feature like:
+
+> "Add inbound email support for the agent inbox."
+
+Pulse moves that request through a repeatable chain:
+
+1. `pulse:exploring` locks the missing decisions into `CONTEXT.md`.
+2. `pulse:planning` turns those decisions into a phase plan, a current-phase contract, a story map, and beads.
+3. `pulse:validating` checks that the current phase is sound before any implementation starts.
+4. `pulse:swarming` and `pulse:executing` implement the current phase with reservations and live graph coordination.
+5. `pulse:reviewing` verifies the work and records P1/P2/P3 findings.
+6. `pulse:compounding` captures durable learnings for future work.
+
+The point is not ceremony for its own sake. The point is to make expensive misunderstandings and avoidable rework much less likely.
+
+## When To Use Pulse
+
+Use Pulse when:
+
+- the request is ambiguous or under-specified
+- the work spans multiple files, systems, or agents
+- the cost of getting the plan wrong is meaningful
+- you want a reviewed and auditable path from request to shipped work
+
+Do not reach for the full chain when:
+
+- the task is a one-line fix with no ambiguity
+- the work is obviously local and low-risk
+- you do not need beads, coordination, or formal review gates
+
+## Working Modes
+
+Pulse keeps one core workflow but presents it in three user-facing modes:
+
+- `small_change` — lightweight planning and validating for bounded low-risk work
+- `standard_feature` — the default full Pulse workflow
+- `high_risk_feature` — the full workflow plus deeper planning scrutiny and stronger spike discipline
+
+The core contract does not change across modes:
+- `CONTEXT.md` is still the source of truth
+- `validating` still gates execution
+- beads + `bv` + Agent Mail still drive coordination
+
+---
+
 ## Lineage
 
 Pulse is downstream of everal strong agentic-development systems and distills the parts that fit this repo owner's actual workflow:
@@ -101,7 +148,7 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 | Skill | Role |
 |-------|------|
 | `pulse:preflight` | Checks `git`, `br`, `bv`, and coordination runtime; writes `.pulse/tooling-status.json`; chooses `swarm / single-worker / planning-only / blocked` |
-| `pulse:using-pulse` | Session router; manages go-mode, quick mode, micro mode, resume from handoffs, and repo-local Pulse status scouting |
+| `pulse:using-pulse` | Session router; manages go-mode, small_change/standard_feature/high_risk_feature mode selection, micro mode, resume from handoffs, and repo-local Pulse status scouting |
 | `pulse:brainstorming` | Turns vague intent into an approved design spec via one-question-at-a-time dialogue |
 | `pulse:exploring` | Socratic decision extraction into `history/<feature>/CONTEXT.md`; assigns stable D1, D2... IDs |
 | `pulse:planning` | Codebase research → `approach.md` + `phase-plan.md` → bead decomposition |
@@ -161,9 +208,10 @@ Any long-running skill writes a handoff and stops at **65% context**. The next s
 
 | Mode | When |
 |------|------|
-| **Full** | Multi-phase feature, swarm available |
+| **Full (`standard_feature`)** | Multi-phase feature, swarm available |
 | **Single-worker** | Multi-phase feature, no swarm |
-| **Quick** | ≤3 files, no HIGH risk, no new API surface |
+| **Small change (`small_change`)** | ≤3 files, no HIGH risk, no new API surface |
+| **High risk (`high_risk_feature`)** | Cross-cutting or architecture-sensitive work |
 | **Micro** | Single file, trivial — skips planning/validating/reviewing |
 | **Planning-only** | No execution tools available |
 
@@ -244,6 +292,18 @@ Or install individual skills:
 
 ---
 
+## Session Scout
+
+On onboarded repos, Pulse installs a read-only scout command:
+
+```bash
+node .codex/pulse_status.mjs --json
+```
+
+It summarizes onboarding health plus `.pulse/state.json`, `.pulse/STATE.md`, and `.pulse/handoffs/manifest.json` so humans and agents can orient quickly before opening deeper artifacts.
+
+---
+
 ## Getting Started
 
 ```bash
@@ -256,9 +316,18 @@ pulse:using-pulse
 # 3. Describe what you want to build — Pulse routes you from there
 ```
 
-For a full walkthrough, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+For a full walkthrough, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/examples/golden-path.md`](docs/examples/golden-path.md).
 
-If the repo has been onboarded, you can also run `node .codex/pulse_status.mjs --json` for a fast read-only snapshot of Pulse onboarding, state, tooling, and handoff status.
+---
+
+## Documentation Checks
+
+When you change public docs in this repo, keep links repository-relative and environment-agnostic:
+
+```bash
+bash scripts/check-markdown-links.sh
+bash scripts/sync-skills.sh --dry-run
+```
 
 ---
 

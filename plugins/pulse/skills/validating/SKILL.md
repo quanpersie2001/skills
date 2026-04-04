@@ -3,7 +3,7 @@ name: validating
 description: |
   The critical gate between planning and execution in the Pulse ecosystem. Load this skill after planning completes and before swarming begins. Verifies the phase contract, story map, and bead graph across 8 structural dimensions, executes time-boxed spikes for HIGH-risk items, polishes beads with bv graph analytics, and requires explicit user approval before any code is written. Prevents executing unclear phases, malformed story breakdowns, unknown blockers, and redundant duplicate work.
 metadata:
-  version: '1.2'
+  version: '1.3'
   position: 3
   chain: exploring → planning → validating → swarming
 ---
@@ -67,7 +67,38 @@ If the bead files do not follow the canonical contract from `pulse:planning/refe
 
 ---
 
-## Phase 0: Schema Gate
+## Phase 0: Current Phase Orientation
+
+<HARD-GATE>
+Phase 0 orientation is mandatory. Do not run structural verification (Phase 0.5 or Phase 1) without completing Phase 0 first. Phase 0 must be run at the start of every validating session, including resumes — prior completion does not carry forward. "I already know this phase" is not completion. Phase 0 is complete only when the summary below has been presented in full and the approval status has been explicitly confirmed by reading `phase-plan.md`. Skipping or abbreviating it is a Red Flag.
+</HARD-GATE>
+
+Before structural verification, orient the validator.
+
+Read from `.pulse/STATE.md` **and** `history/<feature>/phase-plan.md` directly — do not rely on planning session context or user characterization of approval status.
+
+Present a short summary before continuing:
+
+```text
+Validating Phase <n> of <total>: <phase name>
+Approval status: APPROVED | NOT APPROVED  ← must be sourced from phase-plan.md directly
+
+Stories:
+- Story 1: <name>
+- Story 2: <name>
+- Story 3: <name>
+
+Goal of this phase:
+- <one-line practical outcome>
+```
+
+If the phase plan has not been approved, stop immediately. Do not validate an unapproved phase plan.
+
+Phase 0 is complete when this summary has been output. It is not complete until then.
+
+---
+
+## Phase 0.5: Schema Gate
 
 Before running the plan-checker, validate the bead schema itself.
 
@@ -404,6 +435,8 @@ If context exceeds 65%, write a validating-owned handoff using the shared envelo
 ## Red Flags
 
 - executing any bead before approval
+- skipping Phase 0 orientation and jumping straight to structural verification
+- claiming "Phase 0 was already done this session" to skip re-orientation on resume — Phase 0 runs every time, no exceptions
 - running plan-checker on beads that failed the schema gate
 - validating a bead set that has no phase contract
 - validating a story map that cannot explain "why now" for Story 1

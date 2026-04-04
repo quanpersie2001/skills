@@ -5,27 +5,5 @@
   "author": {
     "name": "quanpersie2001",
     "url": "https://github.com/quanpersie2001"
-  },
-  "skills": [
-    { "name": "pulse:preflight", "path": "../skills/preflight/SKILL.md" },
-    { "name": "pulse:using-pulse", "path": "../skills/using-pulse/SKILL.md" },
-    { "name": "pulse:brainstorming", "path": "../skills/brainstorming/SKILL.md" },
-    { "name": "pulse:exploring", "path": "../skills/exploring/SKILL.md" },
-    { "name": "pulse:planning", "path": "../skills/planning/SKILL.md" },
-    { "name": "pulse:validating", "path": "../skills/validating/SKILL.md" },
-    { "name": "pulse:swarming", "path": "../skills/swarming/SKILL.md" },
-    { "name": "pulse:executing", "path": "../skills/executing/SKILL.md" },
-    { "name": "pulse:reviewing", "path": "../skills/reviewing/SKILL.md" },
-    { "name": "pulse:compounding", "path": "../skills/compounding/SKILL.md" },
-    { "name": "pulse:debugging", "path": "../skills/debugging/SKILL.md" },
-    { "name": "pulse:systematic-debug-fix", "path": "../skills/systematic-debug-fix/SKILL.md" },
-    { "name": "pulse:gkg", "path": "../skills/gkg/SKILL.md" },
-    { "name": "pulse:dream", "path": "../skills/dream/SKILL.md" },
-    { "name": "pulse:ai-multimodal", "path": "../skills/ai-multimodal/SKILL.md" },
-    { "name": "pulse:simplify-code", "path": "../skills/simplify-code/SKILL.md" },
-    { "name": "pulse:prompt-leverage", "path": "../skills/prompt-leverage/SKILL.md" },
-    { "name": "pulse:writing-pulse-skills", "path": "../skills/writing-pulse-skills/SKILL.md" },
-    { "name": "bootstrap-project-context", "path": "../skills/bootstrap-project-context/SKILL.md" },
-    { "name": "refresh-project-docs", "path": "../skills/refresh-project-docs/SKILL.md" }
-  ]
+  }
 }

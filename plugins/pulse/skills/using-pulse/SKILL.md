@@ -1,8 +1,8 @@
 ---
 name: using-pulse
-description: Bootstrap meta-skill for the Pulse agentic development ecosystem. Load after pulse:preflight on any Pulse project. Lists the Pulse skills with routing logic, full go-mode flow with 4 human gates, lightweight quick mode, priority rules, resume handling, and shared state contracts.
+description: Bootstrap meta-skill for the Pulse agentic development ecosystem. Load after pulse:preflight on any Pulse project. Lists the Pulse skills with routing logic, session scout/bootstrap, small_change vs standard_feature vs high_risk_feature mode selection, full go-mode flow with 4 human gates, priority rules, resume handling, and shared state contracts.
 metadata:
-  version: '2.1'
+  version: '2.2'
   ecosystem: pulse
 ---
 
@@ -51,6 +51,24 @@ If onboarding is not complete, do not continue into the rest of the Pulse workfl
    - `planning-only` -> do not start execution
    - `blocked` -> stop and clear blockers first
 
+## Session Scout
+
+After onboarding succeeds, use the repo-local scout command as the first quick orientation step whenever it is available:
+
+```bash
+node .codex/pulse_status.mjs --json
+```
+
+The scout is read-only. It summarizes:
+
+- onboarding health
+- `.pulse/state.json`
+- `.pulse/STATE.md`
+- `.pulse/handoffs/manifest.json`
+- recommended next reads/actions
+
+Use it to get the current truth quickly, then open the deeper files it points to.
+
 ## Skill Catalog
 
 | # | Skill | One-line description | Load when... |
@@ -72,14 +90,26 @@ If onboarding is not complete, do not continue into the rest of the Pulse workfl
 
 ## Routing Logic
 
-Given a user request, determine the first skill:
+Given a user request, determine the working mode first, then the first skill.
+
+### Mode Selection
+
+| Mode | Use when... | Notes |
+|---|---|---|
+| `small_change` | ≤3 files, no new API/data model, LOW risk, no gray areas | Lightweight planning and validating, but still no skipping validating |
+| `standard_feature` | Normal feature or refactor with clear value but moderate scope | Default mode for most Pulse work |
+| `high_risk_feature` | Cross-cutting, high-blast-radius, or architecture-sensitive work | Use deeper planning review and explicit spikes for risky items |
+
+### First-Skill Routing
+
+Given a user request, determine which skill to invoke first:
 
 | Request type | First skill | Notes |
 |---|---|---|
 | Unformed idea / design unclear | `pulse:brainstorming` | Use when what to build isn't clear yet; produces spec before exploring |
 | Vague or new feature (what is clear, how is not) | `pulse:exploring` | Start here if intent is clear but implementation decisions are fuzzy |
 | Clear implementation request | `pulse:planning` | Skip exploring only if decisions are already locked |
-| Small, low-risk fix | `pulse:planning` in lightweight mode | Still validate before execution |
+| Small, low-risk fix | `pulse:planning` | Route in `small_change` mode |
 | "Review my code" | `pulse:reviewing` | Load directly |
 | "What did we learn?" | `pulse:compounding` | Load directly |
 | "Improve Pulse itself" | `pulse:writing-pulse-skills` | Load directly |
@@ -234,30 +264,49 @@ The branch depends on `.pulse/tooling-status.json`:
 - `recommended_mode=swarm` -> use `pulse:swarming`
 - `recommended_mode=single-worker` -> skip `pulse:swarming`, invoke `pulse:executing` directly
 
-## Quick Mode
+## Mode Guidance
 
-Quick mode is for a single low-risk change with no gray areas.
+### `small_change`
+
+For requests classified as `small_change`:
 
 ```text
-planning(lightweight)
--> validating(lightweight, but still mandatory)
--> executing(single-worker)
--> reviewing(lightweight, still mandatory)
--> compounding only if a durable learning emerged
+planning (lightweight: single bead, no multi-model refinement)
+  -> present one-phase plan and wait for approval
+  -> validating (lightweight: single-story phase, abbreviated verification + bv check)
+  -> executing (single-worker)
+  -> reviewing (lightweight but still required)
+  -> compounding (only if a lesson was learned)
 ```
 
-Classify as quick mode only if all are true:
+Choose `small_change` when ALL of these are true:
+- Change touches 3 files or fewer
+- No new API surface or data model changes
+- Risk is clearly LOW
+- No gray areas about intent
+- The phase can honestly be expressed as one story
 
-- touches 3 files or fewer
-- no new API surface or data model change
-- no HIGH-risk component
-- no unresolved intent
+### `standard_feature`
 
-Quick mode never skips review entirely. It only reduces depth.
+Use this for the default Pulse chain. This is the normal case for most feature work:
 
-## Micro Mode
+```text
+exploring -> planning -> validating -> swarming/executing -> reviewing -> compounding
+```
 
-Micro mode is for genuinely trivial tasks that do not warrant the full Pulse pipeline or even quick mode.
+### `high_risk_feature`
+
+Use this when the work is cross-cutting, hard to reverse, or likely to fail if assumptions are wrong.
+
+Additional expectations:
+- more discovery depth during planning
+- explicit second-opinion refinement during planning
+- spike discipline for risky items during validating
+- slower approval at GATE 3 before execution begins
+
+### Micro Mode
+
+Micro mode is for genuinely trivial tasks that do not warrant the full Pulse pipeline or even `small_change` mode.
 
 ### When micro mode applies
 
@@ -269,7 +318,7 @@ All of the following must be true:
 - no architectural decisions required
 - no gray areas or unresolved intent
 
-If any condition is false, fall back to quick mode or the full pipeline.
+If any condition is false, fall back to `small_change` mode or the full pipeline.
 
 ### User-facing trigger
 
@@ -327,14 +376,17 @@ Pause and surface these immediately:
 - a plan marks HIGH risk but does not define a concrete `spike_question`
 - a reviewer is expected to inspect artifacts it was never given
 - a worker ignores bead verification criteria or bead file scope
-- review is skipped because the change "looks small"
+- review is skipped outside the approved lightweight `small_change` flow
 - debugging keeps patching after repeated failed fixes instead of handing the work back for re-planning or re-validation
 - `manifest.json` lists an active handoff but the referenced owner file is missing, or an owner file exists without a matching manifest entry
+- `state.json` missing or stale after a phase transition
+- `STATE.md` not updated after a phase transition
 
 ## File Quick Reference
 
 ```text
 .pulse/
+  state.json                   <- machine-readable routing/status mirror
   STATE.md                     <- shared project state
   config.json                  <- feature toggles
   tooling-status.json          <- preflight output
@@ -347,6 +399,10 @@ Pause and surface these immediately:
     coordinator.json          <- swarm coordinator checkpoint
     worker-<agent>.json       <- worker checkpoint
     single-worker.json        <- degraded execution checkpoint
+
+.codex/
+  pulse_status.mjs             <- read-only scout for onboarding, state, and handoff
+  pulse_state.mjs              <- shared state helpers used by the scout
 
 history/<feature>/
   CONTEXT.md                  <- locked decisions from exploring
@@ -375,7 +431,7 @@ Each skill reads upstream artifacts and writes downstream artifacts:
 | gkg | codebase structure, definitions, references | planning-ready discovery findings |
 | planning | `CONTEXT.md`, relevant learnings, optional `pulse:gkg` findings | `discovery.md`, `approach.md`, `phase-plan.md`, `phase-<n>-contract.md`, `phase-<n>-story-map.md`, canonical bead files |
 | validating | phase-plan.md, phase-<n>-contract.md, phase-<n>-story-map.md, .beads/*, approach.md, CONTEXT.md | validated current phase, `.spikes/` results |
-| swarming | validated beads, `tooling-status.json`, `STATE.md` | coordinator mail state, coordinator handoff, updated `STATE.md` |
+| swarming | validated beads, `tooling-status.json`, `state.json`, `STATE.md` | coordinator mail state, coordinator handoff, updated `state.json`, updated `STATE.md` |
 | executing | bead file, `STATE.md`, `CONTEXT.md` | implementation commits, `.pulse/verification/` evidence, `br close`, worker handoff if needed |
 | reviewing | diff, `CONTEXT.md`, `approach.md` | review beads, artifact verification results, UAT outcome |
 | compounding | feature history, review output | learning files under `history/learnings/` |

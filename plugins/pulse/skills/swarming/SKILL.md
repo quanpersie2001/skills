@@ -52,6 +52,7 @@ Invoke only if all are true:
 - Current-phase beads are in `open` status and approved for execution
 - `.pulse/tooling-status.json` says `recommended_mode=swarm`
 - the coordination runtime is actually available
+- If `.codex/pulse_status.mjs` exists, run `node .codex/pulse_status.mjs --json` first to confirm onboarding, current phase, and any saved handoff before launching the swarm
 
 If preflight recommends `single-worker`, do not invoke this skill. Invoke `pulse:executing` directly instead.
 
@@ -62,7 +63,7 @@ Read `references/runtime-adapter-spec.md` before adapting these instructions to 
 ## Phase 1: Confirm Swarm Readiness
 
 1. Read `.pulse/tooling-status.json`
-2. Read `.pulse/STATE.md`
+2. Read `.pulse/state.json` if present, then `.pulse/STATE.md`
 3. Identify the current epic or feature bead root
 4. Run a live graph check:
 
@@ -76,7 +77,7 @@ Confirm:
 - no validation blockers remain
 - dependencies are sane
 
-Update `.pulse/STATE.md` with current swarm intent and epic ID.
+Update `.pulse/state.json` and `.pulse/STATE.md` with current swarm intent and epic ID.
 
 ---
 

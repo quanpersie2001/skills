@@ -16,6 +16,8 @@ metadata:
 
 # Exploring Skill
 
+If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
+
 Research shows that 5–10 minutes spent extracting decisions before any planning begins
 prevents hours of back-and-forth caused by planner assumptions ([GSD README](https://github.com/gsd-build/get-shit-done)).
 This skill is that conversation. Teams who skip it get reasonable defaults; teams who use it get their vision.

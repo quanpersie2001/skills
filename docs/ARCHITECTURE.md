@@ -8,6 +8,26 @@ Pulse wraps AI agents in a gated delivery chain. The chain enforces that decisio
 
 The chain is not optional — every gate is a hard stop requiring explicit human approval.
 
+## Core Principles
+
+Pulse keeps these invariants:
+
+- `CONTEXT.md` is the source of truth for locked decisions.
+- `validating` is a real execution gate, not an optional review step.
+- beads + `bv` + Agent Mail are the coordination substrate.
+- `swarming` is the orchestrator role and `executing` is the worker role.
+- `reviewing` and `compounding` are first-class phases, not cleanup afterthoughts.
+
+## Working Modes
+
+Pulse presents three user-facing modes over the same core workflow:
+
+- `small_change` — bounded, low-risk work with lightweight planning and validating
+- `standard_feature` — the default full Pulse workflow
+- `high_risk_feature` — the full workflow plus deeper planning scrutiny and stronger spike discipline
+
+Modes change the amount of ceremony, not the core contract. `validating` still gates execution in every mode.
+
 ---
 
 ## Delivery Chain
@@ -81,7 +101,7 @@ The routing brain. Loaded after preflight on every session.
 - Reads `tooling-status.json` and `STATE.md` to understand current context
 - Uses `node .codex/pulse_status.mjs --json` as a fast read-only scout when the repo is onboarded
 - Presents the skill catalog and routes the user's intent to the correct first skill
-- Manages go-mode (full pipeline, 4 gates), quick mode (3 files or fewer), and micro mode (single-file trivial tasks)
+- Manages go-mode (full pipeline, 4 gates), working modes (`small_change` / `standard_feature` / `high_risk_feature`), micro mode (single-file trivial tasks)
 - Handles resume: reads `.pulse/handoffs/manifest.json`, presents active handoffs, asks which to resume
 - Maintains the default communication contract (plain-language summaries, no jargon without translation)
 
@@ -563,6 +583,20 @@ history/learnings/
 
 ---
 
+## Startup Contract
+
+On normal Pulse sessions:
+
+1. Read `AGENTS.md`
+2. If present, run `node .codex/pulse_status.mjs --json`
+3. Read `.pulse/handoffs/manifest.json` if resuming
+4. Read `.pulse/state.json`
+5. Read `.pulse/STATE.md`
+6. Re-open the active feature `CONTEXT.md`
+7. Read `history/learnings/critical-patterns.md` before planning or execution when it exists
+
+---
+
 ## Pipeline Modes
 
 ```mermaid
@@ -574,7 +608,8 @@ flowchart LR
     mode -->|blocked| bl[Stop — fix blockers first]
 
     user{task size?}
-    user -->|≤3 files, no HIGH risk| quick[Quick mode\nlightweight depth]
+    user -->|≤3 files, no HIGH risk| quick[small_change mode\nlightweight depth]
+    user -->|cross-cutting, high risk| hr[high_risk_feature mode\ndeeper planning + spikes]
     user -->|single file, trivial| micro[Micro mode\nexploring → executing\nskip planning/validating/\nswarming/reviewing/compounding]
     user -->|multi-phase feature| full
 ```
@@ -584,7 +619,8 @@ flowchart LR
 | **Full (go mode)** | Any multi-phase feature | Nothing |
 | **Swarm** | `recommended_mode=swarm` | `pulse:executing` runs under `pulse:swarming` |
 | **Single-worker** | `recommended_mode=single-worker` | `pulse:swarming` skipped; `pulse:executing` runs directly |
-| **Quick** | ≤3 files, no new API surface, no HIGH risk | Planning/validating/reviewing use lightweight depth |
+| **Small change (`small_change`)** | ≤3 files, no new API surface, no HIGH risk | Planning/validating/reviewing use lightweight depth |
+| **High risk (`high_risk_feature`)** | Cross-cutting or architecture-sensitive work | Deeper planning, stronger spike discipline |
 | **Micro** | Single file, 1-2 beads, no decisions | Skips planning, validating, swarming, reviewing, compounding; user must confirm |
 | **Planning-only** | `recommended_mode=planning-only` | Execution cannot start |
 | **Blocked** | `recommended_mode=blocked` | Everything halted until blockers cleared |
@@ -613,3 +649,14 @@ sequenceDiagram
 ```
 
 On resume, `pulse:using-pulse` reads the manifest and presents active handoffs for the user to choose from. The new session loads the named skill and continues from the handoff file.
+
+---
+
+## Verification Expectations
+
+Public-doc changes in this repo should pass:
+
+```bash
+bash scripts/check-markdown-links.sh
+bash scripts/sync-skills.sh --dry-run
+```
