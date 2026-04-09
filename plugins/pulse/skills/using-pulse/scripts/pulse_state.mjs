@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { readDependencyHealthSafe } from "./pulse_dependencies.mjs";
 
 export const STATE_SCHEMA_VERSION = "1.0";
 
@@ -27,6 +28,205 @@ function readJsonIfExists(filePath) {
   } catch {
     return null;
   }
+}
+
+const SUPPORTED_GKG_LANGUAGE_EXTENSIONS = {
+  TypeScript: [".ts", ".tsx"],
+  JavaScript: [".js", ".jsx", ".mjs", ".cjs"],
+  Ruby: [".rb"],
+  Java: [".java"],
+  Kotlin: [".kt", ".kts"],
+  Python: [".py"],
+};
+
+const SUPPORTED_GKG_BASENAMES = new Set(["Gemfile", "Rakefile", "Vagrantfile"]);
+
+const OTHER_SOURCE_EXTENSIONS = new Set([
+  ".go", ".rs", ".c", ".h", ".cpp", ".hpp", ".cc", ".cs",
+  ".swift", ".m", ".mm", ".lua", ".r", ".R", ".scala",
+  ".clj", ".ex", ".exs", ".hs", ".erl", ".dart", ".php",
+]);
+
+const WALK_SKIP_DIRS = new Set([
+  "node_modules", ".git", "dist", "build", "vendor", ".bundle",
+  "__pycache__", ".venv", "venv", ".tox", "target", ".gradle",
+  ".codex", ".pulse", ".beads", ".spikes", ".worktrees",
+]);
+
+const MANIFEST_LANGUAGE_HINTS = {
+  "package.json": "JavaScript",
+  "tsconfig.json": "TypeScript",
+  "Gemfile": "Ruby",
+  "Rakefile": "Ruby",
+  "build.gradle": "Java",
+  "build.gradle.kts": "Kotlin",
+  "pom.xml": "Java",
+  "setup.py": "Python",
+  "pyproject.toml": "Python",
+  "requirements.txt": "Python",
+  "Pipfile": "Python",
+};
+
+const MAX_WALK_DEPTH = 3;
+
+function collectRepoLanguageSignals(repoRoot) {
+  const counts = { supported: 0, unsupported_code: 0, ignored: 0 };
+  const supportedLanguages = new Set();
+  const flatExtensions = new Map();
+
+  for (const [lang, exts] of Object.entries(SUPPORTED_GKG_LANGUAGE_EXTENSIONS)) {
+    for (const ext of exts) {
+      flatExtensions.set(ext, lang);
+    }
+  }
+
+  for (const entry of fs.readdirSync(repoRoot, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const hint = MANIFEST_LANGUAGE_HINTS[entry.name];
+    if (hint) supportedLanguages.add(hint);
+  }
+
+  function walk(dir, depth) {
+    if (depth > MAX_WALK_DEPTH) return;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (!WALK_SKIP_DIRS.has(entry.name)) {
+          walk(path.join(dir, entry.name), depth + 1);
+        }
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      const ext = path.extname(entry.name);
+      const lang = flatExtensions.get(ext);
+      if (lang) {
+        counts.supported += 1;
+        supportedLanguages.add(lang);
+        continue;
+      }
+      if (SUPPORTED_GKG_BASENAMES.has(entry.name)) {
+        counts.supported += 1;
+        supportedLanguages.add("Ruby");
+        continue;
+      }
+      if (OTHER_SOURCE_EXTENSIONS.has(ext)) {
+        counts.unsupported_code += 1;
+        continue;
+      }
+      counts.ignored += 1;
+    }
+  }
+
+  walk(repoRoot, 0);
+
+  const sortedLanguages = [...supportedLanguages].sort();
+  const total = counts.supported + counts.unsupported_code;
+  let coverage = "none";
+  if (total > 0) {
+    coverage = counts.unsupported_code === 0 ? "full" : counts.supported > 0 ? "limited" : "none";
+  }
+
+  return {
+    supported_languages: sortedLanguages,
+    primary_supported_language: sortedLanguages[0] || null,
+    counts,
+    coverage,
+  };
+}
+
+function normalizeFsPath(p) {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
+async function fetchJsonWithTimeout(url, timeoutMs = 1500) {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function extractProjectPaths(payload) {
+  const paths = new Set();
+  function walk(obj) {
+    if (!obj || typeof obj !== "object") return;
+    if (Array.isArray(obj)) { obj.forEach(walk); return; }
+    for (const [key, value] of Object.entries(obj)) {
+      if (typeof value === "string" && /folder_path|project_root|repo_path|root_path|path/i.test(key)) {
+        paths.add(value);
+      }
+      if (typeof value === "object") walk(value);
+    }
+  }
+  walk(payload);
+  return [...paths];
+}
+
+async function readGkgServerStatus(repoRoot) {
+  const serverUrl = process.env.PULSE_GKG_SERVER_URL || "http://127.0.0.1:27495";
+  const [info, workspace] = await Promise.all([
+    fetchJsonWithTimeout(`${serverUrl}/api/info`),
+    fetchJsonWithTimeout(`${serverUrl}/api/workspace/list`),
+  ]);
+  if (!info) {
+    return { server_reachable: false, server_version: null, project_indexed: false };
+  }
+
+  const projectPaths = workspace ? extractProjectPaths(workspace) : [];
+  const normalizedRoot = normalizeFsPath(repoRoot);
+  const project_indexed = projectPaths.some((p) => normalizeFsPath(p) === normalizedRoot);
+
+  return {
+    server_reachable: true,
+    server_version: info.version || info.server_version || null,
+    project_indexed,
+  };
+}
+
+function buildGkgRecommendedAction(signals, serverStatus) {
+  if (!signals.supported_languages.length) {
+    return "Use grep/file inspection fallback — this repo is outside gkg's supported language set.";
+  }
+  if (!serverStatus.server_reachable && !serverStatus.project_indexed) {
+    return "Run `gkg index <repo-root>` then `gkg server start` to enable gkg discovery.";
+  }
+  if (serverStatus.server_reachable && !serverStatus.project_indexed) {
+    return "Run `gkg index <repo-root>` to index this project for gkg discovery.";
+  }
+  if (!serverStatus.server_reachable && serverStatus.project_indexed) {
+    return "Run `gkg server start` to enable gkg discovery.";
+  }
+  return "gkg is ready — use MCP tools as the default discovery path.";
+}
+
+export async function readGkgReadiness(repoRoot) {
+  const signals = collectRepoLanguageSignals(repoRoot);
+  const serverStatus = await readGkgServerStatus(repoRoot);
+  const recommended_action = buildGkgRecommendedAction(signals, serverStatus);
+
+  return {
+    supported_repo: signals.supported_languages.length > 0,
+    supported_languages: signals.supported_languages,
+    primary_supported_language: signals.primary_supported_language,
+    coverage: signals.coverage,
+    ...serverStatus,
+    recommended_action,
+  };
 }
 
 export function resolveRepoRoot(explicitRoot, startFrom = process.cwd()) {
@@ -185,7 +385,7 @@ function buildRecommendedActions(status) {
   ];
 }
 
-export function readPulseStatus(repoRoot) {
+export async function readPulseStatus(repoRoot) {
   const paths = getPulseStatePaths(repoRoot);
   const onboarding = readJsonIfExists(paths.onboarding);
   const toolingStatus = readJsonIfExists(paths.toolingStatus);
@@ -193,6 +393,9 @@ export function readPulseStatus(repoRoot) {
   const stateMarkdownText = fileTextIfExists(paths.stateMarkdown);
   const stateMarkdown = parseLooseKeyValueMarkdown(stateMarkdownText);
   const handoffManifest = readJsonIfExists(paths.handoffManifest);
+
+  const dependencyHealth = readDependencyHealthSafe(repoRoot);
+  const gkgReadiness = await readGkgReadiness(repoRoot);
 
   const status = {
     repo_root: repoRoot,
@@ -225,6 +428,8 @@ export function readPulseStatus(repoRoot) {
       updated_at: typeof handoffManifest?.updated_at === "string" ? handoffManifest.updated_at : "",
     },
     critical_patterns_exists: fs.existsSync(paths.criticalPatterns),
+    dependency_health: dependencyHealth,
+    gkg_readiness: gkgReadiness,
     next_reads: [],
     recommended_actions: [],
   };
@@ -232,6 +437,117 @@ export function readPulseStatus(repoRoot) {
   status.next_reads = buildNextReads(status);
   status.recommended_actions = buildRecommendedActions(status);
   return status;
+}
+
+function formatDependencyTarget(target) {
+  if (Array.isArray(target)) {
+    return target.filter(Boolean).join(", ");
+  }
+  return String(target || "");
+}
+
+function formatDependencyImpact(missingDependency) {
+  const requiredBy = Array.isArray(missingDependency.required_by)
+    ? missingDependency.required_by.join(", ")
+    : "(unknown skills)";
+  const effects = Array.isArray(missingDependency.missing_effects)
+    ? missingDependency.missing_effects.join(", ")
+    : "degraded";
+  return `Affects: ${requiredBy}. Reported status impact: ${effects}.`;
+}
+
+function renderDependencyHealthLines(status) {
+  const dependencyHealth =
+    status.dependency_health && typeof status.dependency_health === "object"
+      ? status.dependency_health
+      : null;
+  const summary = dependencyHealth?.summary || {};
+  const missingDependencies = Array.isArray(dependencyHealth?.missing_dependencies)
+    ? dependencyHealth.missing_dependencies
+    : [];
+  const uncoveredSkills = Array.isArray(dependencyHealth?.uncovered_skills)
+    ? dependencyHealth.uncovered_skills
+    : [];
+
+  const lines = [
+    "Dependency health:",
+    `- Packaged skill coverage: ${summary.skills_total || 0} total (${summary.skills_with_declared_dependencies || 0} with declared dependencies, ${summary.skills_dependency_free || 0} dependency-free, ${summary.skills_uncovered || 0} uncovered)`,
+    `- Availability among covered skills: ${summary.skills_available || 0} available, ${summary.skills_degraded || 0} degraded, ${summary.skills_unavailable || 0} unavailable`,
+    `- Declared dependencies: ${summary.declared_dependencies || 0}`,
+    `- Missing declared dependencies: ${summary.missing_dependencies || 0}`,
+  ];
+
+  lines.push("- Uncovered packaged skills:");
+  if (uncoveredSkills.length === 0) {
+    lines.push("  - none");
+  } else {
+    for (const skill of uncoveredSkills) {
+      lines.push(`  - ${skill.skill_name} (${skill.skill_file})`);
+    }
+  }
+
+  if (missingDependencies.length === 0) {
+    lines.push("- Missing commands: none");
+    lines.push("- Missing MCP server configuration: none");
+    return lines;
+  }
+
+  const missingCommands = missingDependencies.filter((dependency) => dependency.kind === "command");
+  const missingMcpServers = missingDependencies.filter(
+    (dependency) => dependency.kind === "mcp_server",
+  );
+
+  lines.push("- Missing commands:");
+  if (missingCommands.length === 0) {
+    lines.push("  - none");
+  } else {
+    for (const dependency of missingCommands) {
+      lines.push(
+        `  - ${formatDependencyTarget(dependency.target)}. ${formatDependencyImpact(dependency)}`,
+      );
+    }
+  }
+
+  lines.push("- Missing MCP server configuration:");
+  if (missingMcpServers.length === 0) {
+    lines.push("  - none");
+  } else {
+    for (const dependency of missingMcpServers) {
+      lines.push(
+        `  - ${formatDependencyTarget(dependency.target)}. ${formatDependencyImpact(dependency)}`,
+      );
+    }
+  }
+
+  return lines;
+}
+
+function renderGkgReadinessLines(status) {
+  const readiness = status.gkg_readiness && typeof status.gkg_readiness === "object"
+    ? status.gkg_readiness
+    : null;
+  if (!readiness) {
+    return [];
+  }
+
+  const supportedLanguages =
+    Array.isArray(readiness.supported_languages) && readiness.supported_languages.length > 0
+      ? readiness.supported_languages.join(", ")
+      : "none";
+  const serverStatus = readiness.server_reachable
+    ? `reachable${readiness.server_version ? ` (${readiness.server_version})` : ""}`
+    : "unreachable";
+
+  return [
+    "gkg readiness:",
+    `- Supported repo: ${readiness.supported_repo ? "yes" : "no"}`,
+    `- Supported languages: ${supportedLanguages}`,
+    `- Primary supported language: ${readiness.primary_supported_language || "n/a"}`,
+    `- Coverage: ${readiness.coverage || "unknown"}`,
+    `- Server: ${serverStatus}`,
+    `- Project indexed: ${readiness.project_indexed ? "yes" : "no"}`,
+    `- Recommended action: ${readiness.recommended_action || "n/a"}`,
+  ];
 }
 
 export function renderPulseStatus(status) {
@@ -256,6 +572,10 @@ export function renderPulseStatus(status) {
     `Requested mode: ${requestedMode}`,
     `Recommended mode: ${recommendedMode}`,
     `Active handoffs: ${status.handoff_manifest.active_count}`,
+    "",
+    ...renderGkgReadinessLines(status),
+    "",
+    ...renderDependencyHealthLines(status),
     "",
     "Next reads:",
     ...status.next_reads.map((item) => `- ${item}`),

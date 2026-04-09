@@ -10,6 +10,23 @@ description: >-
 metadata:
   version: '2.2'
   ecosystem: pulse
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: degraded
+      reason: Planning creates beads for the current phase through br.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Planning uses bv to verify bead graph structure.
+    - id: gkg
+      kind: mcp_server
+      server_names: [gkg]
+      config_sources: [skill_mcp_manifest:planning]
+      missing_effect: degraded
+      reason: Planning uses gkg MCP tools for codebase discovery when available.
 ---
 
 # Planning

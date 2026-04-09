@@ -3,6 +3,7 @@ name: bootstrap-project-context
 description: Bootstrap a new AI-agent session by reading the repository operating docs and rebuilding project understanding from source. Use when starting work in an unfamiliar repo, getting up to speed before implementation, reading AGENTS.md and README.md completely before acting, investigating the codebase to understand purpose and architecture, or turning a rough onboarding prompt into an execution-ready repo-orientation prompt.
 metadata:
   version: '1.0'
+  dependencies: []
 ---
 
 # Bootstrap Project Context

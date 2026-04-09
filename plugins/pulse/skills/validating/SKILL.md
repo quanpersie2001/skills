@@ -6,6 +6,17 @@ metadata:
   version: '1.3'
   position: 3
   chain: exploring → planning → validating → swarming
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: unavailable
+      reason: Validating verifies and manages beads through br.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Validating inspects the bead graph with bv before approving execution.
 ---
 
 # Validating

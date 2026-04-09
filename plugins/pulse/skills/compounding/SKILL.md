@@ -5,6 +5,12 @@ metadata:
   version: '1.3'
   ecosystem: pulse
   position: '8 of 9 — runs after reviewing, before next feature'
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: degraded
+      reason: Compounding reads bead history to reconstruct what work actually ran.
 ---
 
 # Compounding

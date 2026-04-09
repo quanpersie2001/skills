@@ -3,6 +3,7 @@ name: simplify-code
 description: "Review and simplify code for reuse, quality, efficiency, and clarity. Use when the user asks to review, simplify, clean up, or refactor code changes — whether from a git diff or explicit file scope. Optionally applies safe Codex-driven fixes."
 metadata:
   version: '1.1'
+  dependencies: []
 ---
 
 # Simplify Code

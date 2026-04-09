@@ -3,6 +3,7 @@ name: ai-multimodal
 description: Process and generate multimedia content with Google Gemini when advanced multimodal processing beyond basic file reading is needed — Gemini-powered analysis, generation, or transformation of audio, images, video, and documents. Use when working with screenshots requiring OCR, PDF extraction, audio transcription, visual analysis, structured extraction, image generation, video generation, media pre-processing, or SDK-level multimodal integrations. Not needed when Claude can handle the task natively (e.g., viewing an image or reading a short PDF). Includes bundled CLI scripts for analyze/transcribe/extract/generate/generate-video plus deeper references for advanced features like TTS, image editing, YouTube analysis, structured JSON schemas, and live music generation.
 metadata:
   version: '1.1'
+  dependencies: []
 license: MIT
 allowed-tools:
   - Bash

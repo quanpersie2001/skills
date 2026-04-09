@@ -6,6 +6,10 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { buildDefaultState, normalizePulseState } from "./pulse_state.mjs";
+import {
+  readDependencyHealthSafe,
+  buildDependencyWarningSummary,
+} from "./pulse_dependencies.mjs";
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const USING_PULSE_DIR = path.dirname(path.dirname(SCRIPT_PATH));
@@ -22,7 +26,11 @@ const MANAGED_HOOK_FILENAMES = [
   "pulse_pre_tool_use.mjs",
   "pulse_stop.mjs",
 ];
-const MANAGED_SUPPORT_FILENAMES = ["pulse_status.mjs", "pulse_state.mjs"];
+const MANAGED_SUPPORT_FILES = {
+  "pulse_status.mjs": path.join(USING_PULSE_DIR, "templates", "pulse_status.mjs"),
+  "pulse_state.mjs": path.join(USING_PULSE_DIR, "scripts", "pulse_state.mjs"),
+  "pulse_dependencies.mjs": path.join(USING_PULSE_DIR, "scripts", "pulse_dependencies.mjs"),
+};
 const LEGACY_HOOK_FILENAMES = [
   "pulse_session_start.py",
   "pulse_pre_tool_use.py",
@@ -428,9 +436,9 @@ function hookScriptsNeedUpdate(repoRoot) {
 function supportScriptsNeedUpdate(repoRoot) {
   const codexDir = path.join(repoRoot, ".codex");
 
-  for (const name of MANAGED_SUPPORT_FILENAMES) {
-    const source = fs.readFileSync(path.join(USING_PULSE_DIR, "scripts", name), "utf8");
+  for (const [name, sourcePath] of Object.entries(MANAGED_SUPPORT_FILES)) {
     const targetPath = path.join(codexDir, name);
+    const source = fs.readFileSync(sourcePath, "utf8");
     if (!fs.existsSync(targetPath) || fs.readFileSync(targetPath, "utf8") !== source) {
       return true;
     }
@@ -466,11 +474,9 @@ function writeSupportScripts(repoRoot) {
   fs.mkdirSync(codexDir, { recursive: true });
 
   const written = [];
-  for (const name of MANAGED_SUPPORT_FILENAMES) {
-    const sourceDir = name === "pulse_status.mjs" ? "templates" : "scripts";
-    const source = path.join(USING_PULSE_DIR, sourceDir, name);
+  for (const [name, sourcePath] of Object.entries(MANAGED_SUPPORT_FILES)) {
     const target = path.join(codexDir, name);
-    fs.copyFileSync(source, target);
+    fs.copyFileSync(sourcePath, target);
     fs.chmodSync(target, 0o755);
     written.push(path.relative(repoRoot, target));
   }
@@ -497,6 +503,9 @@ export function checkRepo(repoRoot) {
   if (!runtime.supported) {
     return buildRuntimeBlockedPayload(repoRoot, "check");
   }
+
+  const dependencyHealth = readDependencyHealthSafe(repoRoot);
+  const dependencyWarning = buildDependencyWarningSummary(dependencyHealth);
 
   const pluginVersion = loadPluginVersion();
   const agentsPath = path.join(repoRoot, "AGENTS.md");
@@ -599,6 +608,8 @@ export function checkRepo(repoRoot) {
       onboarding_state: Object.keys(onboarding).length > 0 ? onboarding : null,
       state_exists: fs.existsSync(statePath),
       runtime,
+      dependency_health: dependencyHealth,
+      dependency_warning: dependencyWarning,
     },
   };
 }

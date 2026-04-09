@@ -8,6 +8,23 @@ description: >-
 metadata:
   version: '1.3'
   ecosystem: pulse
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: unavailable
+      reason: Executing implements and closes beads through br.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Executing checks bead state with bv during the implementation loop.
+    - id: agent-mail
+      kind: mcp_server
+      server_names: [mcp_agent_mail]
+      config_sources: [repo_codex_config, global_codex_config]
+      missing_effect: degraded
+      reason: Workers report progress through Agent Mail in swarm mode.
 ---
 
 # Executing

@@ -4,6 +4,22 @@ description: Bootstrap meta-skill for the Pulse agentic development ecosystem. L
 metadata:
   version: '2.2'
   ecosystem: pulse
+  dependencies:
+    - id: node-runtime
+      kind: command
+      command: node
+      missing_effect: unavailable
+      reason: Onboarding scripts and session hooks require Node.js 18+.
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: degraded
+      reason: using-pulse references br for state and bead inspection.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: using-pulse references bv for bead graph orientation.
 ---
 
 # using-pulse
@@ -17,6 +33,12 @@ Before any normal bootstrap, verify that the current repo is onboarded for the P
 Requires **Node.js 18+**. Run `node scripts/onboard_pulse.mjs --repo-root <repo-root>` from this skill directory and inspect the JSON result.
 
 - If `status = "up_to_date"`: proceed immediately.
+- Always inspect `details.dependency_warning` in the JSON output:
+  - If `status = "warning"`, treat bootstrap as non-blocking but degraded and read the summary message.
+  - Confirm which skills are affected plus the explicit split:
+    - `Missing commands: ...`
+    - `Missing MCP server configuration: ...`
+  - Cross-check the same command-vs-MCP wording boundary against the session-start note and scout output.
 - If `status = "missing_runtime"`: Node.js 18+ is not available -- ask the user to install it before continuing.
 - If onboarding is missing or stale:
   - summarize what the script wants to create or update
@@ -62,12 +84,49 @@ node .codex/pulse_status.mjs --json
 The scout is read-only. It summarizes:
 
 - onboarding health
+- gkg readiness for this repo
+- dependency health across packaged skills
 - `.pulse/state.json`
 - `.pulse/STATE.md`
 - `.pulse/handoffs/manifest.json`
 - recommended next reads/actions
 
 Use it to get the current truth quickly, then open the deeper files it points to.
+
+### gkg Readiness Is Part of Session Start
+
+Treat `gkg` as a first-class discovery dependency for supported repositories.
+
+After reading the scout output:
+
+- If `gkg readiness` says the repo is unsupported: do not force gkg. Note the fallback and use grep/file inspection.
+- If the repo is supported and `server_reachable = false`: make `gkg` ready before planning by running `gkg index <repo-root>` and then `gkg server start`.
+- If the repo is supported and `project_indexed = false`: stop the server if needed, run `gkg index <repo-root>`, then start the server again.
+- If both server and index are ready: downstream skills should assume `gkg` is the default architecture-discovery path, not an optional nice-to-have.
+
+Supported repo languages for this bootstrap are: Ruby, Java, TypeScript / JavaScript, Kotlin, and Python.
+Use the scout's `supported_languages` and `primary_supported_language` fields instead of guessing from the prompt.
+
+---
+
+## Dependency Declaration Contract
+
+Every packaged Pulse skill must make its dependency posture explicit. There are only three valid states:
+
+1. **Command-backed skill** — declare each required CLI under `metadata.dependencies` with `kind: command`, the binary name in `command`, a truthful `missing_effect`, and a short `reason`.
+2. **MCP-backed skill** — declare each required MCP server under `metadata.dependencies` with `kind: mcp_server`, the expected `server_names`, the supported `config_sources`, a truthful `missing_effect`, and a short `reason`.
+3. **Dependency-free packaged skill** — declare `metadata.dependencies: []` to say the skill was reviewed and does not rely on first-class external tools.
+
+Do not leave a packaged skill with undeclared dependency posture. A missing declaration is treated as an uncovered inventory gap, not as an implicit dependency-free skill.
+
+When updating or adding packaged Pulse skills, keep the docs and the live report aligned by running:
+
+- `node plugins/pulse/skills/using-pulse/scripts/test_onboard_pulse.mjs`
+- `bash scripts/sync-skills.sh --dry-run`
+
+These checks are the package-wide contract: the report should stay fully covered, the docs must stay portable, and the synced skill bundle must reflect the same declaration rules.
+
+---
 
 ## Skill Catalog
 

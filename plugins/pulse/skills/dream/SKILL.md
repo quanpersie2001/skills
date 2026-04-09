@@ -10,6 +10,7 @@ metadata:
   version: "1.0"
   ecosystem: "pulse"
   position: "support skill — invoked on demand"
+  dependencies: []
 ---
 
 # Dream Skill

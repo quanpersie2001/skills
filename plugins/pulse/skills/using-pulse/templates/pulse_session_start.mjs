@@ -3,6 +3,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  readDependencyHealthSafe,
+  normalizeDependencyTarget,
+  uniqueSorted,
+} from "../pulse_dependencies.mjs";
+import { readGkgReadiness } from "../pulse_state.mjs";
 
 function findRepoRoot(start) {
   let candidate = path.resolve(start || ".");
@@ -30,6 +36,45 @@ async function readPayload() {
   return JSON.parse(raw || "{}");
 }
 
+function buildSessionDependencyWarning(repoRoot) {
+  const dependencyHealth = readDependencyHealthSafe(repoRoot);
+
+  const missingDependencies = Array.isArray(dependencyHealth?.missing_dependencies)
+    ? dependencyHealth.missing_dependencies
+    : [];
+  if (missingDependencies.length === 0) {
+    return "";
+  }
+
+  const affectedSkills = uniqueSorted(
+    missingDependencies.flatMap((dependency) =>
+      Array.isArray(dependency.required_by) ? dependency.required_by : [],
+    ),
+  );
+  const missingCommands = uniqueSorted(
+    missingDependencies
+      .filter((dependency) => dependency.kind === "command")
+      .flatMap((dependency) => normalizeDependencyTarget(dependency.target)),
+  );
+  const missingMcpServers = uniqueSorted(
+    missingDependencies
+      .filter((dependency) => dependency.kind === "mcp_server")
+      .flatMap((dependency) => normalizeDependencyTarget(dependency.target)),
+  );
+
+  const affected = affectedSkills.length > 0 ? affectedSkills.join(", ") : "(unknown skills)";
+  const commands = missingCommands.length > 0 ? missingCommands.join(", ") : "none";
+  const mcpServers = missingMcpServers.length > 0 ? missingMcpServers.join(", ") : "none";
+
+  return (
+    `Dependency warning: ${missingDependencies.length} declared dependencies are missing, ` +
+    `so some Pulse skills are degraded or unavailable. ` +
+    `Affected skills: ${affected}. ` +
+    `Missing commands: ${commands}. ` +
+    `Missing MCP server configuration: ${mcpServers}.`
+  );
+}
+
 export async function main() {
   const payload = await readPayload();
   const repoRoot = findRepoRoot(payload.cwd || ".");
@@ -49,6 +94,20 @@ export async function main() {
     notes.push("If you move into planning or execution, read history/learnings/critical-patterns.md.");
   }
 
+  const gkgReadiness = await readGkgReadiness(repoRoot);
+  if (gkgReadiness.supported_repo && (!gkgReadiness.server_reachable || !gkgReadiness.project_indexed)) {
+    notes.push(`gkg readiness: ${gkgReadiness.recommended_action}`);
+  } else if (!gkgReadiness.supported_repo) {
+    notes.push(
+      "This repo is outside gkg's supported language set, so architecture discovery should use grep/file inspection fallback.",
+    );
+  }
+
+  const dependencyWarning = buildSessionDependencyWarning(repoRoot);
+  if (dependencyWarning) {
+    notes.push(dependencyWarning);
+  }
+
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {
@@ -60,6 +119,24 @@ export async function main() {
   return 0;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+function isDirectExecution() {
+  if (!process.argv[1]) {
+    return false;
+  }
+
+  const argvPath = path.resolve(process.argv[1]);
+  const selfPath = fileURLToPath(import.meta.url);
+  if (argvPath === selfPath) {
+    return true;
+  }
+
+  try {
+    return fs.realpathSync.native(argvPath) === fs.realpathSync.native(selfPath);
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectExecution()) {
   process.exitCode = await main();
 }

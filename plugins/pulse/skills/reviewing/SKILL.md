@@ -6,6 +6,17 @@ metadata:
   ecosystem: pulse
   upstream: swarming
   downstream: compounding
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: unavailable
+      reason: Reviewing creates review beads and closes the epic through br.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Reviewing verifies the live bead graph before epic closeout.
 ---
 
 # Reviewing

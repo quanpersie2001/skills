@@ -12,6 +12,7 @@ metadata:
   version: '1.0'
   ecosystem: pulse
   position: '2 of 9 — runs after using-pulse, before planning'
+  dependencies: []
 ---
 
 # Exploring Skill

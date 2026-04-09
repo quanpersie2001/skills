@@ -6,6 +6,7 @@ metadata:
   ecosystem: pulse
   position: '0 - runs before using-pulse or any execution-capable phase'
   type: bootstrap
+  dependencies: []
 ---
 
 # Preflight

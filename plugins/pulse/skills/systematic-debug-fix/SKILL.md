@@ -3,6 +3,7 @@ name: systematic-debug-fix
 description: Root-cause-first bug fixing workflow that combines systematic debugging with fix tracking and regression lock-down. Use when Codex needs to investigate a bug, test failure, flaky behavior, build or integration issue, or a batch of known defects; especially when the user wants to fix things systematically, avoid guesswork, keep a tracked issue list, verify each fix, and add regression or e2e tests so the problem does not return.
 metadata:
   version: '1.1'
+  dependencies: []
 ---
 
 # Systematic Debug Fix

@@ -3,6 +3,7 @@ name: refresh-project-docs
 description: Refresh README files and project documentation so they match the current repository state. Use when updating stale docs after feature work, syncing documentation to current commands, options, configuration, and workflows, rewriting changelog-style wording into evergreen current-state documentation, or turning a rough docs-update prompt into an execution-ready instruction set.
 metadata:
   version: '1.0'
+  dependencies: []
 ---
 
 # Refresh Project Docs

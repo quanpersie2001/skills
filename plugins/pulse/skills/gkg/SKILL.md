@@ -5,6 +5,13 @@ metadata:
   version: '1.0'
   ecosystem: pulse
   type: support
+  dependencies:
+    - id: gkg
+      kind: mcp_server
+      server_names: [gkg]
+      config_sources: [repo_codex_config, global_codex_config, skill_mcp_manifest:planning]
+      missing_effect: unavailable
+      reason: gkg skill requires the gkg MCP server for all codebase intelligence queries.
 ---
 
 # gkg
@@ -29,6 +36,25 @@ Use this when structural codebase understanding matters more than line-by-line i
 
 Do not assume `gkg` exists just because `pulse:planning/mcp.json` mentions it. Preflight is the source of truth for tool readiness.
 
+## Check MCP Availability First
+
+This skill is **MCP-backed**, not CLI-backed.
+
+Before using it, confirm the `gkg` MCP server is available from one of the declared sources:
+
+- repo-local `.codex/config.toml`
+- user-level `~/.codex/config.toml`
+- packaged manifest `plugins/pulse/skills/planning/mcp.json`
+
+The packaged planning manifest is the repo's built-in fallback for the expected `gkg` query tools. If none of those sources expose `gkg`, use the [Fallback Without gkg](#fallback-without-gkg) section below.
+
+Before doing any discovery query, check the session scout output from `node .codex/pulse_status.mjs --json`:
+
+- `supported_repo = false` means this repo is outside gkg's supported language set. Do not force it; use the fallback commands.
+- `server_reachable = false` or `project_indexed = false` means `using-pulse` must finish readiness first. Do not pretend MCP discovery is ready when it is not.
+
+Do **not** treat the local `gkg` binary as the normal discovery path for this skill. CLI commands are only for lifecycle/bootstrap readiness. Once ready, discovery work should go through MCP tools.
+
 ## When to Use
 
 - User asks: "What is the architecture of this project?"
@@ -47,6 +73,8 @@ The common primitives are:
 
 | Primitive | Command Example | Use Case |
 |-----------|----------------|----------|
+| `list_projects` | `gkg list` | Index presence check — confirm project exists before deeper queries |
+| `index_project` | `gkg index <repo-root>` | Rebuild an existing project index when stale or incomplete |
 | `repo_map` | `gkg map --scope=module` | Architecture snapshot, top modules, entry points |
 | `search_codebase_definitions` | `gkg search "auth middleware"` | Find definitions by symbol, concept, or subsystem |
 | `get_references` | `gkg refs MyClass` | Trace where a symbol is used |
@@ -54,6 +82,20 @@ The common primitives are:
 | `read_definitions` | `gkg read MyClass OtherClass` | Compare multiple definitions side by side |
 
 If your runtime exposes different names, preserve the behavior, not the exact spelling.
+
+### `list_projects` — Index Presence Check
+
+Use first when the scout says the repo should be gkg-backed. Confirms the current project exists in the index before any deeper query work.
+
+When to call: planning Phase 1 at the start of discovery, or whenever an agent suspects the scout is stale.
+Output: note success inline, or stop and hand back to `using-pulse` readiness if the repo is missing.
+
+### `index_project` — Rebuild an Existing Project Index
+
+Use when the project is already indexed but obviously stale or incomplete.
+
+When to call: planning or validating only after `list_projects` confirms the project already exists.
+Output: note the refresh inline, then re-run the query that needed fresh data.
 
 ## Usage Patterns
 

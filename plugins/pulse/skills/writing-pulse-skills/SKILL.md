@@ -3,6 +3,7 @@ name: writing-pulse-skills
 description: Use when creating a new pulse skill, editing an existing pulse skill, or verifying a skill works under pressure before deploying. Use when you need an agent skill to be bulletproof against rationalization. Do NOT use for project-specific AGENTS.md conventions or one-off solutions.
 metadata:
   version: '1.1'
+  dependencies: []
 ---
 
 # Writing Pulse Skills

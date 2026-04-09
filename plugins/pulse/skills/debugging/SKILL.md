@@ -4,6 +4,23 @@ description: Systematic debugging for blocked work, test failures, build errors,
 metadata:
   version: '1.2'
   ecosystem: pulse
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: degraded
+      reason: Debugging checks bead context and creates fix beads with br when needed.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Debugging inspects blocker and cycle state with bv during triage.
+    - id: agent-mail
+      kind: mcp_server
+      server_names: [mcp_agent_mail]
+      config_sources: [repo_codex_config, global_codex_config]
+      missing_effect: degraded
+      reason: Debugging checks epic mail threads and reports blockers through Agent Mail.
 ---
 
 # Debugging

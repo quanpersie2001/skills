@@ -5,6 +5,23 @@ metadata:
   version: '1.2'
   ecosystem: pulse
   role: orchestrator
+  dependencies:
+    - id: beads-cli
+      kind: command
+      command: br
+      missing_effect: unavailable
+      reason: Swarming assigns and tracks beads through br.
+    - id: beads-viewer
+      kind: command
+      command: bv
+      missing_effect: degraded
+      reason: Swarming inspects the live bead graph with bv.
+    - id: agent-mail
+      kind: mcp_server
+      server_names: [mcp_agent_mail]
+      config_sources: [repo_codex_config, global_codex_config]
+      missing_effect: degraded
+      reason: Swarming coordinates workers through Agent Mail when available.
 ---
 
 # Swarming

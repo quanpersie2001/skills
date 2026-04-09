@@ -11,6 +11,7 @@ metadata:
   version: '1.0'
   ecosystem: pulse
   position: '1b of 9 — optional pre-step before pulse:exploring'
+  dependencies: []
 ---
 
 # Brainstorming Skill
