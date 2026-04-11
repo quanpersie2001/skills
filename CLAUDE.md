@@ -9,10 +9,10 @@ Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation
 ## Repository Layout
 
 - `plugins/pulse/skills/` — canonical source for all skill definitions (each skill is a `SKILL.md` file in its own directory)
-- `.claude-plugin/marketplace.json` — Claude Code marketplace (points to `plugins/pulse/`)
-- `plugins/pulse/.claude-plugin/plugin.json` — Claude Code plugin manifest
 - `plugins/pulse/.codex-plugin/plugin.json` — Codex plugin manifest
+- `plugins/pulse/.mcp.json` — packaged MCP manifest for shared runtime servers
 - `.agents/plugins/marketplace.json` — Codex marketplace metadata
+- `scripts/sync-skills.sh` — raw skill mirror helper for agents/Claude compatibility
 - `AGENTS.md` — workflow rules and bead integration (re-read after context compaction)
 - `references/` — upstream/pedagogical material (Superpowers, AI Multimodal, Khuym lineage docs); not part of the shipping plugin
 

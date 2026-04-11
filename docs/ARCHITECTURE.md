@@ -394,11 +394,12 @@ Multi-bug investigation with tracker discipline. Used when multiple known issues
 ---
 
 ### `pulse:gkg`
-Codebase intelligence via the `gkg` tool (or `rg` fallback).
+Codebase intelligence via scout-first gkg MCP discovery (or `rg` fallback).
 
-- Checks `.pulse/tooling-status.json` before running any gkg command
-- Provides: architecture snapshots (`gkg map`), pattern search (`gkg search`), symbol tracing (`gkg get_refs`, `gkg get_definition`)
-- Falls back to `rg` + file reads when gkg is unavailable, and documents the fallback
+- Checks `node .codex/pulse_status.mjs --json` before discovery work
+- Uses MCP tools like `repo_map`, `search_codebase_definitions`, and `read_definitions` as the primary path
+- Treats `get_references` and `get_definition` as helper-only tools, not the backbone of discovery
+- Falls back to `rg` + file reads when gkg is unavailable or the repo is unsupported, and documents the fallback
 - Saves findings to `history/<feature>/discovery.md`
 - Used as a support skill during planning and exploring — not a worker skill
 

@@ -386,9 +386,9 @@ test("installed pulse_status text distinguishes missing commands from missing MC
 test("packaged Pulse inventory has full dependency coverage", () => {
   const report = buildPulseDependencyReport({ repoRoot: LOCAL_REPO_ROOT });
   const skillText = fs.readFileSync(LOCAL_USING_PULSE_SKILL_PATH, "utf8");
-  const planningMcp = JSON.parse(
+  const pluginMcp = JSON.parse(
     fs.readFileSync(
-      path.join(LOCAL_REPO_ROOT, "plugins", "pulse", "skills", "planning", "mcp.json"),
+      path.join(LOCAL_REPO_ROOT, "plugins", "pulse", ".mcp.json"),
       "utf8",
     ),
   );
@@ -402,7 +402,9 @@ test("packaged Pulse inventory has full dependency coverage", () => {
   assert.match(skillText, /kind: mcp_server/);
   assert.match(skillText, /metadata\.dependencies: \[\]/);
   assert.match(skillText, /bash scripts\/sync-skills\.sh --dry-run/);
-  assert.deepEqual(planningMcp.gkg.includeTools, [
+  assert.equal(pluginMcp.gkg.type, "sse");
+  assert.equal(pluginMcp.gkg.url, "http://localhost:27495/mcp/sse");
+  assert.deepEqual(pluginMcp.gkg.includeTools, [
     "list_projects",
     "index_project",
     "repo_map",

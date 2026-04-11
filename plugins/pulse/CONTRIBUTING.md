@@ -23,7 +23,7 @@ Skills are **auto-discovered** — no per-skill registration is needed in any ma
 
 ```yaml
 ---
-name: pulse:my-skill
+name: my-skill
 description: >-
   Use when <concrete triggering conditions only — no workflow summary>.
   Include trigger phrases the user might say.
@@ -61,8 +61,9 @@ Behaviors that indicate something has gone wrong — stop and correct them.
 ## Naming Conventions
 
 - Directory names: `kebab-case`, no prefix (e.g., `my-skill/`)
-- Skill `name` field: `pulse:` prefix (e.g., `pulse:my-skill`)
-- Keep directory name and the unprefixed skill name in sync
+- Skill `name` field: bare hyphen-case (e.g., `my-skill`)
+- The plugin/runtime surfaces Pulse ecosystem skills with the `pulse:` prefix
+- Keep directory name and the frontmatter skill name in sync
 
 ---
 
@@ -99,7 +100,7 @@ There is no automated test suite for the plugin itself. Testing is behavioral: d
 
 ## Versioning
 
-All three manifest files must stay in sync. Use the bump script instead of editing them by hand:
+The packaged plugin manifests and marketplace metadata must stay in sync. Use the bump script instead of editing them by hand:
 
 ```bash
 ./scripts/bump-version.sh patch   # bug fix or minor copy change  → x.y.Z+1
@@ -111,6 +112,8 @@ The script updates:
 - `plugins/pulse/.claude-plugin/plugin.json`
 - `plugins/pulse/.codex-plugin/plugin.json`
 - `.agents/plugins/marketplace.json`
+
+The raw skill mirror is generated from `plugins/pulse/skills/` via `scripts/sync-skills.sh`; it is not versioned separately.
 
 **When to bump:**
 

@@ -4,7 +4,7 @@
 
 **A validate-first agentic delivery system for Claude Code and Codex**
 
-[![Version](https://img.shields.io/badge/version-2.3.3-0F766E?style=flat-square)](plugins/pulse/.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-2.4.0-0F766E?style=flat-square)](plugins/pulse/.codex-plugin/plugin.json)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](docs/legal/terms.md)
 [![Skills](https://img.shields.io/badge/skills-20-8B5CF6?style=flat-square)](plugins/pulse/skills)
 
@@ -164,7 +164,7 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 |-------|------|
 | `pulse:debugging` | Root-cause blocked work; architecture suspicion gate escalates unfixable issues back to planning |
 | `pulse:systematic-debug-fix` | Multi-bug tracker discipline: investigate before fixing, verify each fix, regression tests for all |
-| `pulse:gkg` | Codebase intelligence via `gkg` tool or `rg` fallback; saves findings to `discovery.md` |
+| `pulse:gkg` | Codebase intelligence via gkg MCP tools or `rg` fallback; saves findings to `discovery.md` |
 | `pulse:dream` | Consolidates Codex history into durable Pulse learnings with provenance tracking |
 | `pulse:ai-multimodal` | Gemini-powered image/audio/video/document processing with bundled scripts |
 | `pulse:simplify-code` | 4-lens code review (reuse, quality, efficiency, clarity) with optional safe fixes |

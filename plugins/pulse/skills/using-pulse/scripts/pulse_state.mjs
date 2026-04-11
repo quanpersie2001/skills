@@ -203,13 +203,13 @@ function buildGkgRecommendedAction(signals, serverStatus) {
     return "Use grep/file inspection fallback — this repo is outside gkg's supported language set.";
   }
   if (!serverStatus.server_reachable && !serverStatus.project_indexed) {
-    return "Run `gkg index <repo-root>` then `gkg server start` to enable gkg discovery.";
-  }
-  if (serverStatus.server_reachable && !serverStatus.project_indexed) {
-    return "Run `gkg index <repo-root>` to index this project for gkg discovery.";
+    return "Run `gkg index <repo-root>`, then `gkg server start` to enable gkg discovery.";
   }
   if (!serverStatus.server_reachable && serverStatus.project_indexed) {
     return "Run `gkg server start` to enable gkg discovery.";
+  }
+  if (serverStatus.server_reachable && !serverStatus.project_indexed) {
+    return "Stop the server if needed, run `gkg index <repo-root>`, then restart it so this project is ready for gkg discovery.";
   }
   return "gkg is ready — use MCP tools as the default discovery path.";
 }

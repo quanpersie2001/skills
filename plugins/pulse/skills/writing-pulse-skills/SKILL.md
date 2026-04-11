@@ -68,13 +68,15 @@ Do not add content for hypothetical cases you didn't observe — hypothetical co
 
 **SKILL.md checklist:**
 - [ ] YAML frontmatter starts on line 1 (`---`)
-- [ ] `name`: letters/numbers/hyphens only, matches directory name
+- [ ] `name`: bare hyphen-case, matches the directory name exactly
 - [ ] `description`: starts with "Use when..." — **triggering conditions ONLY, no workflow summary**
 - [ ] Description is third-person, ≤1024 chars
-- [ ] Body < 400 lines (move details to `references/`)
+- [ ] Body stays lean; prefer < 400 lines and move overflow into `references/` when practical
 - [ ] Uses persuasion principles (see table below)
 - [ ] HARD-GATE markers on critical stops
 - [ ] `references/` files never nested more than one level deep
+
+For Pulse plugin skills specifically, keep frontmatter `name` bare. The plugin wrapper adds the `pulse:` prefix when the skill is surfaced to agents.
 
 **Description trap (most common mistake):**
 Workflow summary in description → Claude follows description instead of reading skill body. Every time.
@@ -127,8 +129,12 @@ Three diagnoses:
 
 **Run validation:**
 ```bash
-pip install -q skills-ref && agentskills validate skills/writing-pulse-skills/
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py" plugins/pulse/skills/<skill-name>
+bash scripts/check-markdown-links.sh plugins/pulse/skills/<skill-name>/SKILL.md
+bash scripts/sync-skills.sh --dry-run
 ```
+
+If the edited skill owns a repo-local test script, run that too.
 
 **Create CREATION-LOG.md** documenting the full TDD process (see `references/creation-log-template.md`):
 - Source material and extraction decisions

@@ -1,15 +1,21 @@
 ---
 name: gkg
-description: Use when asked about codebase architecture, finding files or definitions related to a feature, tracing symbol relationships, checking how a module is wired, or when pulse:planning needs a discovery snapshot and gkg is available.
+description: >-
+  Codebase intelligence support skill for Pulse using the gkg MCP tools. Use when
+  planning or discovery needs an architecture snapshot, file or definition
+  discovery, existing-pattern evidence, importer lookups, or a quick symbol
+  trace in a supported repo. Primary path: scout readiness with
+  `node .codex/pulse_status.mjs --json`, then `repo_map` plus
+  `search_codebase_definitions` plus `read_definitions`.
 metadata:
-  version: '1.0'
+  version: '1.1'
   ecosystem: pulse
   type: support
   dependencies:
     - id: gkg
       kind: mcp_server
       server_names: [gkg]
-      config_sources: [repo_codex_config, global_codex_config, skill_mcp_manifest:planning]
+      config_sources: [repo_codex_config, global_codex_config, plugin_mcp_manifest]
       missing_effect: unavailable
       reason: gkg skill requires the gkg MCP server for all codebase intelligence queries.
 ---
@@ -18,224 +24,162 @@ metadata:
 
 Codebase intelligence support skill for Pulse.
 
-Use this when structural codebase understanding matters more than line-by-line implementation:
+If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` first.
 
-- architecture snapshots
-- finding definitions related to a feature
-- tracing symbol references and module relationships
-- confirming existing patterns before planning
-- accelerating Pulse discovery when `gkg` is available
+## Start With The Repo Scout
 
-`pulse:gkg` is a support skill. It does not replace reading files. It helps narrow where to read and what to trust.
+Do not start with `which gkg` or an imagined `gkg <subcommand>` discovery flow.
 
-## Before You Start
+Run:
 
-1. Read `.pulse/tooling-status.json` if it exists.
-2. Check whether `gkg` is marked ready.
-3. If `gkg` is unavailable, use the fallback section below.
-
-Do not assume `gkg` exists just because `pulse:planning/mcp.json` mentions it. Preflight is the source of truth for tool readiness.
-
-## Check MCP Availability First
-
-This skill is **MCP-backed**, not CLI-backed.
-
-Before using it, confirm the `gkg` MCP server is available from one of the declared sources:
-
-- repo-local `.codex/config.toml`
-- user-level `~/.codex/config.toml`
-- packaged manifest `plugins/pulse/skills/planning/mcp.json`
-
-The packaged planning manifest is the repo's built-in fallback for the expected `gkg` query tools. If none of those sources expose `gkg`, use the [Fallback Without gkg](#fallback-without-gkg) section below.
-
-Before doing any discovery query, check the session scout output from `node .codex/pulse_status.mjs --json`:
-
-- `supported_repo = false` means this repo is outside gkg's supported language set. Do not force it; use the fallback commands.
-- `server_reachable = false` or `project_indexed = false` means `using-pulse` must finish readiness first. Do not pretend MCP discovery is ready when it is not.
-
-Do **not** treat the local `gkg` binary as the normal discovery path for this skill. CLI commands are only for lifecycle/bootstrap readiness. Once ready, discovery work should go through MCP tools.
-
-## When to Use
-
-- User asks: "What is the architecture of this project?"
-- User asks: "Find files related to X"
-- User asks: "Show me where Y is defined and used"
-- User asks: "How is this module wired?"
-- `pulse:planning` Phase 1 needs an architecture snapshot, pattern scan, or symbol trace
-- `pulse:exploring` wants one lightweight pattern confirmation without deep manual analysis
-- `pulse:validating` needs to confirm file-scope isolation or dependency shape for a risky bead
-
-## Core Tooling Model
-
-In Pulse, `gkg` is typically exposed through MCP-style tools rather than a single shell command.
-
-The common primitives are:
-
-| Primitive | Command Example | Use Case |
-|-----------|----------------|----------|
-| `list_projects` | `gkg list` | Index presence check — confirm project exists before deeper queries |
-| `index_project` | `gkg index <repo-root>` | Rebuild an existing project index when stale or incomplete |
-| `repo_map` | `gkg map --scope=module` | Architecture snapshot, top modules, entry points |
-| `search_codebase_definitions` | `gkg search "auth middleware"` | Find definitions by symbol, concept, or subsystem |
-| `get_references` | `gkg refs MyClass` | Trace where a symbol is used |
-| `get_definition` | `gkg def MyClass.method` | Fetch a specific definition |
-| `read_definitions` | `gkg read MyClass OtherClass` | Compare multiple definitions side by side |
-
-If your runtime exposes different names, preserve the behavior, not the exact spelling.
-
-### `list_projects` — Index Presence Check
-
-Use first when the scout says the repo should be gkg-backed. Confirms the current project exists in the index before any deeper query work.
-
-When to call: planning Phase 1 at the start of discovery, or whenever an agent suspects the scout is stale.
-Output: note success inline, or stop and hand back to `using-pulse` readiness if the repo is missing.
-
-### `index_project` — Rebuild an Existing Project Index
-
-Use when the project is already indexed but obviously stale or incomplete.
-
-When to call: planning or validating only after `list_projects` confirms the project already exists.
-Output: note the refresh inline, then re-run the query that needed fresh data.
-
-## Usage Patterns
-
-### 1. Architecture Snapshot
-
-Use first when the codebase is unfamiliar and planning needs a map.
-
-Goal:
-
-- identify major packages or modules
-- identify likely entry points
-- identify a few key files to model after
-
-Save results under `history/<feature>/discovery.md` using the `Architecture Snapshot` section from `pulse:planning/references/discovery-template.md`.
-
-### 2. Pattern Search
-
-Use when planning or exploring needs to answer:
-
-- "Do we already have something like this?"
-- "What pattern does this repo use for this kind of problem?"
-- "Which existing files should the new work imitate?"
-
-Prefer searching by behavior or subsystem, then follow up by reading the returned definitions directly.
-
-Save the durable findings under `Existing Patterns` in `discovery.md`.
-
-### 3. Symbol Trace
-
-Use when a plan or risky change depends on how a symbol flows through the codebase.
-
-Typical questions:
-
-- where is this symbol defined?
-- what imports or references it?
-- does this file really sit on a shared path?
-- will this bead collide with another bead's scope because of a shared integration point?
-
-Use `get_definition` and `get_references` together before declaring a dependency or coordination concern.
-
-### 4. Definition Reading
-
-Use `read_definitions` when comparing multiple candidate patterns side by side.
-
-This is especially useful during planning when:
-
-- deciding between two existing patterns
-- extracting the exact files that should appear in a bead's `files` scope
-- confirming whether a risky component is truly novel or just a variation
-
-## Integration with Pulse Skills
-
-### With `pulse:planning`
-
-This is the primary caller.
-
-During Phase 1 Discovery:
-
-- use `repo_map` for architecture topology
-- use `search_codebase_definitions` for existing patterns and analogs
-- use `get_references` or `get_definition` when file scope or coupling is unclear
-
-Planning still owns `discovery.md`. `pulse:gkg` only accelerates the evidence-gathering step.
-
-### With `pulse:exploring`
-
-Use lightly.
-
-At most:
-
-- one architecture snapshot, or
-- one pattern confirmation query
-
-Do not let `pulse:gkg` turn exploring into deep planning. Exploring still exists to lock decisions with the user, not to perform exhaustive code research.
-
-### With `pulse:validating`
-
-Use selectively when validating needs to confirm:
-
-- shared files that may break file-scope isolation
-- whether a supposed dependency is real
-- whether a risky component is actually novel
-
-### With `pulse:executing`
-
-Avoid using `pulse:gkg` as a substitute for bead context.
-
-Workers should execute from:
-
-- the bead
-- `decision_refs`
-- `learning_refs`
-- `CONTEXT.md`
-
-Only use `pulse:gkg` during execution if the bead is ambiguous enough that the work should probably bounce back to validating or planning anyway.
-
-## Output Contract
-
-When `pulse:gkg` is used during planning, record the relevant outputs in:
-
-```text
-history/<feature>/discovery.md
+```bash
+node .codex/pulse_status.mjs --json
 ```
 
-Capture only durable findings:
+Use the scout output as the source of truth for this repo:
 
-- module or package names
-- exact file paths worth reading
-- symbol relationships that affect scope or risk
-- pattern summaries that change the plan
+- `gkg_readiness.supported_repo = false`: do not force gkg; use the fallback section below.
+- `gkg_readiness.server_reachable = false`: gkg is not ready for query work yet.
+- `gkg_readiness.project_indexed = false`: do not pretend MCP discovery is ready. Hand back to `pulse:using-pulse` readiness or follow the scout's `recommended_action`.
+- If readiness is green, use MCP tools for discovery. Do not switch back to a CLI-shaped discovery workflow.
 
-Do not dump raw tool output blindly into discovery artifacts. Summarize it into planning-ready form.
+In Pulse, readiness is exposed through the scout. Treat that as the normal operator path.
 
-## Fallback Without gkg
+## What Is Reliable Here
 
-If `gkg` is unavailable, fall back to local discovery:
+Use gkg as a discovery accelerator, not as a replacement for reading files.
 
-- `rg --files`
-- `rg "<keyword>"`
-- direct file reads
-- manifest and config inspection
+Strong, normal-path tools in this repo:
 
-Typical fallback mapping:
+- `list_projects`
+- `index_project`
+- `repo_map`
+- `search_codebase_definitions`
+- `read_definitions`
 
-| Need | Fallback |
-|---|---|
-| architecture snapshot | `rg --files` + package manifests + top-level directory scan |
-| definition search | `rg "<symbol or keyword>"` |
-| reference trace | `rg "<symbol>"` and inspect imports/usages manually |
-| pattern comparison | read 2-4 likely files directly |
+Helper-only tool:
 
-If the fallback materially weakens discovery confidence, note that in `discovery.md`. Also record that fallback was used (e.g., "gkg unavailable — used rg-based fallback") so downstream skills know the discovery fidelity.
+- `import_usage` if your runtime exposes it
 
-## Red Flags
+Non-core, lower-confidence tools:
 
-- treating `gkg` as a replacement for reading the actual code
-- using `pulse:gkg` to bypass `pulse:exploring` and make product decisions from code alone
-- running deep `gkg` analysis during execution instead of bouncing an ambiguous bead back upstream
-- copying raw tool output into `discovery.md` without summarizing why it matters
-- assuming structural similarity means behavioral equivalence without reading the key files
+- `get_references`
+- `get_definition`
+
+The practical rule is simple: use `repo_map` plus `search_codebase_definitions` plus `read_definitions` first, then fall back to local inspection whenever symbol-linking looks thin or suspicious.
+
+## Primary Discovery Path
+
+Use this path by default during Pulse planning and other codebase discovery work.
+
+### 1. `repo_map`
+
+Use first for unfamiliar areas. It is the best starting point for a compact architecture snapshot.
+
+Use it to answer:
+
+- which directories and files matter for this feature
+- which files expose the main definitions in a target area
+- how the local repo slice is shaped before deeper reads
+
+When discovery is being written down for planning, save the result or summary to `history/<feature>/discovery.md` under `## Architecture Snapshot`.
+
+### 2. `search_codebase_definitions`
+
+Use next to find candidate symbols, classes, functions, constants, or handlers related to the feature.
+
+Good uses:
+
+- find auth entry points
+- find route handlers
+- find data access helpers
+- find existing naming and pattern anchors before proposing a new approach
+
+Keep search terms concrete and code-shaped. Prefer symbol names or narrow domain phrases over prose.
+
+### 3. `read_definitions`
+
+Use immediately after `search_codebase_definitions` to read the strongest matches in full.
+
+This is the main evidence-gathering step. It is usually better than hopping file-to-file manually because it keeps discovery centered on actual definitions instead of filenames alone.
+
+When planning writes formal discovery output, summarize the findings in `history/<feature>/discovery.md` under `## Existing Patterns`.
+
+## Tool Guidance
+
+### `list_projects`
+
+Use as a light sanity check when the scout says gkg should work and you want to confirm the repo is present in the index.
+
+Do not treat this as the primary readiness check. The scout comes first.
+
+### `index_project`
+
+Use to refresh an indexed project when the index is stale or after significant repo changes.
+
+Do not use this as the first response to `project_indexed = false` in the scout unless the surrounding readiness workflow explicitly called for it.
+
+### `get_references`
+
+Treat as non-core and low-confidence in this repo.
+
+Use it only when:
+
+- you already know the exact definition to inspect
+- you want a quick inbound-usage hint
+- you are prepared to verify the answer with local file reads or `rg`
+
+If it misses callers, gives a thin set, or returns ambiguous results, fall back immediately to `rg -n "<symbol>"` and nearby file inspection.
+
+### `get_definition`
+
+Treat as non-core and low-confidence in this repo.
+
+Use it only as a quick jump helper from a known call site to a likely definition. Always confirm with `read_definitions` or a direct file read before relying on it.
+
+If it cannot resolve the symbol cleanly, do not fight it. Fall back to `search_codebase_definitions`, `read_definitions`, and `rg`.
+
+## Pulse Workflow Fit
+
+Use this skill mainly during `pulse:planning` discovery work.
+
+- `repo_map` feeds the architecture snapshot.
+- `search_codebase_definitions` plus `read_definitions` feed the existing-pattern evidence.
+- `get_references` and `get_definition` are optional spot tools, not the backbone of the workflow.
+
+If planning is producing `history/<feature>/discovery.md`, keep the saved output concise and evidence-based:
+
+- `## Architecture Snapshot`
+- `## Existing Patterns`
+- `## Dependency Notes` when importer or caller evidence materially affects the plan
+
+Do not dump raw tool output when a short grounded summary will do.
+
+## Practical Fallback Without gkg
+
+If the scout says gkg is unsupported or not ready, use local inspection with `rg`.
+
+Useful fallbacks:
+
+- file inventory: `rg --files`
+- narrow slice inventory: `rg --files | rg 'auth|router|db|queue'`
+- symbol search: `rg -n "MySymbol|myFunction|authMiddleware" .`
+- importer search: `rg -n "^import .*from ['\"].*target|require\\(.*target" .`
+- definition search: `rg -n "export (async )?function|class |const .*=" .`
+
+Then read the relevant files directly.
+
+If planning is writing discovery output, note the fallback plainly in `history/<feature>/discovery.md`, for example:
+
+> gkg was unavailable or not ready for this repo/session, so discovery used `rg` and direct file inspection.
+
+## Guardrails
+
+- Do not describe the workflow as `gkg map`, `gkg search`, `gkg refs`, or `gkg def`. Those are not the discovery interface this repo relies on.
+- Do not skip the scout-based readiness check.
+- Do not let symbol-linking tools outrank direct file evidence.
+- Do not rely on `get_references` or `get_definition` without a fallback plan.
+- Do not skip reading the actual files before code changes.
 
 ## Handoff
 

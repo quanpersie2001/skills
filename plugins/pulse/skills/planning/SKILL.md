@@ -24,7 +24,7 @@ metadata:
     - id: gkg
       kind: mcp_server
       server_names: [gkg]
-      config_sources: [skill_mcp_manifest:planning]
+      config_sources: [plugin_mcp_manifest]
       missing_effect: degraded
       reason: Planning uses gkg MCP tools for codebase discovery when available.
 ---
@@ -222,8 +222,13 @@ Explore if relevant:
 - **Pure refactor**: 1-2 agents focused on existing patterns and constraints
 - **Architecture change**: go deep on topology and replacement risk
 
-If `.pulse/tooling-status.json` says `gkg` is ready, invoke `pulse:gkg` for the architecture snapshot, pattern search, and symbol/reference tracing portions of discovery.
-If `gkg` is unavailable, fall back to `rg`, file-tree scans, and direct file reads. Record the downgrade in `discovery.md` when it materially affects confidence.
+If the scout reports a supported gkg repo, treat `pulse:gkg` as the default discovery path:
+
+- `server_reachable = false` or `project_indexed = false` means stop and make gkg ready before Phase 1 discovery.
+- `supported_repo = false` means document the fallback and continue with `rg` and file inspection instead of stalling.
+
+For supported repos with green readiness, use gkg MCP tools for the architecture snapshot, pattern search, and definition-reading portions of discovery before falling back to ad hoc grep.
+If gkg is unavailable for this repo/session, say that explicitly in `discovery.md` before the fallback findings.
 
 ### Output
 
