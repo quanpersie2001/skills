@@ -96,7 +96,8 @@ const WAITING_PAGE = `<!DOCTYPE html>
 h1 { color: #172033; } p { color: #5b6475; }</style>
 </head>
 <body><h1>Pulse Brainstorming Visuals</h1>
-<p>Waiting for the agent to push a screen...</p></body></html>`;
+<p>Waiting for the agent to push a screen...</p>
+<p>Keep the terminal open. When a screen appears, make your selection here, then return to the terminal to continue.</p></body></html>`;
 
 const frameTemplate = fs.readFileSync(path.join(__dirname, 'visual-frame-template.html'), 'utf-8');
 const helperScript = fs.readFileSync(path.join(__dirname, 'visual-helper.js'), 'utf-8');

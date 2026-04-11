@@ -169,9 +169,12 @@ a context summary, or a recommendation. Ask, wait, then continue.
 **How to present visual choices:**
 
 - Prefer `AskUserQuestion` with `preview` for side-by-side concrete artifacts.
+- If the active harness offers another structured question tool instead of `AskUserQuestion`, use that tool rather than asking a plain-text visual question.
 - Escalate to the local visual server only for genuinely complex visual ambiguity: styling direction, multi-screen flow shape, design-system composition, dense layout comparison, or hierarchy questions where a browser-rendered screen will clarify faster than previews.
 - Start it with `scripts/start-visual-server.sh --project-dir <repo-root>`.
-- If startup fails or Node is unavailable, continue with previews and text. Do NOT block the session on the runtime.
+- If startup returns a `url`, tell the user the visual runtime is active, share the exact URL, tell them to open it in a browser, make their selection there, and return to the terminal after interacting.
+- If startup returns an `error` or Node is unavailable, briefly tell the user the runtime could not be used, surface any useful retry hint, and continue with structured question-tool previews or text-only fallback if no question tool exists. Do NOT block the session on the runtime.
+- After serving a visual screen, read `state_dir/events` on the next turn to pick up browser selections.
 - Keep choices focused — 2–4 options max.
 - Use single-select for competing directions; use multi-select only for independent add-on ideas.
 - If a preview, mockup, or browser screen will not make the decision clearer, do not create one.
@@ -185,23 +188,28 @@ Accepting visual support does NOT turn the whole session visual. Decide per ques
 <HARD-GATE>
 Ask ONE question at a time. Wait for the user's response before the next.
 Do NOT batch questions. Do NOT answer your own questions.
+If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, you MUST use it for every brainstorming question.
+Do NOT ask a plain-text question while a structured question tool is available.
+Only fall back to plain-text questions when no structured question tool exists in the current harness.
 This gate is non-negotiable — sequential questioning surfaces significantly more
 latent requirements than batched approaches.
 </HARD-GATE>
 
 **Rules:**
 
-- One question per message — never bundled
+- One question-tool invocation per turn — or one plain-text fallback question when no tool exists
+- Use structured question tools in this order when available: `AskUserQuestion` → `AskMeTool` → another equivalent harness-native question tool
 - Multiple-choice preferred over open-ended when possible
 - Start broad (what, why, for whom) then narrow (constraints, edge cases, success criteria)
-- 3–4 questions per topic area, then checkpoint: "More questions about [area], or move on?"
+- 3–4 questions per topic area, then checkpoint with the structured question tool when available: "More questions about [area], or move on?"
+- Do not mix plain-text questions and tool-based questions arbitrarily inside the same session
 
 **Question patterns:**
 
-- **Product intent / constraints** → text multiple-choice or short open-ended question
-- **Competing layouts / hierarchy / flows** → offer visual support first, then use previews, mockups, or the advanced runtime when needed
-- **Trade-off choice** → keep it in text unless the trade-off is inherently visual
-- **Checkpointing** → after a few questions on one area, confirm whether to continue or advance
+- **Product intent / constraints** → structured multiple-choice or short open-ended question via the harness question tool when available
+- **Competing layouts / hierarchy / flows** → offer visual support first, then use structured previews, mockups, or the advanced runtime when needed
+- **Trade-off choice** → keep it in text unless the trade-off is inherently visual, but still ask through the harness question tool when available
+- **Checkpointing** → after a few questions on one area, confirm whether to continue or advance with the harness question tool when available
 
 Examples:
 - Text: "Which primary outcome should this optimize for first?"
@@ -367,6 +375,7 @@ Stop immediately if you catch yourself doing any of these:
 
 - Writing code or pseudocode during the design phase
 - Asking two questions in the same message
+- Asking a plain-text question while `AskUserQuestion`, `AskMeTool`, or another structured question tool is available
 - Offering visual support and a clarifying question in the same message
 - Skipping the spec because the feature "seems obvious"
 - Answering a question you just asked

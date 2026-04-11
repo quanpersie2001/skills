@@ -4,7 +4,7 @@
 
 **A validate-first agentic delivery system for Claude Code and Codex**
 
-[![Version](https://img.shields.io/badge/version-2.5.0-0F766E?style=flat-square)](plugins/pulse/.codex-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-2.5.1-0F766E?style=flat-square)](plugins/pulse/.codex-plugin/plugin.json)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](docs/legal/terms.md)
 [![Skills](https://img.shields.io/badge/skills-20-8B5CF6?style=flat-square)](plugins/pulse/skills)
 

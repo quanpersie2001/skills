@@ -28,9 +28,10 @@ A UI topic is not automatically a visual question. Ask: **would seeing options r
 
 1. Offer visual support in its own message and wait for consent.
 2. Start with `AskUserQuestion` + `preview` when the comparison fits in a small side-by-side artifact.
-3. Escalate to the local visual runtime only when the question is too visually complex for previews: styling exploration, dense layout comparison, design-system composition, or multi-screen flow shape.
-4. Keep options focused and mutually exclusive when possible.
-5. Return to normal text questioning as soon as the visual ambiguity is resolved.
+3. If the active harness exposes a different structured question tool instead of `AskUserQuestion`, use that tool rather than asking a plain-text question.
+4. Escalate to the local visual runtime only when the question is too visually complex for previews: styling exploration, dense layout comparison, design-system composition, or multi-screen flow shape.
+5. Keep options focused and mutually exclusive when possible.
+6. Return to normal questioning as soon as the visual ambiguity is resolved, still preferring the harness question tool when one exists.
 
 ## Advanced Visual Runtime
 
@@ -49,11 +50,13 @@ This returns JSON containing:
 
 ### Runtime workflow
 
-1. Tell the user to open the returned `url`.
-2. Write a new HTML file to `screen_dir` for each screen.
-3. Read `state_dir/events` on the next turn to pick up browser selections.
-4. If `state_dir/server-info` is missing or `state_dir/server-stopped` exists, restart the runtime or fall back to previews.
-5. Stop the runtime when done:
+1. If startup returns a `url`, explicitly tell the user the visual runtime is active.
+2. Share the exact `url` and tell the user to open it in a browser.
+3. Tell the user to choose option(s) in the browser and then return to the terminal.
+4. Write a new HTML file to `screen_dir` for each screen.
+5. Read `state_dir/events` on the next turn to pick up browser selections.
+6. If `state_dir/server-info` is missing or `state_dir/server-stopped` exists, restart the runtime or fall back to previews.
+7. Stop the runtime when done:
 
 ```bash
 scripts/stop-visual-server.sh <session_dir>
@@ -61,7 +64,7 @@ scripts/stop-visual-server.sh <session_dir>
 
 ### Fallback rule
 
-If Node is unavailable, the runtime fails to start, or the environment makes the local URL unreachable, continue with `AskUserQuestion` previews and text. Visual support is optional. Brainstorming must still complete without the runtime.
+If Node is unavailable, the runtime fails to start, or the environment makes the local URL unreachable, briefly tell the user the browser runtime could not be used, surface any useful retry hint from the startup output, and continue with `AskUserQuestion` previews or another harness-native structured question tool. Only use plain-text questions when the active harness does not provide any structured question tool. Visual support is optional. Brainstorming must still complete without the runtime.
 
 ## Preview Design Rules
 

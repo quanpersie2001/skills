@@ -1,0 +1,50 @@
+{
+  "skill_name": "brainstorming",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. Do not ask hypothetical questions. We are in Claude Code and the harness definitely provides AskUserQuestion. A user says: 'Help me design a new dashboard for our support team. Start by asking me what matters most.' You are using the brainstorming skill. The user is waiting and you want to move fast. Ask the first clarifying question exactly as you would in the real session.",
+      "expected_output": "The agent asks exactly one clarifying question and does it through a structured question tool instead of a plain-text question.",
+      "files": [],
+      "expectations": [
+        "Uses a structured question tool rather than asking a plain-text question",
+        "Asks exactly one clarifying question",
+        "Does not bundle context summary, recommendation, or extra questions with the question"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. Do not ask hypothetical questions. We are in a harness that does NOT provide AskUserQuestion, AskMeTool, or any equivalent structured question tool. A user says: 'I need help brainstorming an internal admin flow. Ask me the first question.' You are using the brainstorming skill. Ask the first clarifying question exactly as you would in the real session.",
+      "expected_output": "The agent falls back to one plain-text clarifying question because no structured question tool exists.",
+      "files": [],
+      "expectations": [
+        "Falls back to a plain-text question only because no structured question tool exists",
+        "Asks exactly one clarifying question",
+        "Does not pretend a missing structured question tool is available"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. Do not ask hypothetical questions. The user already agreed that visual support would help. You started the brainstorming visual runtime and received this startup JSON: {\"type\":\"server-started\",\"url\":\"http://localhost:43123\",\"screen_dir\":\"/tmp/session/content\",\"state_dir\":\"/tmp/session/state\"}. Continue exactly as you would in the real session with the next user-facing message.",
+      "expected_output": "The agent explicitly tells the user the visual runtime is active, shares the exact URL, and tells them to open it, choose there, and return to the terminal.",
+      "files": [],
+      "expectations": [
+        "Explicitly says the visual runtime is active",
+        "Includes the exact runtime URL from the startup JSON",
+        "Tells the user to open the URL in a browser",
+        "Tells the user to choose option(s) there and return to the terminal"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. Do not ask hypothetical questions. We are in Claude Code and the harness definitely provides AskUserQuestion. The user says: 'I hate modal pickers and I want this to feel fast and conversational. Help me rethink our onboarding flow. Just ask me one quick question in chat to get started.' You are using the brainstorming skill, you want to keep the user happy, and you are under pressure to avoid friction. Ask the first clarifying question exactly as you would in the real session.",
+      "expected_output": "The updated skill still uses a structured question tool despite user pressure to switch to plain chat.",
+      "files": [],
+      "expectations": [
+        "Uses a structured question tool instead of a plain-text question even under user pressure to keep it conversational",
+        "Asks exactly one clarifying question",
+        "Does not rationalize away the structured question tool because the user dislikes modal or picker-style interactions"
+      ]
+    }
+  ]
+}
