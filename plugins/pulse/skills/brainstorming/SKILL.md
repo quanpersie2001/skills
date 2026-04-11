@@ -8,10 +8,15 @@ description: >-
   how should we approach, explore options, evaluate, what's the best way to, help me think,
   let's plan, I want to build.
 metadata:
-  version: '1.0'
+  version: '1.2'
   ecosystem: pulse
   position: '1b of 9 — optional pre-step before pulse:exploring'
-  dependencies: []
+  dependencies:
+    - id: node-runtime
+      kind: command
+      command: node
+      missing_effect: degraded
+      reason: Optional visual brainstorming runtime uses a local Node server for advanced UI comparisons.
 ---
 
 # Brainstorming Skill
@@ -19,8 +24,7 @@ metadata:
 Turns vague intent into a documented, approved design spec through structured dialogue —
 before any codebase research or implementation planning begins.
 
-Research shows that designs validated before implementation reduce planning rework by
-removing assumption drift before it compounds across phases.
+Research shows that validated designs reduce planning rework by stopping assumption drift before it compounds.
 
 <HARD-GATE>
 Do NOT invoke any implementation skill, write any code, create beads, or take any
@@ -37,19 +41,37 @@ planning work. The spec can be a paragraph. But you MUST present it and get appr
 
 ---
 
+## Quick Reference
+
+| Step | What you do | What you produce |
+|---|---|---|
+| Explore context | Read just enough project material to understand what already exists | Internal context snapshot |
+| Assess scope | Decide whether this is one feature or multiple independent systems | Scoped brainstorming target |
+| Visual decision point | Decide whether upcoming questions are easier to answer by seeing options | User consent for visual support, or text-only path |
+| Clarifying questions | Ask one question at a time to uncover purpose, constraints, and success criteria | Validated requirements |
+| Approaches | Present 2–3 viable directions with trade-offs | Chosen direction |
+| Design | Present the solution in sections and validate incrementally | Approved design |
+| Spec | Write the approved design to `history/<feature>/spec.md` | Stable spec for exploring |
+| Self-review | Run the spec reviewer subagent and fix serious issues | Planning-ready spec |
+| User review gate | Wait for explicit approval on the written spec | Approved handoff artifact |
+| Handoff | Update `.pulse/STATE.md` and direct the next step to `pulse:exploring` | Clean pipeline transition |
+
+---
+
 ## Checklist
 
 Create a task for each item and complete them in order:
 
 1. **Explore project context** — read files, docs, recent commits relevant to the request
 2. **Assess scope** — is this one feature or multiple independent systems? (see Decomposition)
-3. **Ask clarifying questions** — one at a time; purpose, constraints, success criteria
-4. **Propose 2–3 approaches** — with trade-offs and your recommendation
-5. **Present design** — in sections scaled to complexity; get user approval after each section
-6. **Write spec doc** — save to `history/<feature>/spec.md` and note the path
-7. **Spec self-review** — subagent check for placeholders, contradictions, scope, ambiguity
-8. **User reviews spec** — ask user to confirm before proceeding
-9. **Handoff to exploring** — invoke `pulse:exploring` to lock implementation decisions
+3. **Offer visual support** — if upcoming questions would be easier to answer by seeing options, offer visuals in their own message
+4. **Ask clarifying questions** — one at a time; purpose, constraints, success criteria
+5. **Propose 2–3 approaches** — with trade-offs and your recommendation
+6. **Present design** — in sections scaled to complexity; get user approval after each section
+7. **Write spec doc** — save to `history/<feature>/spec.md` and note the path
+8. **Spec self-review** — subagent check for placeholders, contradictions, scope, ambiguity
+9. **User reviews spec** — ask user to confirm before proceeding
+10. **Handoff to exploring** — invoke `pulse:exploring` to lock implementation decisions
 
 ---
 
@@ -60,6 +82,8 @@ digraph brainstorming {
     "Explore project context" [shape=box];
     "Multi-system?" [shape=diamond];
     "Decompose first" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer visual support\n(own message only)" [shape=box];
     "Ask clarifying questions" [shape=box];
     "Propose 2-3 approaches" [shape=box];
     "Present design sections" [shape=box];
@@ -71,11 +95,14 @@ digraph brainstorming {
 
     "Explore project context" -> "Multi-system?";
     "Multi-system?" -> "Decompose first" [label="yes"];
-    "Multi-system?" -> "Ask clarifying questions" [label="no"];
-    "Decompose first" -> "Ask clarifying questions";
+    "Multi-system?" -> "Visual questions ahead?" [label="no"];
+    "Decompose first" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer visual support\n(own message only)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer visual support\n(own message only)" -> "Ask clarifying questions";
     "Ask clarifying questions" -> "Propose 2-3 approaches";
     "Propose 2-3 approaches" -> "Present design sections";
-    "Present design sections" -> "User approves design?" ;
+    "Present design sections" -> "User approves design?";
     "User approves design?" -> "Present design sections" [label="no, revise"];
     "User approves design?" -> "Write spec doc" [label="yes"];
     "Write spec doc" -> "Spec self-review (subagent)";
@@ -119,6 +146,40 @@ spec → exploring → planning → execution cycle.
 
 ---
 
+## Visual Decision Point
+
+When upcoming questions involve layout, visual hierarchy, diagrams, flows, or side-by-side
+interface choices, offer visual support once before continuing.
+
+Use this offer as its own message:
+
+> "Some of this may be easier to evaluate if I show concrete options instead of only describing them in text. I can use inline previews or small mockups for the visual decision points. Want me to do that when it helps?"
+
+<HARD-GATE>
+This offer MUST be its own message. Do NOT combine it with a clarifying question,
+a context summary, or a recommendation. Ask, wait, then continue.
+</HARD-GATE>
+
+**How to decide:**
+
+- **Use visuals** for layout comparisons, information hierarchy, diagrams, wireframes, and other questions where seeing options will reduce ambiguity.
+- **Stay in text** for goals, scope, constraints, prioritization, trade-offs, and conceptual choices.
+- A UI topic is not automatically visual. "Which outcome matters most?" is text. "Which dashboard layout is closer?" is visual.
+
+**How to present visual choices:**
+
+- Prefer `AskUserQuestion` with `preview` for side-by-side concrete artifacts.
+- Escalate to the local visual server only for genuinely complex visual ambiguity: styling direction, multi-screen flow shape, design-system composition, dense layout comparison, or hierarchy questions where a browser-rendered screen will clarify faster than previews.
+- Start it with `scripts/start-visual-server.sh --project-dir <repo-root>`.
+- If startup fails or Node is unavailable, continue with previews and text. Do NOT block the session on the runtime.
+- Keep choices focused — 2–4 options max.
+- Use single-select for competing directions; use multi-select only for independent add-on ideas.
+- If a preview, mockup, or browser screen will not make the decision clearer, do not create one.
+
+Accepting visual support does NOT turn the whole session visual. Decide per question whether text or visuals are the better fit.
+
+---
+
 ## Phase 3: Clarifying Questions
 
 <HARD-GATE>
@@ -134,6 +195,17 @@ latent requirements than batched approaches.
 - Multiple-choice preferred over open-ended when possible
 - Start broad (what, why, for whom) then narrow (constraints, edge cases, success criteria)
 - 3–4 questions per topic area, then checkpoint: "More questions about [area], or move on?"
+
+**Question patterns:**
+
+- **Product intent / constraints** → text multiple-choice or short open-ended question
+- **Competing layouts / hierarchy / flows** → offer visual support first, then use previews, mockups, or the advanced runtime when needed
+- **Trade-off choice** → keep it in text unless the trade-off is inherently visual
+- **Checkpointing** → after a few questions on one area, confirm whether to continue or advance
+
+Examples:
+- Text: "Which primary outcome should this optimize for first?"
+- Visual: "Which of these three dashboard layouts is closer to the experience you want?"
 
 **Scope creep** — when the user suggests something out of scope:
 > "[Feature X] is a new capability — that's its own work item. I'll note it as a
@@ -266,6 +338,7 @@ The ONLY valid next step is the user invoking pulse:exploring.
 
 - **One question at a time** — never overwhelm
 - **Multiple-choice preferred** — easier to answer than open-ended
+- **Use visuals only when they clarify** — seeing options should remove ambiguity, not add noise
 - **YAGNI ruthlessly** — remove unrequested features from all designs
 - **Always propose alternatives** — 2–3 approaches before settling
 - **Incremental validation** — present design in sections, get approval before continuing
@@ -294,8 +367,10 @@ Stop immediately if you catch yourself doing any of these:
 
 - Writing code or pseudocode during the design phase
 - Asking two questions in the same message
+- Offering visual support and a clarifying question in the same message
 - Skipping the spec because the feature "seems obvious"
 - Answering a question you just asked
+- Treating every UI topic as visual instead of deciding per question
 - Invoking planning or executing before spec is approved
 - Creating beads or referencing bead IDs
 
@@ -314,8 +389,12 @@ Run Phase 3 and let the user confirm the direction.
 **"This is too small to document"**
 The spec can be three sentences. But it MUST exist so exploring has a stable target.
 
+**"This is a visual topic, so every question should be a mockup"**
+No. Use visuals only when seeing options will remove ambiguity. Goals, priorities, and constraints still belong in plain text.
+
 ---
 
 ## References
 
 - `references/spec-reviewer-prompt.md` — subagent prompt for spec document review
+- `references/visual-support-guidance.md` — when to use previews vs the advanced visual runtime during brainstorming

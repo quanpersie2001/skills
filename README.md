@@ -4,7 +4,7 @@
 
 **A validate-first agentic delivery system for Claude Code and Codex**
 
-[![Version](https://img.shields.io/badge/version-2.4.0-0F766E?style=flat-square)](plugins/pulse/.codex-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-2.5.0-0F766E?style=flat-square)](plugins/pulse/.codex-plugin/plugin.json)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](docs/legal/terms.md)
 [![Skills](https://img.shields.io/badge/skills-20-8B5CF6?style=flat-square)](plugins/pulse/skills)
 
@@ -40,6 +40,16 @@ Pulse moves that request through a repeatable chain:
 6. `pulse:compounding` captures durable learnings for future work.
 
 The point is not ceremony for its own sake. The point is to make expensive misunderstandings and avoidable rework much less likely.
+
+### Brainstorming Visual Support
+
+`pulse:brainstorming` stays text-first. For most sessions, visual questions should use inline previews via `AskUserQuestion`.
+
+For complex UI brainstorming only — layout comparison, styling direction, design-system composition, visual hierarchy, or multi-screen flow shape — the skill can now escalate to an optional local visual runtime bundled under `plugins/pulse/skills/brainstorming/scripts/`.
+
+That runtime is not required for normal Pulse use:
+- if Node is available and the local URL is reachable, the skill can render browser-served mockups and capture selections
+- if the runtime is unavailable, Pulse falls back to previews and plain text without blocking the brainstorming workflow
 
 ## When To Use Pulse
 
@@ -149,7 +159,7 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 |-------|------|
 | `pulse:preflight` | Checks `git`, `br`, `bv`, and coordination runtime; writes `.pulse/tooling-status.json`; chooses `swarm / single-worker / planning-only / blocked` |
 | `pulse:using-pulse` | Session router; manages go-mode, small_change/standard_feature/high_risk_feature mode selection, micro mode, resume from handoffs, and repo-local Pulse status scouting |
-| `pulse:brainstorming` | Turns vague intent into an approved design spec via one-question-at-a-time dialogue |
+| `pulse:brainstorming` | Turns vague intent into an approved design spec via one-question-at-a-time dialogue, using previews by default and an optional local visual runtime for complex UI brainstorming |
 | `pulse:exploring` | Socratic decision extraction into `history/<feature>/CONTEXT.md`; assigns stable D1, D2... IDs |
 | `pulse:planning` | Codebase research → `approach.md` + `phase-plan.md` → bead decomposition |
 | `pulse:validating` | 8-dimension plan-checker, spike execution for HIGH-risk items, bead schema gate |
