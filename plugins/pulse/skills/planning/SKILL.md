@@ -131,7 +131,10 @@ Phase 0: Learnings Retrieval        -> institutional knowledge
 Phase 1: Discovery                  -> history/<feature>/discovery.md
 Phase 2: Synthesis                  -> history/<feature>/approach.md
 Phase 3: Whole Feature Phase Plan   -> history/<feature>/phase-plan.md
+  - create Approval Summary with `Approval status: PENDING`
 HARD-GATE: user approves phase plan before current-phase prep
+  - after approval, update `phase-plan.md` to `Approval status: APPROVED`
+  - if revision is requested, keep or set `Approval status: REVISE_REQUIRED`
 Phase 4: Current Phase Contract     -> history/<feature>/phase-<n>-contract.md
 Phase 5: Current Phase Story Map    -> history/<feature>/phase-<n>-story-map.md
 Phase 6: Multi-Perspective Check    -> refine current phase artifacts (HIGH-stakes only)
@@ -330,7 +333,15 @@ Use handoff wording like:
 > If you approve this shape, planning will prepare Phase <n> for validating.
 > Do not create beads before this approval."
 
-If the user asks for revisions, update `phase-plan.md` first. Do not move forward until the phase plan is approved.
+If the user asks for revisions, update `phase-plan.md` first and keep or set `Approval status: REVISE_REQUIRED` until a new approval is given.
+
+Approval sync checklist before current-phase prep:
+1. update `history/<feature>/phase-plan.md` to the correct approval state
+2. sync the same approval state into `.pulse/STATE.md`
+3. confirm both artifacts name the same approved phase
+4. only then move forward
+
+Do not move forward until the phase plan is approved.
 
 ---
 
@@ -586,15 +597,18 @@ The validator must be able to trace:
 
 ## Update STATE.md
 
-After major planning transitions, update `.pulse/STATE.md`:
+After major planning transitions, update `.pulse/STATE.md` as a mirror of the durable planning artifacts, not as the source of truth. Record approval in `history/<feature>/phase-plan.md` first, then sync the same state into `.pulse/STATE.md`.
 
 ```markdown
 ## Current State
 
 Skill: planning
 Feature: <feature-name>
-Plan Gate: pending | approved
+Plan Gate: pending | approved | revise-required
 Approved Phase Plan: yes | no
+Approved Phase: Phase <n> - <phase name> | none
+Approval Source: history/<feature>/phase-plan.md
+Approval Last Synced At: <ISO-8601 timestamp>
 Current Phase: Phase <n> - <phase name>
 
 ## Artifacts Written
@@ -655,7 +669,7 @@ Planning payload should include:
 
 On successful completion:
 
-> **Phase plan approved and current phase prepared.**
+> **Phase plan approved in `history/<feature>/phase-plan.md` and current phase prepared.**
 >
 > - Discovery: `history/<feature>/discovery.md`
 > - Approach: `history/<feature>/approach.md`

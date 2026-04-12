@@ -36,10 +36,11 @@ The core workflow is a gated, linear pipeline:
 pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning → pulse:validating → pulse:swarming → pulse:executing(×N) → pulse:reviewing → pulse:compounding
 ```
 
-Three mandatory gates control progression:
+Four human gates control progression:
 - **GATE 1** (after exploring): Approve `CONTEXT.md`
-- **GATE 2** (after validating): Approve execution — never skip this
-- **GATE 3** (after reviewing): P1 findings must be fixed before merge
+- **GATE 2** (after planning): Approve `phase-plan.md`
+- **GATE 3** (after validating): Approve execution — never skip this
+- **GATE 4** (after reviewing): P1 findings must be fixed before merge approval
 
 ## Artifact Locations
 

@@ -81,18 +81,27 @@ If the bead files do not follow the canonical contract from `pulse:planning/refe
 ## Phase 0: Current Phase Orientation
 
 <HARD-GATE>
-Phase 0 orientation is mandatory. Do not run structural verification (Phase 0.5 or Phase 1) without completing Phase 0 first. Phase 0 must be run at the start of every validating session, including resumes — prior completion does not carry forward. "I already know this phase" is not completion. Phase 0 is complete only when the summary below has been presented in full and the approval status has been explicitly confirmed by reading `phase-plan.md`. Skipping or abbreviating it is a Red Flag.
+Phase 0 orientation is mandatory. Do not run structural verification (Phase 0.5 or Phase 1) without completing Phase 0 first. Phase 0 must be run at the start of every validating session, including resumes — prior completion does not carry forward. "I already know this phase" is not completion. Phase 0 is complete only when the summary below has been presented in full and the approval status has been explicitly confirmed by reading the named approval field in `phase-plan.md`. Skipping or abbreviating it is a Red Flag.
 </HARD-GATE>
 
 Before structural verification, orient the validator.
 
 Read from `.pulse/STATE.md` **and** `history/<feature>/phase-plan.md` directly — do not rely on planning session context or user characterization of approval status.
 
+Treat `history/<feature>/phase-plan.md` as the approval source of truth. `.pulse/STATE.md` is only a mirror for quick orientation.
+
+Confirm these fields explicitly before continuing:
+- `Approval status` from `phase-plan.md`
+- `Approved phase to prepare next` from `phase-plan.md`
+- `Plan Gate` / `Approved Phase` from `.pulse/STATE.md` when present
+
 Present a short summary before continuing:
 
 ```text
 Validating Phase <n> of <total>: <phase name>
-Approval status: APPROVED | NOT APPROVED  ← must be sourced from phase-plan.md directly
+Approval status: APPROVED | PENDING | REVISE_REQUIRED  ← must be sourced from `phase-plan.md`
+Approval source: history/<feature>/phase-plan.md
+STATE mirror: in sync | out of sync | missing
 
 Stories:
 - Story 1: <name>
@@ -103,7 +112,14 @@ Goal of this phase:
 - <one-line practical outcome>
 ```
 
-If the phase plan has not been approved, stop immediately. Do not validate an unapproved phase plan.
+If `phase-plan.md` is not `APPROVED`, stop immediately. Do not validate an unapproved phase plan.
+
+Handle the mirror state explicitly:
+- if `phase-plan.md` is `APPROVED` and `.pulse/STATE.md` is missing approval fields, stop and send the work back to planning to sync the mirror before validation continues
+- if `phase-plan.md` is `APPROVED` and `.pulse/STATE.md` says pending, revise-required, or a different approved phase, stop and send the work back to planning to resync the artifacts before validation continues
+- if `phase-plan.md` is `PENDING` or `REVISE_REQUIRED` but `.pulse/STATE.md` says approved, stop and send the work back to planning immediately
+
+Do not continue validation when the durable artifact and the mirror disagree.
 
 Phase 0 is complete when this summary has been output. It is not complete until then.
 
@@ -389,9 +405,14 @@ Exit-State Readiness:
 
 Unresolved concerns:
 - <none | list>
-
-Approve execution for this phase? (yes/no)
 ```
+
+If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it for this approval gate with focused options such as:
+- `Approve execution`
+- `Review beads`
+- `Revise plan`
+
+Only fall back to a plain-text approval prompt when no structured question tool exists in the current harness.
 
 ### If user approves
 
@@ -412,7 +433,7 @@ Handoff:
 
 ### If user rejects
 
-Ask what concerns them specifically and route back:
+Ask what concerns them specifically and route back. If a structured question tool is available, use it for the rejection routing choices before falling back to plain text:
 
 1. phase meaning / exit state problem
 2. story order or story size problem

@@ -92,6 +92,9 @@ If any box is unchecked, revise the breakdown before asking for approval.
 
 > This is the short version presented to the user before current-phase preparation begins.
 
+- **Approval status**: `PENDING | APPROVED | REVISE_REQUIRED`
+- **Approved phase to prepare next**: `Phase <n> - <name> | none`
+- **Approved at**: `<ISO-8601 timestamp | pending>`
 - **Current phase to prepare next**: `Phase <n> - <name>`
 - **What the user should picture after that phase**: `<one sentence>`
 - **What will not happen until later phases**: `<one sentence>`

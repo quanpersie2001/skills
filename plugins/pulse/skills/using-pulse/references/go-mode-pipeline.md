@@ -130,12 +130,22 @@ Present:
    Key decisions:
    - D1: [summary]
    - D2: [summary]
-   ... (max 5, then 'see CONTEXT.md for full list')
-
-   Approve decisions and proceed to planning? (yes / revise / show full CONTEXT.md)"
+   ... (max 5, then 'see CONTEXT.md for full list')"
 ```
 
-If user says `revise`, loop back to exploring. If user says `yes`, proceed to Step 2.
+If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it with focused options:
+- `Approve and continue`
+- `Revise decisions`
+- `Show CONTEXT.md`
+
+Only fall back to plain text when no structured question tool exists:
+- `Approve decisions and proceed to planning? (yes / revise / show full CONTEXT.md)`
+
+If the user selects `Revise decisions`, or gives equivalent explicit revision feedback, loop back to exploring.
+
+If the user selects `Show CONTEXT.md`, show the artifact and remain at this gate.
+
+If the user selects `Approve and continue`, or gives equivalent explicit approval, proceed to Step 2.
 
 ---
 
@@ -171,12 +181,22 @@ Present:
    - Phase 2: [name] -> [real-world outcome]
    - Phase 3: [name] -> [real-world outcome]
 
-   Stories inside each phase are documented in history/<feature>/phase-plan.md.
-
-   Approve this phase/story breakdown before current-phase preparation? (yes / revise / show full phase-plan.md)"
+   Stories inside each phase are documented in history/<feature>/phase-plan.md."
 ```
 
-If user says `revise`, return to the planning pass that owns `phase-plan.md`. If user says `yes`, proceed to Step 3.
+If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it with focused options:
+- `Approve phase plan`
+- `Revise phase plan`
+- `Show phase-plan.md`
+
+Only fall back to plain text when no structured question tool exists:
+- `Approve this phase/story breakdown before current-phase preparation? (yes / revise / show full phase-plan.md)`
+
+If the user selects `Revise phase plan`, or gives equivalent explicit revision feedback, return to the planning pass that owns `phase-plan.md`.
+
+If the user selects `Show phase-plan.md`, show the artifact and remain at this gate.
+
+If the user selects `Approve phase plan`, or gives equivalent explicit approval, proceed to Step 3.
 
 ---
 
@@ -243,12 +263,18 @@ Present:
 
    Any unresolved concerns: [list or 'none']
 
-   Execution mode: [swarm / single-worker] (from .pulse/tooling-status.json)
-
-   Current phase verified. Approve execution? (yes / review beads / no - revise plan)"
+   Execution mode: [swarm / single-worker] (from .pulse/tooling-status.json)"
 ```
 
-If user says `no` or `revise`, return to planning or validating. If user says `yes`, proceed to Step 5.
+If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it with focused options:
+- `Approve execution`
+- `Review beads`
+- `Revise plan`
+
+Only fall back to plain text when no structured question tool exists:
+- `Current phase verified. Approve execution? (yes / review beads / no - revise plan)`
+
+If the user selects `Revise plan`, or gives equivalent explicit revision feedback, return to planning or validating. If the user selects `Review beads`, stay at this gate and inspect bead details before asking again. If the user selects `Approve execution`, or gives equivalent explicit approval, proceed to Step 5.
 
 ---
 
@@ -301,18 +327,27 @@ Present:
    P1 (blocks merge): [count] - [titles if any]
    P2 (should fix):   [count]
    P3 (nice to have): [count]"
-
-IF P1 > 0:
-  "P1 findings block merge. Options:
-   (a) Fix P1s now
-   (b) Show P1 details
-   (c) Override (requires explicit user confirmation)"
-
-IF P1 = 0:
-  "No blocking findings.
-   Ready to [create PR / merge to main / keep branch].
-   Approve? (yes / show P2s first / no)"
 ```
+
+If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it with focused options.
+
+If P1 > 0:
+- `Fix findings`
+- `Show review details`
+- `Override merge` only with explicit user confirmation
+
+If P1 = 0:
+- `Approve merge`
+- `Show review details`
+- `Do not merge yet`
+
+Only fall back to plain text when no structured question tool exists.
+
+If P1 > 0 plain-text fallback:
+- `P1 findings block merge. Options: fix P1s now / show P1 details / override (requires explicit user confirmation)`
+
+If P1 = 0 plain-text fallback:
+- `No blocking findings. Ready to [create PR / merge to main / keep branch]. Approve? (yes / show P2s first / no)`
 
 If fix beads are created, execute them and re-run reviewing before presenting Gate 4 again.
 

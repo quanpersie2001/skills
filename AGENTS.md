@@ -37,9 +37,10 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 
 ## Go Mode Gates
 
-- **GATE 1** (after exploring): "Approve decisions/CONTEXT.md?"
-- **GATE 2** (after validating): "Beads verified. Approve execution?"
-- **GATE 3** (after reviewing): "P1 findings. Fix before merge?"
+- **GATE 1** (after exploring): approve `CONTEXT.md` before planning
+- **GATE 2** (after planning): approve the phase plan before current-phase preparation
+- **GATE 3** (after validating): approve execution before swarming or single-worker execution
+- **GATE 4** (after reviewing): approve merge; P1 findings block this gate
 
 ## Core Tools
 
@@ -66,7 +67,7 @@ history/learnings/              ← Accumulated knowledge
 
 ## Critical Rules
 
-1. **Never execute without validating.** GATE 2 is non-negotiable.
+1. **Never execute without validating.** GATE 3 is non-negotiable.
 2. **CONTEXT.md is the source of truth.** All downstream agents honor locked decisions.
 3. **Context budget: >65% → write an owner-scoped handoff and register it in `.pulse/handoffs/manifest.json`.**
 4. **After compaction: re-read this file + CONTEXT.md immediately.**

@@ -285,26 +285,49 @@ Go mode chains all skills end-to-end with exactly 4 human gates. Load `reference
 
 **The 4 gates -- never skip these:**
 
+If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it for every gate. Ask one gate at a time and prefer focused multiple-choice options over free-form replies. Only fall back to plain-text prompts when no structured question tool exists in the current harness.
+
 ```
 GATE 1 (after exploring):
   Present history/<feature>/CONTEXT.md to user.
-  Ask: "Decisions locked. Approve CONTEXT.md before planning?"
+  Ask with structured options when available:
+    - "Approve and continue"
+    - "Revise decisions"
+    - "Show CONTEXT.md"
+  Plain-text fallback: "Decisions locked. Approve CONTEXT.md before planning?"
   HARD-GATE: do not invoke planning until user approves.
 
 GATE 2 (after whole-feature planning):
   Present history/<feature>/phase-plan.md to user.
-  Ask: "Phase breakdown complete. Approve this shape before current-phase preparation?"
+  Ask with structured options when available:
+    - "Approve phase plan"
+    - "Revise phase plan"
+    - "Show phase-plan.md"
+  Plain-text fallback: "Phase breakdown complete. Approve this shape before current-phase preparation?"
   HARD-GATE: do not prepare the current phase or create beads until user approves.
 
 GATE 3 (after validating the current phase):
   Present: phase exit state, story count, bead count, risk summary, spike results.
-  Ask: "Current phase verified. Approve execution?"
+  Ask with structured options when available:
+    - "Approve execution"
+    - "Review beads"
+    - "Revise plan"
+  Plain-text fallback: "Current phase verified. Approve execution?"
   HARD-GATE: do not invoke swarming until user approves.
 
 GATE 4 (after reviewing):
   Present: P1 count, P2 count, P3 count.
-  If P1 > 0: "P1 findings block merge. Fix before proceeding?"
-  If P1 = 0: "Review complete. Approve merge?"
+  If P1 > 0: ask with structured options when available:
+    - "Fix findings"
+    - "Show review details"
+    - "Override merge" only with explicit user confirmation
+  If P1 = 0: ask with structured options when available:
+    - "Approve merge"
+    - "Show review details"
+    - "Do not merge yet"
+  Plain-text fallback:
+    - If P1 > 0: "P1 findings block merge. Options: fix P1s now / show P1 details / override (requires explicit user confirmation)"
+    - If P1 = 0: "No blocking findings. Ready to [create PR / merge to main / keep branch]. Approve? (yes / show P2s first / no)"
   HARD-GATE: do not merge or close epic until user responds.
 ```
 
