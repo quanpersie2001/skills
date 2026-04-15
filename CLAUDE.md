@@ -54,7 +54,7 @@ history/<feature>/CONTEXT.md         ← exploring output (source of truth for d
 history/<feature>/approach.md        ← planning synthesis
 .beads/                              ← bead files (planning creates, executing closes)
 .spikes/                             ← spike verification results
-history/learnings/                   ← compounding output
+.pulse/memory/                      ← shared reusable memory output
 ```
 
 ## Editing Skills

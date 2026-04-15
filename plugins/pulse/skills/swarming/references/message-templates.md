@@ -287,7 +287,7 @@ Before replying, re-read `AGENTS.md` if you compacted or drifted, then run `fetc
 
 **Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
 **When:** Swarm coordinator detects its own context is approaching 65%
-**Purpose:** Warns workers and records the pause
+**Purpose:** Warns workers and records the pause using the standard handoff summary/resume briefing/transfer-block vocabulary
 
 Runtime call:
 `send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=[<worker-list>], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
@@ -298,19 +298,21 @@ Thread: <EPIC_ID>
 Topic: epic-<EPIC_ID>
 Importance: HIGH
 
-Coordinator context at ~<XX>%. Writing handoff now.
+Handoff summary:
+Coordinator context is at ~<XX>% and the coordinator is pausing cleanly after saving a swarm handoff.
 
-Current status:
-- Open beads: <count>
-- In-progress beads: <count>
-- Known blockers: <count>
+Resume briefing:
+- Next action: Poll the epic thread, then run `bv --robot-triage --graph-root <EPIC_ID>` before sending new coordination instructions.
+- Read first: `.pulse/STATE.md`, `.pulse/handoffs/coordinator.json`
 
-Workers: continue current bead safely, then report status to this thread.
+Transfer block highlights:
+- Status: Swarm coordinator is paused safely and workers have been left in a known state.
+- Completed: processed thread updates through <mail-id>; recorded latest worker states in `.pulse/STATE.md`
+- In flight: <worker / bead still needing active tending>
+- Blockers: <none or concrete blocker summary>
+- Resume notes: fetch inbox and topic updates before replying; confirm graph counts still match; do not assign new work until blockers/conflicts are reconciled.
 
-Resume artifacts:
-- .pulse/handoffs/coordinator.json
-- .pulse/STATE.md
-- bv --robot-triage --graph-root <EPIC_ID>
+Workers: continue the current bead safely, then report status to this thread.
 ```
 
 ---
@@ -346,57 +348,81 @@ Next step: Invoke the pulse:reviewing skill.
 
 ## Handoff JSON Template
 
-Write to `.pulse/handoffs/coordinator.json` when the swarm coordinator context exceeds 65%. Register it in `.pulse/handoffs/manifest.json`.
+Write to `.pulse/handoffs/coordinator.json` when the swarm coordinator context exceeds 65%. Register it in `.pulse/handoffs/manifest.json` using the same top-level `summary`, `next_action`, and owner file path.
+
+This template follows the standard handoff summary/resume briefing/transfer block contract from `pulse:using-pulse`.
 
 ```json
 {
-  "schema_version": "1.0",
-  "format": "pulse-swarm-handoff",
-  "session": {
-    "id": "pulse-swarm-<YYYYMMDD-HHMMSS>",
-    "paused_at": "<ISO-8601 timestamp>",
-    "reason_for_pause": "context_critical",
-    "agent": "<COORDINATOR_AGENT_NAME>"
-  },
-  "swarm": {
-    "epic_id": "<EPIC_ID>",
-    "feature_name": "<feature-name>",
-    "project_key": "<project-root-path>"
-  },
-  "graph_status": {
-    "open_beads": ["<bead-id-1>", "<bead-id-2>"],
-    "in_progress_beads": ["<bead-id-3>"],
-    "blocked_beads": ["<bead-id-4>"]
-  },
-  "active_workers": [
-    {
-      "runtime_nickname": "<RUNTIME_NICKNAME>",
-      "agent_mail_name": "<AGENT_MAIL_NAME>",
-      "current_bead": "<bead-id-3>",
-      "status": "in_progress"
-    }
+  "schema_version": "2.0",
+  "handoff_id": "coordinator-<ISO-8601>",
+  "owner_type": "coordinator",
+  "owner_id": "<COORDINATOR_AGENT_NAME>",
+  "skill": "pulse:swarming",
+  "feature": "<feature-name>",
+  "phase": "execution/<EPIC_ID>",
+  "status": "ready_to_resume",
+  "paused_at": "<ISO-8601 timestamp>",
+  "reason": "context_critical",
+  "next_action": "Poll the epic thread, then run bv --robot-triage --graph-root <EPIC_ID> before sending new coordination instructions.",
+  "read_first": [
+    ".pulse/STATE.md",
+    ".pulse/handoffs/coordinator.json"
   ],
-  "open_blockers": [
-    {
-      "bead_id": "<bead-id>",
-      "worker": {
+  "summary": "Coordinator paused safely because context is near the limit. Resume by restoring thread state, confirming the live graph still matches the handoff, and then continuing swarm tending.",
+  "payload": {
+    "swarm": {
+      "epic_id": "<EPIC_ID>",
+      "feature_name": "<feature-name>",
+      "project_key": "<project-root-path>",
+      "epic_topic": "epic-<EPIC_ID>"
+    },
+    "graph_status": {
+      "open_beads": ["<bead-id-1>", "<bead-id-2>"],
+      "in_progress_beads": ["<bead-id-3>"],
+      "blocked_beads": ["<bead-id-4>"]
+    },
+    "active_workers": [
+      {
         "runtime_nickname": "<RUNTIME_NICKNAME>",
-        "agent_mail_name": "<AGENT_MAIL_NAME>"
-      },
-      "description": "<blocker description>",
-      "thread_message_id": "<mail-id>"
+        "agent_mail_name": "<AGENT_MAIL_NAME>",
+        "current_bead": "<bead-id-3>",
+        "status": "in_progress"
+      }
+    ],
+    "open_blockers": [
+      {
+        "bead_id": "<bead-id>",
+        "worker": {
+          "runtime_nickname": "<RUNTIME_NICKNAME>",
+          "agent_mail_name": "<AGENT_MAIL_NAME>"
+        },
+        "description": "<blocker description>",
+        "thread_message_id": "<mail-id>"
+      }
+    ],
+    "context_snapshot": {
+      "tokens_used_pct": 0.67,
+      "agent_mail_thread": "<EPIC_ID>"
+    },
+    "transfer": {
+      "status": "Swarm coordinator is paused safely and workers have been left in a known state.",
+      "completed": [
+        "Processed thread updates through message <mail-id>",
+        "Recorded latest worker states in .pulse/STATE.md"
+      ],
+      "in_flight": [
+        "Need to resume tending worker <AGENT_MAIL_NAME> on bead <bead-id-3>"
+      ],
+      "blockers": [
+        "Worker <AGENT_MAIL_NAME> is blocked on <bead-id-4>: <blocker description>"
+      ],
+      "resume_notes": [
+        "Fetch inbox and topic updates before replying to any worker",
+        "Confirm open/in-progress/blocked counts still match before resuming",
+        "Do not assign new work until file conflicts and blockers are reconciled"
+      ]
     }
-  ],
-  "resume_instructions": {
-    "priority_next": "Poll epic thread, then inspect the live graph",
-    "read_first": [".pulse/STATE.md", ".pulse/handoffs/coordinator.json"],
-    "check_mail": true,
-    "bead_check": "bv --robot-triage --graph-root <EPIC_ID>",
-    "restore_confirmation": "Confirm open/in-progress/blocked counts still match before resuming"
-  },
-  "context_at_pause": {
-    "tokens_used_pct": 0.67,
-    "agent_mail_thread": "<EPIC_ID>"
   }
 }
 ```

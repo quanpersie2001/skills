@@ -182,7 +182,7 @@ Researches the codebase and produces the full execution plan.
 Works in two sub-phases:
 
 **Sub-phase A — Whole-feature plan (ends at Gate 2):**
-1. Reads `CONTEXT.md` and `history/learnings/critical-patterns.md`
+1. Reads `CONTEXT.md` and `.pulse/memory/critical-patterns.md`
 2. Warns if institutional memory is stale (>3 features since last compounding)
 3. Runs codebase discovery (architecture, patterns, constraints; optionally via `pulse:gkg`)
 4. Writes `history/<feature>/discovery.md` and `approach.md` (includes risk map and spike questions for HIGH-risk items)
@@ -325,16 +325,16 @@ Spawns 3 parallel analysis subagents:
 2. **Decision analyst** — which decisions turned out to be right/wrong and why?
 3. **Failure analyst** — what broke, and what would have prevented it?
 
-Each learning is classified and written to `history/learnings/YYYYMMDD-<slug>.md` with:
+Each learning is classified and written to `.pulse/memory/learnings/YYYYMMDD-<slug>.md` with:
 - `domain`, `severity`, `applicable_when`, `propagation` metadata
 - One of three propagation paths:
-  - `global-critical` → promoted to `critical-patterns.md` (used by all future planners)
+  - `global-critical` → promoted to `.pulse/memory/critical-patterns.md` (used by all future planners)
   - `bead-local` → embedded in relevant bead types via `learning_refs`
   - `planner-only` → planning reference only, not bead-level
 
-**Hard rule:** Only genuinely global, non-obvious patterns are promoted to `critical-patterns.md`. Not everything learned from a single feature belongs there.
+**Hard rule:** Only genuinely global, non-obvious patterns are promoted to `.pulse/memory/critical-patterns.md`. Not everything learned from a single feature belongs there.
 
-**Outputs:** `history/learnings/*.md`, (selective) updates to `critical-patterns.md`, `STATE.md` updated with `last_compounding_run`
+**Outputs:** `.pulse/memory/learnings/*.md`, (selective) updates to `.pulse/memory/critical-patterns.md`, `STATE.md` updated with `last_compounding_run`
 
 ---
 
@@ -362,7 +362,7 @@ flowchart LR
     DBG -->|escalate if unfixable| planning[pulse:planning / pulse:validating]
     DBG -->|learning found| CP2[pulse:compounding]
     GKG -->|feeds discovery| planning
-    DRM -->|consolidates into| learnings[(history/learnings/)]
+    DRM -->|consolidates into| learnings[(.pulse/memory/)]
 ```
 
 ### `pulse:debugging`
@@ -501,9 +501,9 @@ flowchart TD
         PSM[phase-n-story-map.md]
     end
 
-    subgraph learnings[history/learnings/]
+    subgraph learnings[.pulse/memory/]
         CP[critical-patterns.md]
-        LF[YYYYMMDD-slug.md]
+        LF[learnings/YYYYMMDD-slug.md]
     end
 
     subgraph work[work items]
@@ -558,9 +558,12 @@ history/<feature>/
 ### Institutional knowledge
 
 ```
-history/learnings/
+.pulse/memory/
   critical-patterns.md        — globally applicable learnings (promoted conservatively)
-  YYYYMMDD-<slug>.md          — individual learning entries with domain/severity/propagation
+  learnings/
+    YYYYMMDD-<slug>.md        — individual learning entries with domain/severity/propagation
+  corrections/
+  ratchet/
 ```
 
 ### Work items
@@ -594,7 +597,7 @@ On normal Pulse sessions:
 4. Read `.pulse/state.json`
 5. Read `.pulse/STATE.md`
 6. Re-open the active feature `CONTEXT.md`
-7. Read `history/learnings/critical-patterns.md` before planning or execution when it exists
+7. Read `.pulse/memory/critical-patterns.md` before planning or execution when it exists
 
 ---
 

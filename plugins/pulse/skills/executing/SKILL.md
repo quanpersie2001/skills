@@ -351,43 +351,114 @@ After each bead:
 
 ### Writing the handoff
 
+Use the standard handoff summary/resume briefing/transfer block contract from `pulse:using-pulse`.
+
 Worker mode handoff payload (write to `.pulse/handoffs/worker-<agent>.json`):
 
 ```json
 {
-  "schema_version": "1.0",
-  "session": {
-    "runtime_nickname": "<runtime-nickname>",
-    "agent_mail_name": "<resolved-agent-mail-name>",
-    "paused_at": "<ISO timestamp>",
-    "reason_for_pause": "context_critical"
-  },
-  "context_snapshot": {
-    "tokens_used_pct": 0.67,
-    "last_bead_closed": "<bead-id>"
-  },
-  "active_work": {
-    "skill": "executing",
-    "current_bead": "<bead-id or null>",
-    "next_action": "Run bv --robot-priority and continue from the live graph"
-  },
-  "resume_instructions": {
-    "read_first": ["AGENTS.md", ".pulse/STATE.md", "history/<feature>/CONTEXT.md"],
-    "check_mail": true,
-    "priority_next": "Check epic thread, then run bv --robot-priority"
+  "schema_version": "2.0",
+  "handoff_id": "worker-<resolved-agent-mail-name>-<ISO-8601>",
+  "owner_type": "worker",
+  "owner_id": "worker-<resolved-agent-mail-name>",
+  "skill": "pulse:executing",
+  "feature": "<feature>",
+  "phase": "execution/<EPIC_ID>",
+  "status": "ready_to_resume",
+  "paused_at": "<ISO timestamp>",
+  "reason": "context_critical",
+  "next_action": "Check the epic thread, then run bv --robot-priority before claiming more work.",
+  "read_first": [
+    "AGENTS.md",
+    ".pulse/STATE.md",
+    "history/<feature>/CONTEXT.md",
+    ".pulse/handoffs/worker-<agent>.json"
+  ],
+  "summary": "Worker paused cleanly because context is near the limit. The next turn should rejoin coordination, confirm the current graph state, and continue from the highest-priority executable bead.",
+  "payload": {
+    "runtime": {
+      "runtime_nickname": "<runtime-nickname>",
+      "agent_mail_name": "<resolved-agent-mail-name>",
+      "epic_id": "<EPIC_ID>",
+      "epic_topic": "<EPIC_TOPIC>",
+      "coordinator_agent_name": "<COORDINATOR_AGENT_NAME>"
+    },
+    "context_snapshot": {
+      "tokens_used_pct": 0.67,
+      "last_bead_closed": "<bead-id or null>"
+    },
+    "transfer": {
+      "status": "Worker is paused safely and no longer editing files.",
+      "completed": [
+        "Closed bead <bead-id> and sent the completion report"
+      ],
+      "in_flight": [
+        "No bead currently claimed; resume from the live graph after checking mail"
+      ],
+      "blockers": [],
+      "resume_notes": [
+        "Run fetch_inbox(...) on <EPIC_TOPIC> before selecting work",
+        "Re-check file reservations before editing any file",
+        "Use bv --robot-priority as the source of truth for the next bead"
+      ]
+    },
+    "verification_evidence_paths": [
+      ".pulse/verification/<feature>/<bead-id>.md"
+    ]
   }
 }
 ```
 
 Standalone mode handoff payload (write to `.pulse/handoffs/single-worker.json`):
 
-- `current_bead`
-- `completed_beads`
-- `blocked_beads`
-- `next_priority_hint`
-- `verification_evidence_paths`
+```json
+{
+  "schema_version": "2.0",
+  "handoff_id": "single-worker-<ISO-8601>",
+  "owner_type": "worker",
+  "owner_id": "single-worker",
+  "skill": "pulse:executing",
+  "feature": "<feature>",
+  "phase": "execution/standalone",
+  "status": "ready_to_resume",
+  "paused_at": "<ISO timestamp>",
+  "reason": "context_critical",
+  "next_action": "Re-read state, inspect the next executable bead, and continue the standalone loop.",
+  "read_first": [
+    "AGENTS.md",
+    ".pulse/STATE.md",
+    "history/<feature>/CONTEXT.md",
+    ".pulse/handoffs/single-worker.json"
+  ],
+  "summary": "Single-worker execution paused cleanly because context is near the limit. Resume by restoring state, checking the next bead, and continuing verification discipline.",
+  "payload": {
+    "context_snapshot": {
+      "tokens_used_pct": 0.67,
+      "last_bead_closed": "<bead-id or null>"
+    },
+    "transfer": {
+      "status": "Standalone execution is paused safely.",
+      "completed": [
+        "Closed bead <bead-id> and recorded completion in .pulse/STATE.md"
+      ],
+      "in_flight": [
+        "Next priority hint: <bead-id or short description>"
+      ],
+      "blockers": [],
+      "resume_notes": [
+        "Read the current bead fully with br show before editing",
+        "Keep file edits within the next bead's declared scope",
+        "Update verification evidence before closing another bead"
+      ]
+    },
+    "verification_evidence_paths": [
+      ".pulse/verification/<feature>/<bead-id>.md"
+    ]
+  }
+}
+```
 
-Register the handoff in `.pulse/handoffs/manifest.json`.
+Register the handoff in `.pulse/handoffs/manifest.json` using the same `summary`, `next_action`, and owner file path.
 
 Worker mode: notify the coordinator after writing the handoff.
 
@@ -398,8 +469,8 @@ send_message(
   to: ["<COORDINATOR_AGENT_NAME>"],
   thread_id: "<EPIC_ID>",
   topic: "<EPIC_TOPIC>",
-  subject: "Context handoff from <runtime-nickname> / <resolved-agent-mail-name>",
-  body_md: "Runtime nickname: <runtime-nickname>. Agent Mail name: <resolved-agent-mail-name>. Context at ~67%. Completed N beads. Handoff written. Safe to resume by checking mail and running bv --robot-priority."
+  subject: "[HANDOFF] <runtime-nickname> / <resolved-agent-mail-name>",
+  body_md: "Handoff summary: Worker paused cleanly because context is near the limit.\n\nResume briefing:\n- Next action: Check the epic thread, then run bv --robot-priority before claiming more work.\n- Read first: AGENTS.md, .pulse/STATE.md, history/<feature>/CONTEXT.md, .pulse/handoffs/worker-<agent>.json\n\nTransfer block:\n- Status: Worker is paused safely and no longer editing files.\n- Completed: [closed bead(s), sent completion report, updated evidence]\n- In flight: [next bead or \"none currently claimed\"]\n- Blockers: [none or concrete blocker]\n- Resume notes: [mail check, reservation check, graph check]"
 )
 ```
 

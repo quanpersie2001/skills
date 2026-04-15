@@ -4,7 +4,31 @@ Read this file at every session start. Re-read after any context compaction.
 
 ## What is Pulse?
 
-A multi-skill ecosystem for agentic software development, built on the Flywheel toolchain (beads/bv/Agent Mail). Skills chain together to move from vague requirements to shipped, reviewed, compounded code.
+A validate-first, docs-first skill ecosystem for agentic software delivery, built on the Flywheel toolchain (`br`, `bv`, Agent Mail). Skills chain together to move from vague requirements to shipped, reviewed, compounded code.
+
+## What Pulse Is / Is Not
+
+Pulse is:
+
+- a gated workflow with explicit human approvals and repo artifacts
+- a skill plugin for Claude Code and Codex, not a separate compiled runtime
+- a delivery system that can run in swarm or single-worker mode
+
+Pulse is not:
+
+- a license for agents to skip `CONTEXT.md`, validating, or review gates
+- a promise that every repo is fully migrated to the latest artifact layout
+- a replacement for human gate approval or operator judgment
+
+## One-Line Glossary
+
+- `CONTEXT.md` — locked decisions that downstream work must honor.
+- `phase-plan.md` — the whole-feature slice plan.
+- phase contract — the current phase's proof and exit conditions.
+- story map — the reason beads are sequenced the way they are.
+- bead — one worker-sized unit of work with exact files and checks.
+- handoff — the pause/resume contract for the next actor.
+- `pulse_status` — the read-only scout for current workflow state.
 
 ## Skill Catalog
 
@@ -18,7 +42,7 @@ A multi-skill ecosystem for agentic software development, built on the Flywheel 
 | `pulse:swarming` | Launch + tend parallel worker agents | After validating approves beads |
 | `pulse:executing` | Per-agent worker loop (register → implement → close) | Loaded by workers spawned by swarming |
 | `pulse:reviewing` | Specialist reviewers + 3-level verification + UAT + finishing | After swarming completes all beads |
-| `pulse:compounding` | Capture learnings → history/learnings/ | After reviewing, always |
+| `pulse:compounding` | Capture learnings → .pulse/memory/learnings/ | After reviewing, always |
 | `pulse:writing-pulse-skills` | TDD-for-skills meta-skill | Creating/improving pulse skills |
 
 ### Support Skills
@@ -50,6 +74,14 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 - `gkg` — codebase intelligence (optional)
 - CASS/CM — session search, cognitive memory (optional)
 
+## 3-Plane Model
+
+Use this mental model when deciding where to read next:
+
+1. **Control plane — `.pulse/`**: live workflow state, routing, handoffs, and active operator surfaces.
+2. **Memory plane — `.pulse/memory/`**: shared root for reusable cross-feature memory, including critical patterns, learnings, corrections, and ratchet artifacts.
+3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, and durable narrative.
+
 ## File Conventions
 
 ```
@@ -58,9 +90,9 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 .pulse/tooling-status.json      ← Preflight result + recommended mode
 .pulse/handoffs/manifest.json   ← Owner-scoped handoff index
 .pulse/handoffs/*.json          ← Per-owner pause/resume state
-.pulse/verification/            ← Execution evidence artifacts
+.pulse/verification/            ← Execution evidence artifacts in the current repo state
+.pulse/memory/                  ← Shared reusable memory root
 history/<feature>/              ← Per-feature artifacts
-history/learnings/              ← Accumulated knowledge
 .beads/                         ← Bead files
 .spikes/                        ← Spike verification results
 ```
@@ -68,10 +100,11 @@ history/learnings/              ← Accumulated knowledge
 ## Critical Rules
 
 1. **Never execute without validating.** GATE 3 is non-negotiable.
-2. **CONTEXT.md is the source of truth.** All downstream agents honor locked decisions.
+2. **`CONTEXT.md` is the source of truth.** All downstream agents honor locked decisions.
 3. **Context budget: >65% → write an owner-scoped handoff and register it in `.pulse/handoffs/manifest.json`.**
-4. **After compaction: re-read this file + CONTEXT.md immediately.**
-5. **P1 findings always block merge.** Even in go mode.
+4. **Scout first, drill down second.** Prefer `pulse_status`, then open the specific artifact it points to.
+5. **After compaction: re-read this file + `CONTEXT.md` immediately.**
+6. **P1 findings always block merge.** Even in go mode.
 
 ---
 
@@ -150,7 +183,7 @@ br sync --flush-only  # Flush bead changes to disk (does NOT run git)
 
 ### Workflow Pattern
 
-1. **Start**: Run `br ready` to find actionable work
+1. **Scout**: Run `node .codex/pulse_status.mjs --json` when available, then `br ready` to find actionable work
 2. **Claim**: Use `br update <id> --status=in_progress`
 3. **Work**: Implement the task
 4. **Complete**: Use `br close <id>`
@@ -292,6 +325,33 @@ bv --robot-triage | jq '.[] | select(.blockers | length > 0) | {id, blockers}'
 
 ---
 
+## Operator Cookbook
+
+### Start a fresh Pulse session
+
+1. Run `pulse:preflight`.
+2. Run `pulse:using-pulse`.
+3. Use `node .codex/pulse_status.mjs --json` when available for a read-only scout pass.
+4. Open only the artifacts the scout points at: usually `.pulse/state.json`, `.pulse/STATE.md`, `.pulse/handoffs/manifest.json`, `history/<feature>/CONTEXT.md`, and `phase-plan.md`.
+
+### Resume safely
+
+- If `.pulse/handoffs/manifest.json` exists, surface it before resuming.
+- Do not auto-resume because a handoff exists; wait for confirmation.
+- Rehydrate from the handoff, then re-check the current state mirrors before new edits.
+
+### Pick swarm vs single-worker
+
+- Prefer swarm only when the current phase has enough parallelizable beads to justify coordination overhead.
+- Prefer single-worker when the phase still needs Pulse discipline but not multiple active workers.
+- In both paths, Gate 3 approval is still required before execution begins.
+
+### Scout guidance
+
+- Treat `pulse_status` as the first read, not the full source of truth.
+- Treat it as an orientation surface that tells you where to look next.
+- If the scout and deeper artifacts disagree, trust the underlying artifacts and surface the mismatch.
+
 ## Landing the Plane (Session Completion)
 
 Every session must end cleanly. Before stopping, run through this mandatory workflow:
@@ -406,8 +466,8 @@ cm list --recent
 
 ### Rules
 
-- `cass-memory` is optional. If unavailable, rely on `history/learnings/` and `.pulse/STATE.md`.
-- File-based learnings (`history/learnings/`) remain the canonical source of truth for compounded knowledge. `cass-memory` is a convenience index, not a replacement.
+- `cass-memory` is optional. If unavailable, rely on `.pulse/memory/` and `.pulse/STATE.md`.
+- File-based learnings under `.pulse/memory/` remain the canonical source of truth for compounded knowledge. `cass-memory` is a convenience index, not a replacement.
 - Do not store secrets, credentials, or tokens in memory.
 
 <!-- PULSE:START -->
@@ -421,7 +481,7 @@ Use `pulse:using-pulse` first in this repo unless you are resuming an already ap
 2. If `.pulse/onboarding.json` is missing or outdated, stop and run `pulse:using-pulse` before continuing.
 3. If `.codex/pulse_status.mjs` exists, use `node .codex/pulse_status.mjs --json` for a fast read-only status snapshot.
 4. If `.pulse/handoffs/manifest.json` exists, do not auto-resume. Surface the saved state and wait for user confirmation.
-5. If `history/learnings/critical-patterns.md` exists, read it before planning or execution work.
+5. If `.pulse/memory/critical-patterns.md` exists, read it before planning or execution work.
 
 ## Chain
 
@@ -461,8 +521,11 @@ history/<feature>/
   discovery.md        ← research findings
   approach.md         ← approach + risk map
 
-history/learnings/
+.pulse/memory/
   critical-patterns.md
+  learnings/
+  corrections/
+  ratchet/
 
 .beads/               ← bead/task files when beads are in use
 .spikes/              ← spike outputs when validation requires them

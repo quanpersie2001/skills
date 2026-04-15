@@ -460,7 +460,15 @@ If uncertain, use full mode.
 
 ## Context Budget
 
-If context exceeds 65%, write a validating-owned handoff using the shared envelope and register it in `.pulse/handoffs/manifest.json`.
+If context exceeds 65%, write a validating-owned handoff using the shared envelope and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path.
+
+Validating handoffs use the same companion blocks as every other Pulse owner:
+
+- `summary` -> short validation-state headline
+- `next_action` + `read_first` -> resume briefing for the next validation turn
+- `payload.transfer` -> the detailed transfer block for what passed, what is still under inspection, and what is blocked
+
+A validating-owned handoff should keep the phase-verification state legible in one read. Include the current phase, the latest gating conclusion, any spike status, and the next proof step inside the transfer block.
 
 ---
 

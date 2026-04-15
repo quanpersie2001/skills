@@ -18,7 +18,7 @@ A multi-skill ecosystem for agentic software development, built on the Flywheel 
 | `pulse:swarming` | Launch + tend parallel worker agents | After validating approves beads |
 | `pulse:executing` | Per-agent worker loop (register → implement → close) | Loaded by workers spawned by swarming |
 | `pulse:reviewing` | Specialist reviewers + 3-level verification + UAT + finishing | After swarming completes all beads |
-| `pulse:compounding` | Capture learnings → history/learnings/ | After reviewing, always |
+| `pulse:compounding` | Capture learnings → .pulse/memory/learnings/ | After reviewing, always |
 | `pulse:writing-pulse-skills` | TDD-for-skills meta-skill | Creating/improving pulse skills |
 
 ### Support Skills
@@ -59,8 +59,8 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 .pulse/handoffs/manifest.json   ← Owner-scoped handoff index
 .pulse/handoffs/*.json          ← Per-owner pause/resume state
 .pulse/verification/            ← Execution evidence artifacts
+.pulse/memory/                  ← Shared reusable memory root
 history/<feature>/              ← Per-feature artifacts
-history/learnings/              ← Accumulated knowledge
 .beads/                         ← Bead files
 .spikes/                        ← Spike verification results
 ```
@@ -406,6 +406,6 @@ cm list --recent
 
 ### Rules
 
-- `cass-memory` is optional. If unavailable, rely on `history/learnings/` and `.pulse/STATE.md`.
-- File-based learnings (`history/learnings/`) remain the canonical source of truth for compounded knowledge. `cass-memory` is a convenience index, not a replacement.
+- `cass-memory` is optional. If unavailable, rely on `.pulse/memory/` and `.pulse/STATE.md`.
+- File-based learnings under `.pulse/memory/` remain the canonical source of truth for compounded knowledge. `cass-memory` is a convenience index, not a replacement.
 - Do not store secrets, credentials, or tokens in memory.

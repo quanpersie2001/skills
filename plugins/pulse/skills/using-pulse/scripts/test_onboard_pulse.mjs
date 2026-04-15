@@ -29,6 +29,9 @@ test("applyRepo creates full repo onboarding with node-based hooks", () => {
     assert.ok(fs.existsSync(path.join(root, ".codex", "hooks.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "onboarding.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "state.json")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "learnings")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "corrections")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "ratchet")));
     assert.ok(fs.existsSync(path.join(root, ".codex", "hooks", "pulse_session_start.mjs")));
     assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_state.mjs")));
     assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_status.mjs")));
@@ -136,7 +139,133 @@ test("pulse status scout renders json for an onboarded repo", async () => {
     const normalizedPayloadRoot = fs.realpathSync.native(payload.repo_root);
     assert.equal(normalizedPayloadRoot, normalizedRoot);
     assert.equal(payload.state_json.exists, true);
+    assert.equal(payload.current_feature.exists, false);
+    assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "learnings")), true);
+    assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "corrections")), true);
+    assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "ratchet")), true);
+    assert.equal(payload.runtime_snapshot.exists, false);
     assert.equal(payload.handoff_manifest.active_count, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("pulse status scout surfaces current-feature, runtime snapshot, and canonical active handoff summaries", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+
+    fs.writeFileSync(
+      path.join(root, ".pulse", "current-feature.json"),
+      `${JSON.stringify({
+        feature_key: "operator-surface-foundation",
+        phase: "planning",
+        gate: "GATE 2",
+        status: "active",
+        updated_at: "2026-04-16T10:00:00.000Z",
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "runtime-snapshot.json"),
+      `${JSON.stringify({
+        schema_version: "1.0",
+        active_feature: "snapshot-feature",
+        active_skill: "pulse:planning",
+        phase: "validating",
+        requested_mode: "swarm",
+        recommended_mode: "swarm",
+        updated_at: "2026-04-16T10:05:00.000Z",
+        source: {
+          state_json: ".pulse/state.json",
+          state_markdown: ".pulse/STATE.md",
+          current_feature: ".pulse/current-feature.json",
+        },
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.mkdirSync(path.join(root, ".pulse", "handoffs"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, ".pulse", "handoffs", "manifest.json"),
+      `${JSON.stringify({
+        schema_version: "1.0",
+        updated_at: "2026-04-16T10:06:00.000Z",
+        active: [
+          {
+            owner_id: "planning",
+            owner_type: "phase",
+            skill: "pulse:planning",
+            feature: "operator-surface-foundation",
+            path: ".pulse/handoffs/planning.json",
+            phase: "planning/phase-4",
+            next_action: "Create remaining task beads",
+            summary: "Discovery and approach are complete",
+          },
+          {
+            owner_id: "worker-blue-lake",
+            owner_type: "worker",
+            skill: "pulse:executing",
+            feature: "operator-surface-foundation",
+            path: ".pulse/handoffs/worker-blue-lake.json",
+            phase: "execution/phase-4",
+            next_action: "Resume bead implementation",
+            summary: "Verification is pending after the code change",
+          },
+        ],
+      }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const jsonStdout = execFileSync(
+      "node",
+      [path.join(root, ".codex", "pulse_status.mjs"), "--json"],
+      {
+        cwd: root,
+        encoding: "utf8",
+      },
+    );
+    const textStdout = execFileSync("node", [path.join(root, ".codex", "pulse_status.mjs")], {
+      cwd: root,
+      encoding: "utf8",
+    });
+
+    const payload = JSON.parse(jsonStdout);
+    assert.equal(payload.feature, undefined);
+    assert.equal(payload.current_feature.exists, true);
+    assert.equal(payload.current_feature.feature_key, "operator-surface-foundation");
+    assert.equal(payload.current_feature.phase, "planning");
+    assert.equal(payload.current_feature.gate, "GATE 2");
+    assert.equal(payload.runtime_snapshot.exists, true);
+    assert.equal(payload.runtime_snapshot.active_feature, "snapshot-feature");
+    assert.equal(payload.runtime_snapshot.source.current_feature, ".pulse/current-feature.json");
+    assert.equal(payload.state_json.active_feature, "");
+    assert.equal(payload.handoff_manifest.active_count, 2);
+    assert.equal(payload.handoff_manifest.active.length, 2);
+    assert.equal(payload.handoff_manifest.active[0].owner_id, "planning");
+    assert.equal(
+      payload.handoff_manifest.active[0].operator_summary,
+      "planning | via pulse:planning | feature=operator-surface-foundation | phase=planning/phase-4 | next=Create remaining task beads | summary=Discovery and approach are complete | path=.pulse/handoffs/planning.json",
+    );
+    assert.equal(
+      payload.handoff_manifest.active[1].operator_summary,
+      "worker-blue-lake | via pulse:executing | feature=operator-surface-foundation | phase=execution/phase-4 | next=Resume bead implementation | summary=Verification is pending after the code change | path=.pulse/handoffs/worker-blue-lake.json",
+    );
+    assert.ok(payload.next_reads.includes(".pulse/handoffs/manifest.json"));
+    assert.ok(payload.next_reads.includes("history/operator-surface-foundation/CONTEXT.md"));
+    assert.match(textStdout, /Feature: operator-surface-foundation/);
+    assert.match(textStdout, /Operator surface:/);
+    assert.match(textStdout, /Current feature snapshot: present/);
+    assert.match(textStdout, /Runtime snapshot: present/);
+    assert.match(textStdout, /Active handoffs: 2/);
+    assert.match(
+      textStdout,
+      /planning \| via pulse:planning \| feature=operator-surface-foundation \| phase=planning\/phase-4 \| next=Create remaining task beads \| summary=Discovery and approach are complete \| path=.pulse\/handoffs\/planning.json/,
+    );
+    assert.match(
+      textStdout,
+      /worker-blue-lake \| via pulse:executing \| feature=operator-surface-foundation \| phase=execution\/phase-4 \| next=Resume bead implementation \| summary=Verification is pending after the code change \| path=.pulse\/handoffs\/worker-blue-lake.json/,
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

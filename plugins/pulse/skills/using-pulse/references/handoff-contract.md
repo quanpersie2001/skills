@@ -78,6 +78,53 @@ Every owner file must use the same outer envelope:
 }
 ```
 
+## Standard Pause/Resume Contract
+
+The shared envelope carries the same three handoff-facing blocks across planning, coordinator, worker, and single-worker owners:
+
+1. `summary` — one short plain-language handoff summary of what is happening now
+2. `next_action` + `read_first` — the resume briefing for the next agent turn
+3. `payload.transfer` — the detailed transfer block with owner-specific state needed to continue safely
+
+Treat these blocks as complementary, not interchangeable:
+
+- `summary` is the one-read headline for the manifest and resume chooser.
+- `next_action` says the first concrete move after resume.
+- `read_first` is the ordered file list to reload before acting.
+- `payload.transfer` holds the state that is too detailed for the top-level envelope.
+
+### Writing Rules
+
+- Keep `summary` to 1-2 sentences in plain language.
+- Keep `next_action` to a single concrete step.
+- Keep `read_first` ordered from most critical reload to least.
+- Always include `payload.transfer.status`, `payload.transfer.completed`, `payload.transfer.in_flight`, `payload.transfer.blockers`, and `payload.transfer.resume_notes`.
+- Use empty arrays when a transfer section has nothing to report; do not omit the field.
+
+### Transfer Block Shape
+
+```json
+{
+  "payload": {
+    "transfer": {
+      "status": "What is true right now in plain language",
+      "completed": [
+        "Concrete things finished before pause"
+      ],
+      "in_flight": [
+        "Exactly one active item or the next item to pick up"
+      ],
+      "blockers": [
+        "Anything blocking safe resume; empty array if none"
+      ],
+      "resume_notes": [
+        "Checks, commands, or coordination notes the next turn must honor"
+      ]
+    }
+  }
+}
+```
+
 ## Payload Expectations
 
 Keep owner-specific data inside `payload`.

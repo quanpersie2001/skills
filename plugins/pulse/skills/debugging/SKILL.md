@@ -80,10 +80,10 @@ If one of those learnings directly explains the issue, use it before searching b
 
 ### 2b. Targeted global lookup only if needed
 
-If bead-local learning refs do not explain the issue, search `history/learnings/critical-patterns.md` with targeted keywords from the classification:
+If bead-local learning refs do not explain the issue, search `.pulse/memory/critical-patterns.md` with targeted keywords from the classification:
 
 ```bash
-grep -i "<keyword from classification>" history/learnings/critical-patterns.md 2>/dev/null
+grep -i "<keyword from classification>" .pulse/memory/critical-patterns.md 2>/dev/null
 ```
 
 If a known pattern matches, jump directly to Step 4 (Fix) using the documented resolution.

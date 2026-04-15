@@ -29,7 +29,7 @@ testing_mode: standard
 decision_refs:
   - D1
 learning_refs:
-  - history/learnings/20260327-auth-cookie.md
+  - .pulse/memory/learnings/20260327-auth-cookie.md
 labels:
   - feature
   - review-safe
@@ -84,7 +84,7 @@ After the structured block, use this body shape:
 
 ## Planning Context
 - Decision refs: D1, D4
-- Learning refs: history/learnings/20260327-auth-cookie.md
+- Learning refs: .pulse/memory/learnings/20260327-auth-cookie.md
 - Testing mode: standard | tdd-required
 - Verification evidence: .pulse/verification/<feature>/<bead-id>.md or an explicit verification record
 - If `testing_mode` is `tdd-required`, include red and green steps in `tdd_steps`

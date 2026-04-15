@@ -105,7 +105,7 @@ Inputs:
 - `CONTEXT.md`
 - `approach.md`
 - the review beads produced by agents 1-4
-- `history/learnings/`
+- `.pulse/memory/`
 
 ```text
 You are the learnings synthesizer.

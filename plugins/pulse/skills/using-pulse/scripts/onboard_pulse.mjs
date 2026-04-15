@@ -628,12 +628,19 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
   const hooksPath = path.join(repoRoot, ".codex", "hooks.json");
   const onboardingPath = path.join(repoRoot, ".pulse", "onboarding.json");
   const statePath = path.join(repoRoot, ".pulse", "state.json");
+  const memoryRootPath = path.join(repoRoot, ".pulse", "memory");
+  const memoryLearningsPath = path.join(memoryRootPath, "learnings");
+  const memoryCorrectionsPath = path.join(memoryRootPath, "corrections");
+  const memoryRatchetPath = path.join(memoryRootPath, "ratchet");
 
   ensureParent(agentsPath);
   ensureParent(configPath);
   ensureParent(hooksPath);
   ensureParent(onboardingPath);
   ensureParent(statePath);
+  fs.mkdirSync(memoryLearningsPath, { recursive: true });
+  fs.mkdirSync(memoryCorrectionsPath, { recursive: true });
+  fs.mkdirSync(memoryRatchetPath, { recursive: true });
 
   const mergedAgents = mergeAgentsContent(readTextIfExists(agentsPath), template);
   fs.writeFileSync(agentsPath, mergedAgents.text, "utf8");
@@ -676,6 +683,12 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
       hook_scripts: hookScripts,
       support_scripts: supportScripts,
       state_file: path.relative(repoRoot, statePath),
+      memory_root: path.relative(repoRoot, memoryRootPath),
+      memory_directories: [
+        path.relative(repoRoot, memoryLearningsPath),
+        path.relative(repoRoot, memoryCorrectionsPath),
+        path.relative(repoRoot, memoryRatchetPath),
+      ],
     },
     notes: onboardingNotes,
   };

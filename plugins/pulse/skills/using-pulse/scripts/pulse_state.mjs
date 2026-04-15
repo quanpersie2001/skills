@@ -293,9 +293,11 @@ export function getPulseStatePaths(repoRoot) {
     toolingStatus: path.join(repoRoot, ".pulse", "tooling-status.json"),
     stateJson: path.join(repoRoot, ".pulse", "state.json"),
     stateMarkdown: path.join(repoRoot, ".pulse", "STATE.md"),
+    currentFeature: path.join(repoRoot, ".pulse", "current-feature.json"),
+    runtimeSnapshot: path.join(repoRoot, ".pulse", "runtime-snapshot.json"),
     handoffManifest: path.join(repoRoot, ".pulse", "handoffs", "manifest.json"),
     agents: path.join(repoRoot, "AGENTS.md"),
-    criticalPatterns: path.join(repoRoot, "history", "learnings", "critical-patterns.md"),
+    criticalPatterns: path.join(repoRoot, ".pulse", "memory", "critical-patterns.md"),
   };
 }
 
@@ -326,6 +328,9 @@ function parseLooseKeyValueMarkdown(text) {
 }
 
 function deriveFeature(status) {
+  if (status.current_feature?.feature_key) {
+    return status.current_feature.feature_key;
+  }
   if (status.state_json.active_feature) {
     return status.state_json.active_feature;
   }
@@ -354,7 +359,7 @@ function buildNextReads(status) {
   }
 
   if (status.critical_patterns_exists) {
-    reads.push("history/learnings/critical-patterns.md");
+    reads.push(".pulse/memory/critical-patterns.md");
   }
 
   return reads;
@@ -385,6 +390,126 @@ function buildRecommendedActions(status) {
   ];
 }
 
+function summarizeCurrentFeature(currentFeature) {
+  if (!currentFeature || typeof currentFeature !== "object" || Array.isArray(currentFeature)) {
+    return {
+      exists: false,
+      feature_key: "",
+      phase: "",
+      gate: "",
+      updated_at: "",
+      status: "",
+    };
+  }
+
+  return {
+    exists: true,
+    feature_key: typeof currentFeature.feature_key === "string" ? currentFeature.feature_key : "",
+    phase: typeof currentFeature.phase === "string" ? currentFeature.phase : "",
+    gate: typeof currentFeature.gate === "string" ? currentFeature.gate : "",
+    updated_at: typeof currentFeature.updated_at === "string" ? currentFeature.updated_at : "",
+    status: typeof currentFeature.status === "string" ? currentFeature.status : "",
+  };
+}
+
+function summarizeRuntimeSnapshot(runtimeSnapshot) {
+  if (!runtimeSnapshot || typeof runtimeSnapshot !== "object" || Array.isArray(runtimeSnapshot)) {
+    return {
+      exists: false,
+      schema_version: "",
+      active_feature: "",
+      active_skill: "",
+      phase: "",
+      requested_mode: "",
+      recommended_mode: "",
+      updated_at: "",
+      source: null,
+    };
+  }
+
+  const source = runtimeSnapshot.source && typeof runtimeSnapshot.source === "object"
+    ? {
+        state_json: typeof runtimeSnapshot.source.state_json === "string"
+          ? runtimeSnapshot.source.state_json
+          : "",
+        state_markdown: typeof runtimeSnapshot.source.state_markdown === "string"
+          ? runtimeSnapshot.source.state_markdown
+          : "",
+        current_feature: typeof runtimeSnapshot.source.current_feature === "string"
+          ? runtimeSnapshot.source.current_feature
+          : "",
+      }
+    : null;
+
+  return {
+    exists: true,
+    schema_version: typeof runtimeSnapshot.schema_version === "string"
+      ? runtimeSnapshot.schema_version
+      : "",
+    active_feature: typeof runtimeSnapshot.active_feature === "string"
+      ? runtimeSnapshot.active_feature
+      : "",
+    active_skill: typeof runtimeSnapshot.active_skill === "string" ? runtimeSnapshot.active_skill : "",
+    phase: typeof runtimeSnapshot.phase === "string" ? runtimeSnapshot.phase : "",
+    requested_mode: typeof runtimeSnapshot.requested_mode === "string"
+      ? runtimeSnapshot.requested_mode
+      : "",
+    recommended_mode: typeof runtimeSnapshot.recommended_mode === "string"
+      ? runtimeSnapshot.recommended_mode
+      : "",
+    updated_at: typeof runtimeSnapshot.updated_at === "string" ? runtimeSnapshot.updated_at : "",
+    source,
+  };
+}
+
+function summarizeActiveHandoffEntry(entry) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return null;
+  }
+
+  const ownerId = typeof entry.owner_id === "string" ? entry.owner_id : "";
+  const ownerType = typeof entry.owner_type === "string" ? entry.owner_type : "";
+  const skill = typeof entry.skill === "string" ? entry.skill : "";
+  const feature = typeof entry.feature === "string" ? entry.feature : "";
+  const phase = typeof entry.phase === "string" ? entry.phase : "";
+  const nextAction = typeof entry.next_action === "string" ? entry.next_action : "";
+  const summary = typeof entry.summary === "string" ? entry.summary : "";
+  const handoffPath = typeof entry.path === "string" ? entry.path : "";
+
+  return {
+    owner_id: ownerId,
+    owner_type: ownerType,
+    skill,
+    feature,
+    phase,
+    next_action: nextAction,
+    summary,
+    path: handoffPath,
+    operator_summary: [
+      ownerId || "(unknown owner)",
+      skill ? `via ${skill}` : "",
+      feature ? `feature=${feature}` : "",
+      phase ? `phase=${phase}` : "",
+      nextAction ? `next=${nextAction}` : "",
+      summary ? `summary=${summary}` : "",
+      handoffPath ? `path=${handoffPath}` : "",
+    ].filter(Boolean).join(" | "),
+  };
+}
+
+function summarizeHandoffManifest(handoffManifest) {
+  const activeEntries = Array.isArray(handoffManifest?.active)
+    ? handoffManifest.active.map(summarizeActiveHandoffEntry).filter(Boolean)
+    : [];
+
+  return {
+    exists: Boolean(handoffManifest),
+    active_count: activeEntries.length,
+    updated_at: typeof handoffManifest?.updated_at === "string" ? handoffManifest.updated_at : "",
+    active: activeEntries,
+  };
+}
+
 export async function readPulseStatus(repoRoot) {
   const paths = getPulseStatePaths(repoRoot);
   const onboarding = readJsonIfExists(paths.onboarding);
@@ -392,6 +517,8 @@ export async function readPulseStatus(repoRoot) {
   const stateJson = readJsonIfExists(paths.stateJson);
   const stateMarkdownText = fileTextIfExists(paths.stateMarkdown);
   const stateMarkdown = parseLooseKeyValueMarkdown(stateMarkdownText);
+  const currentFeature = readJsonIfExists(paths.currentFeature);
+  const runtimeSnapshot = readJsonIfExists(paths.runtimeSnapshot);
   const handoffManifest = readJsonIfExists(paths.handoffManifest);
 
   const dependencyHealth = readDependencyHealthSafe(repoRoot);
@@ -422,11 +549,9 @@ export async function readPulseStatus(repoRoot) {
       exists: stateMarkdownText.trim() !== "",
       ...stateMarkdown,
     },
-    handoff_manifest: {
-      exists: Boolean(handoffManifest),
-      active_count: Array.isArray(handoffManifest?.active) ? handoffManifest.active.length : 0,
-      updated_at: typeof handoffManifest?.updated_at === "string" ? handoffManifest.updated_at : "",
-    },
+    current_feature: summarizeCurrentFeature(currentFeature),
+    runtime_snapshot: summarizeRuntimeSnapshot(runtimeSnapshot),
+    handoff_manifest: summarizeHandoffManifest(handoffManifest),
     critical_patterns_exists: fs.existsSync(paths.criticalPatterns),
     dependency_health: dependencyHealth,
     gkg_readiness: gkgReadiness,
@@ -550,6 +675,53 @@ function renderGkgReadinessLines(status) {
   ];
 }
 
+function renderOperatorSurfaceLines(status) {
+  const lines = ["Operator surface:"];
+  const currentFeature = status.current_feature && typeof status.current_feature === "object"
+    ? status.current_feature
+    : { exists: false };
+  const runtimeSnapshot = status.runtime_snapshot && typeof status.runtime_snapshot === "object"
+    ? status.runtime_snapshot
+    : { exists: false };
+  const handoffManifest = status.handoff_manifest && typeof status.handoff_manifest === "object"
+    ? status.handoff_manifest
+    : { exists: false, active_count: 0, active: [] };
+
+  lines.push(
+    `- Current feature snapshot: ${currentFeature.exists ? "present" : "missing"}`,
+  );
+  if (currentFeature.exists) {
+    lines.push(`  - feature_key: ${currentFeature.feature_key || "(none)"}`);
+    lines.push(`  - phase: ${currentFeature.phase || "(none)"}`);
+    lines.push(`  - gate: ${currentFeature.gate || "(none)"}`);
+    lines.push(`  - status: ${currentFeature.status || "(none)"}`);
+    lines.push(`  - updated_at: ${currentFeature.updated_at || "(none)"}`);
+  }
+
+  lines.push(
+    `- Runtime snapshot: ${runtimeSnapshot.exists ? "present" : "missing"}`,
+  );
+  if (runtimeSnapshot.exists) {
+    lines.push(`  - schema_version: ${runtimeSnapshot.schema_version || "(none)"}`);
+    lines.push(`  - active_feature: ${runtimeSnapshot.active_feature || "(none)"}`);
+    lines.push(`  - active_skill: ${runtimeSnapshot.active_skill || "(none)"}`);
+    lines.push(`  - phase: ${runtimeSnapshot.phase || "(none)"}`);
+    lines.push(`  - requested_mode: ${runtimeSnapshot.requested_mode || "(unspecified)"}`);
+    lines.push(`  - recommended_mode: ${runtimeSnapshot.recommended_mode || "(unspecified)"}`);
+    lines.push(`  - updated_at: ${runtimeSnapshot.updated_at || "(none)"}`);
+  }
+
+  lines.push(`- Active handoffs: ${handoffManifest.active_count || 0}`);
+  if (Array.isArray(handoffManifest.active) && handoffManifest.active.length > 0) {
+    for (const handoff of handoffManifest.active) {
+      lines.push(`  - ${handoff.operator_summary}`);
+    }
+    lines.push(`  - manifest_updated_at: ${handoffManifest.updated_at || "(none)"}`);
+  }
+
+  return lines;
+}
+
 export function renderPulseStatus(status) {
   const onboarding = status.onboarding.exists
     ? `${status.onboarding.status || "installed"}${status.onboarding.plugin_version ? ` (${status.onboarding.plugin_version})` : ""}`
@@ -572,6 +744,8 @@ export function renderPulseStatus(status) {
     `Requested mode: ${requestedMode}`,
     `Recommended mode: ${recommendedMode}`,
     `Active handoffs: ${status.handoff_manifest.active_count}`,
+    "",
+    ...renderOperatorSurfaceLines(status),
     "",
     ...renderGkgReadinessLines(status),
     "",

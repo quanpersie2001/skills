@@ -94,7 +94,7 @@
       "files": [],
       "expectations": [
         "Agent reads CONTEXT.md before doing anything else",
-        "Agent checks history/learnings/critical-patterns.md for institutional learnings",
+        "Agent checks .pulse/memory/critical-patterns.md for institutional learnings",
         "Agent produces or describes producing a phase-plan.md and approach.md",
         "Agent pauses for human approval before creating beads for the current phase"
       ]
@@ -160,12 +160,12 @@
       "skill": "compounding",
       "skill_path": "plugins/pulse/skills/compounding",
       "prompt": "The OAuth feature is merged. Run pulse:compounding to capture what we learned.",
-      "expected_output": "Agent gathers context from feature history/beads/reviews, runs pattern/decision/failure analysis, writes learning files under history/learnings/, promotes only global rules to critical-patterns.md, and updates STATE.md.",
+      "expected_output": "Agent gathers context from feature history/beads/reviews, runs pattern/decision/failure analysis, writes learning files under .pulse/memory/learnings/, promotes only global rules to .pulse/memory/critical-patterns.md, and updates STATE.md.",
       "files": [],
       "expectations": [
         "Agent gathers context from feature history, review findings, and debug notes",
         "Agent analyzes through pattern, decision, and failure lenses",
-        "Agent writes learning files to history/learnings/ with domain/severity/propagation metadata",
+        "Agent writes learning files to .pulse/memory/learnings/ with domain/severity/propagation metadata",
         "Agent only promotes genuinely global patterns to critical-patterns.md, not everything"
       ]
     },

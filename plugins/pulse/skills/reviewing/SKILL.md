@@ -79,7 +79,7 @@ Dispatch agents 1-4 first (parallel or serial per rules above). Agent 5 always r
 | 2 `architecture` | Design patterns, coupling, separation of concerns, API design |
 | 3 `security` | OWASP top 10, injection, auth, secrets, data exposure |
 | 4 `test-coverage` | Missing tests, edge cases, integration gaps |
-| 5 `learnings-synthesizer` | Always last — cross-reference `history/learnings/`, flag known patterns, suggest compounding entries |
+| 5 `learnings-synthesizer` | Always last — cross-reference `.pulse/memory/`, flag known patterns, suggest compounding entries |
 
 ### Isolated Context Per Agent — Critical
 

@@ -79,7 +79,7 @@ export async function main() {
   const payload = await readPayload();
   const repoRoot = findRepoRoot(payload.cwd || ".");
   const onboardingPath = path.join(repoRoot, ".pulse", "onboarding.json");
-  const criticalPatterns = path.join(repoRoot, "history", "learnings", "critical-patterns.md");
+  const criticalPatterns = path.join(repoRoot, ".pulse", "memory", "critical-patterns.md");
 
   const notes = [];
   if (fs.existsSync(onboardingPath)) {
@@ -91,7 +91,7 @@ export async function main() {
   }
 
   if (fs.existsSync(criticalPatterns)) {
-    notes.push("If you move into planning or execution, read history/learnings/critical-patterns.md.");
+    notes.push("If you move into planning or execution, read .pulse/memory/critical-patterns.md.");
   }
 
   const gkgReadiness = await readGkgReadiness(repoRoot);

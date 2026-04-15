@@ -20,7 +20,31 @@ Pulse wraps AI agents in a **gated delivery chain**. Every decision is locked be
 
 Without this structure, agents skip steps. With it, they can't.
 
-Pulse ships as **20 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled code. No runtime to install beyond the tools you already use.
+Pulse ships as **20 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled app to build. No separate orchestration product to adopt. It is a docs-first skill plugin that uses the tools you already have.
+
+## What Pulse Is / Is Not
+
+Pulse is:
+
+- a validate-first, docs-first workflow for Claude Code and Codex
+- a skill ecosystem that routes work through explicit gates and artifacts
+- a way to turn vague requests into reviewed, auditable delivery slices
+
+Pulse is not:
+
+- a default autonomous runtime that should silently execute work end-to-end
+- a replacement for human approval at Gates 1-4
+- a compiled CLI product or full Mission Control-style orchestration system
+
+## One-Line Glossary
+
+- `CONTEXT.md` — the locked decisions the rest of the workflow is not allowed to drift from.
+- `phase-plan.md` — the whole-feature breakdown into meaningful delivery slices.
+- phase contract — the proof obligations, constraints, and exit conditions for the current phase.
+- story map — the ordering logic that explains why the beads happen in that sequence.
+- bead — one worker-sized unit of work with exact files, checks, and decision links.
+- handoff — the pause/resume contract that says where work stopped and what happens next.
+- `pulse_status` — the read-only scout surface for current workflow state and key artifact pointers.
 
 ---
 
@@ -166,7 +190,7 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 | `pulse:swarming` | Coordinator-only orchestration for parallel workers via Agent Mail |
 | `pulse:executing` | Per-bead worker loop: claim → implement → verify → commit → close |
 | `pulse:reviewing` | 4 parallel specialist reviewers + learnings synthesizer + artifact verification + UAT |
-| `pulse:compounding` | Captures durable learnings into `history/learnings/` with propagation triage |
+| `pulse:compounding` | Captures durable learnings into `.pulse/memory/learnings/` with propagation triage |
 
 ### Support Skills
 
@@ -206,8 +230,8 @@ decision_refs  ← CONTEXT.md decision IDs (D1, D2...)
 Learnings flow upward through three propagation paths:
 
 ```
-global-critical  →  history/learnings/critical-patterns.md  (all future planners read this)
-bead-local       →  embedded in bead learning_refs           (workers read at implementation time)
+global-critical  →  .pulse/memory/critical-patterns.md        (all future planners read this)
+bead-local       →  embedded in bead learning_refs            (workers read at implementation time)
 planner-only     →  planning reference only
 ```
 
@@ -227,6 +251,22 @@ Any long-running skill writes a handoff and stops at **65% context**. The next s
 
 ---
 
+## 3-Plane Model
+
+Pulse is getting clearer about three artifact planes:
+
+1. **Control plane — `.pulse/`**
+   - live workflow state
+   - routing mirrors
+   - handoffs
+   - active verification and operator surfaces
+2. **Memory plane — `.pulse/memory/`**
+   - the shared root for reusable cross-feature memory
+   - `critical-patterns.md`, `learnings/`, `corrections/`, and `ratchet/` live here
+   - this is where Pulse should read and write durable shared memory going forward
+3. **Feature record plane — `history/`**
+   - feature-specific decisions, discovery, plans, contracts, story maps, and durable recordkeeping
+
 ## Artifact Map
 
 ```
@@ -236,9 +276,14 @@ Any long-running skill writes a handoff and stops at **65% context**. The next s
   STATE.md                   ← shared state
   handoffs/manifest.json     ← resume index
   handoffs/<owner>.json      ← per-actor checkpoints
-  verification/<feature>/    ← per-bead execution evidence
+  verification/<feature>/    ← per-bead execution evidence in the current repo state
   debug-notes/               ← debugging notes → compounding
   dream-pending/             ← ambiguous learnings awaiting approval
+  memory/                    ← shared reusable memory root
+    critical-patterns.md     ← globally promoted patterns for planning/debugging lookups
+    learnings/               ← durable cross-feature learning entries
+    corrections/             ← durable fixes to prior mistaken guidance
+    ratchet/                 ← durable quality bars and non-regression constraints
 
 history/<feature>/
   CONTEXT.md                 ← locked decisions (source of truth)
@@ -247,10 +292,6 @@ history/<feature>/
   phase-plan.md              ← whole-feature phase breakdown
   phase-<n>-contract.md      ← phase entry/exit/demo/pivots
   phase-<n>-story-map.md     ← stories → beads mapping
-
-history/learnings/
-  critical-patterns.md       ← globally promoted patterns
-  YYYYMMDD-<slug>.md         ← individual learning entries
 
 .beads/                      ← bead files (br managed)
 .spikes/                     ← spike execution results
@@ -301,6 +342,31 @@ Or install individual skills:
 3. Install the `pulse` plugin — all 20 skills are discovered automatically
 
 ---
+
+## Operator Cookbook
+
+### Start or resume a session
+
+1. Run `pulse:preflight` to confirm tooling and mode.
+2. Run `pulse:using-pulse` to route the session.
+3. Use the scout first, then open deeper artifacts only as needed.
+4. If a handoff exists, surface it and wait for explicit resume confirmation.
+
+### Decide whether to use the full chain
+
+Use the full chain when the work is ambiguous, multi-file, high-cost, or coordination-heavy. Stay lightweight only when the task is obviously local, low-risk, and does not need planning, validating, or review gates.
+
+### Choose swarm vs single-worker
+
+- Use `pulse:swarming` when the current phase benefits from parallel workers and coordination overhead is justified.
+- Use single-worker execution when the phase is still meaningful but parallelism would add more ceremony than value.
+- In both cases, Gate 3 still blocks execution until validating approves the phase.
+
+### Use `br` and the scout as your operating surface
+
+- `pulse_status` is the quick read-only scout for where the repo is now.
+- `br` and `bv --robot-*` are the work graph surfaces once beads exist.
+- Open `CONTEXT.md`, `phase-plan.md`, and current phase artifacts only after the scout tells you where to look.
 
 ## Session Scout
 

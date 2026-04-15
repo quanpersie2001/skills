@@ -60,7 +60,7 @@ If scope is unclear, ask ONE disambiguation question before continuing.
 
 ```
 Read (if exists):
-- history/learnings/critical-patterns.md   ← promoted critical learnings
+- .pulse/memory/critical-patterns.md       ← promoted critical learnings
 - .pulse/STATE.md                          ← any prior feature context
 ```
 

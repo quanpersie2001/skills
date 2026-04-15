@@ -55,7 +55,7 @@ User: "/go <feature>"
        |
        v
 [STEP 7] compounding
-       | Capture learnings -> history/learnings/
+       | Capture learnings -> .pulse/memory/learnings/
        |
        v
 DONE
@@ -153,7 +153,7 @@ If the user selects `Approve and continue`, or gives equivalent explicit approva
 
 **Invoke:** Load `pulse:planning` skill.
 
-**Input:** `history/<feature>/CONTEXT.md`, `history/learnings/critical-patterns.md`.
+**Input:** `history/<feature>/CONTEXT.md`, `.pulse/memory/critical-patterns.md`.
 
 **The first planning pass will:**
 
@@ -362,8 +362,8 @@ If fix beads are created, execute them and re-run reviewing before presenting Ga
 **The pulse:compounding skill will:**
 
 - dispatch 3 analysis subagents: patterns / decisions / failures
-- write `history/learnings/YYYYMMDD-<feature>.md`
-- promote critical items to `history/learnings/critical-patterns.md`
+- write `.pulse/memory/learnings/YYYYMMDD-<feature>.md`
+- promote critical items to `.pulse/memory/critical-patterns.md`
 - optionally index via CASS
 
 **Final update STATE.md:**
@@ -377,7 +377,7 @@ last_updated: <timestamp>
 
 Output:
 
-- durable learning entries under `history/learnings/`
+- durable learning entries under `.pulse/memory/learnings/`
 
 ---
 

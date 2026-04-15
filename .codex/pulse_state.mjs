@@ -154,7 +154,7 @@ function buildNextReads(status) {
   }
 
   if (status.critical_patterns_exists) {
-    reads.push("history/learnings/critical-patterns.md");
+    reads.push(".pulse/memory/critical-patterns.md");
   }
 
   return reads;

@@ -1,6 +1,6 @@
 ---
 name: using-pulse
-description: Bootstrap meta-skill for the Pulse agentic development ecosystem. Load after pulse:preflight on any Pulse project. Lists the Pulse skills with routing logic, session scout/bootstrap, small_change vs standard_feature vs high_risk_feature mode selection, full go-mode flow with 4 human gates, priority rules, resume handling, and shared state contracts.
+description: Use when bootstrapping or resuming work in a Pulse project after pulse:preflight, or when you need to route a request to the right Pulse skill and execution mode.
 metadata:
   version: '2.2'
   ecosystem: pulse
@@ -25,6 +25,14 @@ metadata:
 # using-pulse
 
 Bootstrap meta-skill. Load this after `pulse:preflight`. It tells you which Pulse skill to invoke next, how the phases chain together, and how Pulse pauses and resumes safely.
+
+Use this 3-plane model to stay oriented:
+
+- **Operator plane** — what the human is trying to ship right now: the request, approvals, active mode, and next gate.
+- **Cookbook plane** — which Pulse skill to load next: exploring, planning, validating, swarming, executing, reviewing, compounding, or a support skill.
+- **Scout plane** — what the repo already knows: onboarding health, tooling readiness, state files, handoffs, and memory pointers.
+
+Think of this skill as the router and scout brief for Pulse. It does not replace the downstream skill instructions; it gets you onto the right path with the right current-state context.
 
 ## Plugin Onboarding
 
@@ -75,7 +83,7 @@ If onboarding is not complete, do not continue into the rest of the Pulse workfl
 
 ## Session Scout
 
-After onboarding succeeds, use the repo-local scout command as the first quick orientation step whenever it is available:
+This is the scout plane. After onboarding succeeds, use the repo-local scout command as the first quick orientation step whenever it is available:
 
 ```bash
 node .codex/pulse_status.mjs --json
@@ -91,7 +99,7 @@ The scout is read-only. It summarizes:
 - `.pulse/handoffs/manifest.json`
 - recommended next reads/actions
 
-Use it to get the current truth quickly, then open the deeper files it points to.
+Use it to get the current truth quickly, then open the deeper files it points to. The scout tells you what already exists; it does not grant permission to skip the normal gates or downstream skill contracts.
 
 ### gkg Readiness Is Part of Session Start
 
@@ -130,6 +138,8 @@ These checks are the package-wide contract: the report should stay fully covered
 
 ## Skill Catalog
 
+Read this as the Pulse cookbook: one line per skill, then route into the specialist that owns the next decision.
+
 | # | Skill | One-line description | Load when... |
 |---|---|---|---|
 | 0 | `pulse:preflight` | Validate tooling and choose runtime mode | Starting, resuming, or before any execution-capable flow |
@@ -141,7 +151,7 @@ These checks are the package-wide contract: the report should stay fully covered
 | 5 | `pulse:swarming` | Launch and tend a worker pool for swarm execution | Preflight recommends `swarm` and execution is approved |
 | 6 | `pulse:executing` | Implement beads in either worker mode or single-worker mode | Direct execution is happening |
 | 7 | `pulse:reviewing` | 4 specialist reviewers plus a final synthesizer, artifact verification, and UAT | Execution is complete and quality must be verified |
-| 8 | `pulse:compounding` | Capture durable learnings into `history/learnings/` | Feature shipped or a cycle completed |
+| 8 | `pulse:compounding` | Capture durable learnings into `.pulse/memory/learnings/` | Feature shipped or a cycle completed |
 | 9 | `pulse:debugging` | Root-cause blocked work, test failures, and runtime breakage; escalates architectural doubt back to planning when needed | A worker, review, or UAT path is stuck |
 | 10 | `pulse:gkg` | Codebase intelligence support for discovery, pattern search, and symbol tracing | Architecture questions, related-file search, dependency tracing, or planning acceleration when gkg is ready |
 | 11 | `pulse:dream` | Consolidate durable learnings from Codex artifacts into Pulse memory | Bootstrapping or curating learnings manually |
@@ -149,7 +159,7 @@ These checks are the package-wide contract: the report should stay fully covered
 
 ## Routing Logic
 
-Given a user request, determine the working mode first, then the first skill.
+Start in the operator plane: decide the work shape first, then load the cookbook entry that owns the next move.
 
 ### Mode Selection
 
@@ -182,7 +192,7 @@ When in doubt, start with `pulse:exploring`.
 
 ## Communication Contract
 
-This is the default way models should communicate anywhere inside the Pulse workflow unless a narrower skill requires something stricter.
+This is the operator-facing language contract for Pulse unless a narrower skill requires something stricter.
 
 ### The default tone
 
@@ -234,6 +244,8 @@ If a skill gives a structured format, keep the structure but make the content fo
 
 ## State Bootstrap
 
+This section defines the scout-plane bootstrap and the shared-memory root for an active Pulse repo.
+
 On every session start:
 
 0. Confirm Pulse onboarding is current via `.pulse/onboarding.json`
@@ -251,11 +263,15 @@ last_updated: <timestamp>
 3. Ensure `.pulse/state.json` exists. If missing, create a normalized routing mirror.
 4. Ensure `.pulse/config.json` exists. If missing, create `{}`.
 5. Ensure `.pulse/handoffs/manifest.json` exists. If missing, create an empty manifest as defined in `references/handoff-contract.md`.
-6. If `history/learnings/critical-patterns.md` exists, note its presence in state.
+6. Treat `.pulse/` as the control plane for Pulse session state and handoffs.
+7. Treat `.pulse/memory/` as the canonical shared-memory subtree for reusable Pulse memory artifacts.
+8. If `.pulse/memory/critical-patterns.md` exists, note its presence in state.
    - Planning must read it.
    - Executing does not need to read it wholesale; planners must embed relevant learnings into beads.
 
 ## Resume Logic
+
+Resume handling stays in the scout plane: inspect the shared state first, then re-enter the cookbook skill named by the handoff.
 
 Pulse does not use one global handoff file. It uses:
 
@@ -272,14 +288,19 @@ If the manifest contains active entries:
    - skill
    - feature
    - phase
+   - summary
    - next action
 3. Ask the user which handoff to resume if more than one is active.
-4. Load the skill named by the chosen handoff and continue from that owner file.
-5. Do not auto-resume without user confirmation.
+4. After the user chooses, open that owner file and resume from the standard companion blocks:
+   - `summary` -> the one-read handoff headline
+   - `next_action` + `read_first` -> the resume briefing
+   - `payload.transfer` -> the detailed transfer block
+5. Load the skill named by the chosen handoff and continue from that owner file.
+6. Do not auto-resume without user confirmation.
 
 ## Go Mode
 
-Go mode chains all skills end-to-end with exactly 4 human gates. Load `references/go-mode-pipeline.md` for the complete step-by-step sequence.
+Go mode is the full operator-plane pipeline: same routing chain, same cookbook, exactly 4 human gates. Load `references/go-mode-pipeline.md` for the complete step-by-step sequence.
 
 **Trigger:** User says `/go [feature]`, "run the full pipeline", or "go mode".
 
@@ -350,6 +371,8 @@ The branch depends on `.pulse/tooling-status.json`:
 
 ### `small_change`
 
+One-line concept: a low-risk change that still stays inside the normal Pulse gate structure.
+
 For requests classified as `small_change`:
 
 ```text
@@ -370,6 +393,8 @@ Choose `small_change` when ALL of these are true:
 
 ### `standard_feature`
 
+One-line concept: the default Pulse delivery path for ordinary feature and refactor work.
+
 Use this for the default Pulse chain. This is the normal case for most feature work:
 
 ```text
@@ -377,6 +402,8 @@ exploring -> planning -> validating -> swarming/executing -> reviewing -> compou
 ```
 
 ### `high_risk_feature`
+
+One-line concept: a change where wrong assumptions are expensive, so Pulse slows down before execution.
 
 Use this when the work is cross-cutting, hard to reverse, or likely to fail if assumptions are wrong.
 
@@ -387,6 +414,8 @@ Additional expectations:
 - slower approval at GATE 3 before execution begins
 
 ### Micro Mode
+
+One-line concept: a user-approved shortcut for genuinely trivial work, not a stealth way to bypass normal Pulse discipline.
 
 Micro mode is for genuinely trivial tasks that do not warrant the full Pulse pipeline or even `small_change` mode.
 
@@ -466,6 +495,8 @@ Pause and surface these immediately:
 
 ## File Quick Reference
 
+This is the scout-plane map of the shared Pulse working set.
+
 ```text
 .pulse/
   state.json                   <- machine-readable routing/status mirror
@@ -475,6 +506,7 @@ Pause and surface these immediately:
   verification/                <- execution verification evidence artifacts
   debug-notes/                 <- debugging debug notes for compounding
   dream-pending/               <- ambiguous dream decisions awaiting approval
+  memory/                      <- preferred shared-memory subtree when present; use truthfully, not as a claim that all memory has migrated
   handoffs/
     manifest.json             <- active handoff index
     planning.json             <- planning checkpoint
@@ -494,9 +526,11 @@ history/<feature>/
   phase-<n>-contract.md       <- current phase entry state, exit state, demo, unlocks, pivot signals
   phase-<n>-story-map.md      <- story sequence inside the current phase; maps stories to beads
 
-history/learnings/
+.pulse/memory/
   critical-patterns.md        <- promoted critical learnings
-  YYYYMMDD-<slug>.md          <- individual learning entries
+  learnings/                  <- individual learning entries
+  corrections/                <- durable corrections to prior guidance
+  ratchet/                    <- durable quality bars and non-regression rules
 
 .beads/                       <- bead files managed by br
 .spikes/                      <- spike outputs and findings
@@ -516,7 +550,7 @@ Each skill reads upstream artifacts and writes downstream artifacts:
 | swarming | validated beads, `tooling-status.json`, `state.json`, `STATE.md` | coordinator mail state, coordinator handoff, updated `state.json`, updated `STATE.md` |
 | executing | bead file, `STATE.md`, `CONTEXT.md` | implementation commits, `.pulse/verification/` evidence, `br close`, worker handoff if needed |
 | reviewing | diff, `CONTEXT.md`, `approach.md` | review beads, artifact verification results, UAT outcome |
-| compounding | feature history, review output | learning files under `history/learnings/` |
+| compounding | feature history, review output | learning files under `.pulse/memory/learnings/` |
 
 Every skill ends with an explicit handoff phrase:
 

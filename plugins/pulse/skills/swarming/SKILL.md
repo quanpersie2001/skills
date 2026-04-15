@@ -324,9 +324,9 @@ Every monitoring cycle, also check:
 After each significant event, estimate your own context budget.
 
 **If context >65% used:**
-1. Write `.pulse/handoffs/coordinator.json` with complete swarm state (see `references/message-templates.md` → **Handoff JSON Template**)
-2. Register it in `.pulse/handoffs/manifest.json`
-3. Broadcast a pause notification on the epic thread
+1. Write `.pulse/handoffs/coordinator.json` with the standard handoff summary/resume briefing/transfer block contract (see `references/message-templates.md` → **Handoff JSON Template**)
+2. Register it in `.pulse/handoffs/manifest.json` using the same `summary`, `next_action`, and path
+3. Broadcast a pause notification on the epic thread that includes the handoff summary, resume briefing, and transfer block highlights
 4. Report to user that the orchestrator paused safely and how to resume
 5. Do NOT abandon the swarm without writing the handoff
 

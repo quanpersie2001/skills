@@ -46,7 +46,7 @@ export async function main() {
   }
 
   if (fs.existsSync(criticalPatterns)) {
-    notes.push("If you move into planning or execution, read history/learnings/critical-patterns.md.");
+    notes.push("If you move into planning or execution, read .pulse/memory/critical-patterns.md.");
   }
 
   process.stdout.write(

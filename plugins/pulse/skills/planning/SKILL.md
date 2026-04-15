@@ -168,7 +168,7 @@ Institutional knowledge prevents re-solving solved problems. This phase is manda
 ### Step 0.1: Always read critical patterns
 
 ```bash
-cat history/learnings/critical-patterns.md
+cat .pulse/memory/critical-patterns.md
 ```
 
 ### Step 0.1.1: Check institutional memory staleness
@@ -186,9 +186,9 @@ This is a warning only. Do not block planning. Continue immediately after surfac
 Extract 3-5 keywords from the feature name and `CONTEXT.md`, then run focused searches:
 
 ```bash
-grep -r "tags:.*<keyword1>" history/learnings/ -l -i
-grep -r "tags:.*<keyword2>" history/learnings/ -l -i
-grep -r "<ComponentName>" history/learnings/ -l -i
+grep -r "tags:.*<keyword1>" .pulse/memory/learnings/ -l -i
+grep -r "tags:.*<keyword2>" .pulse/memory/learnings/ -l -i
+grep -r "<ComponentName>" .pulse/memory/learnings/ -l -i
 ```
 
 ### Step 0.3: Score and include
@@ -530,7 +530,7 @@ From approach.md: <specific decision that applies here>
 
 ## Institutional Learnings
 
-From history/learnings/<file>:
+From .pulse/memory/learnings/<file>:
 - <key gotcha or pattern>
 ```
 
@@ -634,9 +634,15 @@ HIGH-risk components in current phase: [list] -> flagged for validating to spike
 
 ## Context Budget
 
-If context exceeds 65% at any phase transition, write `.pulse/handoffs/planning.json` using the envelope in `../pulse:using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json`.
+If context exceeds 65% at any phase transition, write `.pulse/handoffs/planning.json` using the shared envelope in `../pulse:using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path.
 
-Planning payload should include:
+Planning handoffs use the same companion blocks as every other Pulse owner:
+
+- `summary` -> short planning handoff headline
+- `next_action` + `read_first` -> resume briefing for the next planning turn
+- `payload.transfer` -> detailed transfer block for what is finished, in flight, blocked, and worth reloading
+
+Planning payload should still include:
 
 - `completed_through`
 - `artifacts_written`
@@ -646,20 +652,51 @@ Planning payload should include:
 
 ```json
 {
-  "skill": "planning",
+  "schema_version": "2.0",
+  "handoff_id": "planning-<ISO-8601>",
+  "owner_type": "phase",
+  "owner_id": "planning",
+  "skill": "pulse:planning",
   "feature": "<feature-name>",
-  "completed_through": "Phase <N>",
-  "next_phase": "Phase <N+1>",
-  "artifacts": [
-    "history/<feature>/discovery.md",
-    "history/<feature>/approach.md",
+  "phase": "planning/phase-<n>",
+  "status": "ready_to_resume",
+  "paused_at": "<ISO-8601>",
+  "reason": "context_critical",
+  "next_action": "Reload the planning artifacts, then finish the current phase preparation work.",
+  "read_first": [
+    ".pulse/STATE.md",
+    "history/<feature>/CONTEXT.md",
     "history/<feature>/phase-plan.md",
-    "history/<feature>/phase-<n>-contract.md",
-    "history/<feature>/phase-<n>-story-map.md"
+    ".pulse/handoffs/planning.json"
   ],
-  "current_phase": "Phase <n> - <phase name>",
-  "stories_defined": ["Story 1", "Story 2"],
-  "beads_created": ["br-101", "br-102"]
+  "summary": "Planning paused cleanly because context is near the limit. The current feature shape is still intact and the next turn should resume phase preparation from the saved artifacts.",
+  "payload": {
+    "transfer": {
+      "status": "Planning is paused safely and the current feature decomposition is still in progress.",
+      "completed": [
+        "Updated the feature-level planning artifacts written before the pause"
+      ],
+      "in_flight": [
+        "Finish the remaining current-phase preparation and bead shaping work"
+      ],
+      "blockers": [],
+      "resume_notes": [
+        "Re-open the saved planning artifacts before making new edits",
+        "Keep `phase-plan.md`, the current phase contract, and the story map aligned"
+      ]
+    },
+    "completed_through": "Phase <N>",
+    "artifacts_written": [
+      "history/<feature>/discovery.md",
+      "history/<feature>/approach.md",
+      "history/<feature>/phase-plan.md",
+      "history/<feature>/phase-<n>-contract.md",
+      "history/<feature>/phase-<n>-story-map.md"
+    ],
+    "stories_defined": ["Story 1", "Story 2"],
+    "beads_created": ["br-101", "br-102"],
+    "open_questions": []
+  }
 }
 ```
 

@@ -8,7 +8,7 @@
 
 ## Institutional Learnings
 
-> Read during Phase 0 from `history/learnings/`
+> Read during Phase 0 from `.pulse/memory/learnings/`
 
 ### Critical Patterns (Always Applied)
 

@@ -1,6 +1,6 @@
 ---
 name: compounding
-description: Capture durable learnings from completed Pulse work so future planning gets smarter and future beads carry the right context. Invoke after reviewing completes and the feature is merged, or after a debugging session uncovers a non-obvious root cause. Runs three parallel analysis subagents (patterns/decisions/failures), synthesizes into history/learnings/YYYYMMDD-<slug>.md, promotes critical items to critical-patterns.md. Classifies the rest for planner-only or bead-local propagation. Key output: critical-patterns.md is read by every planning and exploring Phase 0 — this is the flywheel that makes the ecosystem smarter over time.
+description: Capture durable learnings from completed Pulse work so future planning gets smarter and future beads carry the right context. Invoke after reviewing completes and the feature is merged, or after a debugging session uncovers a non-obvious root cause. Runs three parallel analysis subagents (patterns/decisions/failures), synthesizes into .pulse/memory/learnings/YYYYMMDD-<slug>.md, promotes critical items to .pulse/memory/critical-patterns.md. Classifies the rest for planner-only or bead-local propagation. Key output: critical-patterns.md is read by every planning and exploring Phase 0 — this is the flywheel that makes the ecosystem smarter over time.
 metadata:
   version: '1.3'
   ecosystem: pulse
@@ -189,7 +189,7 @@ Create a short, descriptive slug: `<primary-topic>-<secondary-topic>` (e.g., `au
 **Step 3.5 — Write the learnings file:**
 
 ```
-history/learnings/YYYYMMDD-<slug>.md
+.pulse/memory/learnings/YYYYMMDD-<slug>.md
 ```
 
 Use the format from `references/learnings-template.md`. Include YAML frontmatter.
@@ -211,7 +211,7 @@ For every finding tagged `severity: critical`:
 
 Do not promote narrow execution notes that should instead be carried via `learning_refs`.
 
-**If criteria met, append to `history/learnings/critical-patterns.md`:**
+**If criteria met, append to `.pulse/memory/critical-patterns.md`:**
 
 ```markdown
 ## [YYYYMMDD] <Learning Title>
@@ -222,10 +222,10 @@ Do not promote narrow execution notes that should instead be carried via `learni
 
 <2-4 sentence summary of the learning and what to do differently>
 
-**Full entry:** history/learnings/YYYYMMDD-<slug>.md
+**Full entry:** .pulse/memory/learnings/YYYYMMDD-<slug>.md
 ```
 
-**If `critical-patterns.md` does not exist, create it with this header:**
+**If `.pulse/memory/critical-patterns.md` does not exist, create it with this header:**
 
 ```markdown
 # Critical Patterns
@@ -275,7 +275,7 @@ Update `.pulse/STATE.md` and `.pulse/state.json` to record that compounding ran:
 ## Last Compounding Run
 - Feature: <feature-name>
 - Date: YYYY-MM-DD
-- Learnings file: history/learnings/YYYYMMDD-<slug>.md
+- Learnings file: .pulse/memory/learnings/YYYYMMDD-<slug>.md
 - Critical promotions: N (or 0)
 - Bead-local learnings: N
 ```
@@ -286,7 +286,7 @@ Update `.pulse/STATE.md` and `.pulse/state.json` to record that compounding ran:
 
 ```text
 Compounding complete.
-- Learnings: history/learnings/YYYYMMDD-<slug>.md
+- Learnings: .pulse/memory/learnings/YYYYMMDD-<slug>.md
 - Critical promotions: N findings added to critical-patterns.md
 - Bead-local learnings: N
 - The ecosystem now has [N total] accumulated learnings.
