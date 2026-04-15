@@ -379,6 +379,259 @@ test("pulse status scout surfaces current-feature, runtime snapshot, and canonic
   }
 });
 
+test("checkpoint commands save, list, show, diff, and resume-brief through installed pulse_status", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+    fs.mkdirSync(path.join(root, "history", "checkpoint-ops"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "history", "checkpoint-ops", "CONTEXT.md"),
+      "# Context\n",
+      "utf8",
+    );
+    fs.mkdirSync(path.join(root, ".pulse", "verification", "checkpoint-ops"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, ".pulse", "current-feature.json"),
+      `${JSON.stringify({
+        feature_key: "checkpoint-ops",
+        phase: "validating",
+        gate: "GATE 3",
+        status: "active",
+        updated_at: "2026-04-16T11:00:00.000Z",
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "runtime-snapshot.json"),
+      `${JSON.stringify({
+        schema_version: "1.0",
+        active_feature: "checkpoint-ops",
+        active_skill: "pulse:validating",
+        phase: "validating",
+        requested_mode: "swarm",
+        recommended_mode: "swarm",
+        updated_at: "2026-04-16T11:00:00.000Z",
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.mkdirSync(path.join(root, ".pulse", "handoffs"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, ".pulse", "handoffs", "manifest.json"),
+      `${JSON.stringify({
+        schema_version: "1.0",
+        updated_at: "2026-04-16T11:01:00.000Z",
+        active: [
+          {
+            owner_id: "planning",
+            owner_type: "phase",
+            skill: "pulse:planning",
+            feature: "checkpoint-ops",
+            path: ".pulse/handoffs/planning.json",
+            phase: "planning/phase-5",
+            next_action: "Review the current phase contract",
+            summary: "Planning is complete and validation is queued",
+          },
+        ],
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "memory", "critical-patterns.md"),
+      "# Critical patterns\n",
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "memory", "learnings", "checkpoint-ops.md"),
+      "learning\n",
+      "utf8",
+    );
+
+    const saveOne = JSON.parse(
+      execFileSync(
+        "node",
+        [
+          path.join(root, ".codex", "pulse_status.mjs"),
+          "checkpoint",
+          "save",
+          "--json",
+          "--summary",
+          "Validation approved and execution is next",
+          "--next-action",
+          "Open pulse:executing",
+        ],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+    const saveTwo = JSON.parse(
+      execFileSync(
+        "node",
+        [
+          path.join(root, ".codex", "pulse_status.mjs"),
+          "checkpoint",
+          "save",
+          "--json",
+          "--summary",
+          "Execution finished and review is next",
+          "--next-action",
+          "Open pulse:reviewing",
+        ],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+
+    const listPayload = JSON.parse(
+      execFileSync(
+        "node",
+        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "list", "--json"],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+    const showPayload = JSON.parse(
+      execFileSync(
+        "node",
+        [
+          path.join(root, ".codex", "pulse_status.mjs"),
+          "checkpoint",
+          "show",
+          "--json",
+          "--checkpoint-id",
+          saveOne.checkpoint.checkpoint_id,
+        ],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+    const diffPayload = JSON.parse(
+      execFileSync(
+        "node",
+        [
+          path.join(root, ".codex", "pulse_status.mjs"),
+          "checkpoint",
+          "diff",
+          "--json",
+          "--from",
+          saveOne.checkpoint.checkpoint_id,
+          "--to",
+          saveTwo.checkpoint.checkpoint_id,
+        ],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+    const resumePayload = JSON.parse(
+      execFileSync(
+        "node",
+        [
+          path.join(root, ".codex", "pulse_status.mjs"),
+          "checkpoint",
+          "resume-brief",
+          "--json",
+          "--checkpoint-id",
+          saveTwo.checkpoint.checkpoint_id,
+        ],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+
+    assert.equal(saveOne.ok, true);
+    assert.equal(saveOne.feature, "checkpoint-ops");
+    assert.equal(saveOne.checkpoint.links.context, "history/checkpoint-ops/CONTEXT.md");
+    assert.equal(saveOne.checkpoint.links.handoff, ".pulse/handoffs/planning.json");
+    assert.equal(saveOne.checkpoint.links.verification, ".pulse/verification/checkpoint-ops/");
+    assert.equal(saveOne.checkpoint.memory_hooks.critical_patterns, ".pulse/memory/critical-patterns.md");
+    assert.deepEqual(saveOne.checkpoint.memory_hooks.learnings, [".pulse/memory/learnings/checkpoint-ops.md"]);
+    assert.equal(saveTwo.ok, true);
+    assert.equal(listPayload.ok, true);
+    assert.equal(listPayload.checkpoints.count, 2);
+    assert.equal(listPayload.checkpoints.latest.checkpoint_id, saveTwo.checkpoint.checkpoint_id);
+    assert.equal(showPayload.ok, true);
+    assert.equal(showPayload.checkpoint.checkpoint_id, saveOne.checkpoint.checkpoint_id);
+    assert.equal(diffPayload.ok, true);
+    assert.equal(diffPayload.diff.fields.summary.changed, true);
+    assert.equal(diffPayload.diff.fields.next_action.changed, true);
+    assert.equal(resumePayload.ok, true);
+    assert.equal(resumePayload.resume_brief.checkpoint.checkpoint_id, saveTwo.checkpoint.checkpoint_id);
+    assert.ok(resumePayload.resume_brief.next_reads.includes(saveTwo.checkpoint.path));
+    assert.equal(
+      resumePayload.resume_brief.note,
+      "Checkpoints are advisory snapshots. Current handoffs and state files remain authoritative.",
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("checkpoint commands fail soft for malformed entries and missing selectors", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+    fs.mkdirSync(path.join(root, ".pulse", "checkpoints", "soft-fail-feature"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, ".pulse", "current-feature.json"),
+      `${JSON.stringify({
+        feature_key: "soft-fail-feature",
+        phase: "planning",
+        gate: "GATE 2",
+        status: "active",
+        updated_at: "2026-04-16T12:00:00.000Z",
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "checkpoints", "soft-fail-feature", "manifest.json"),
+      `${JSON.stringify({
+        schema_version: "1.0",
+        updated_at: "2026-04-16T12:00:00.000Z",
+        checkpoints: [
+          { checkpoint_id: "broken", path: "broken.json" },
+        ],
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "checkpoints", "soft-fail-feature", "broken.json"),
+      "{not-json}\n",
+      "utf8",
+    );
+
+    const listPayload = JSON.parse(
+      execFileSync(
+        "node",
+        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "list", "--json"],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+
+    let showExitCode = 0;
+    let showStdout = "";
+    try {
+      showStdout = execFileSync(
+        "node",
+        [
+          path.join(root, ".codex", "pulse_status.mjs"),
+          "checkpoint",
+          "show",
+          "--json",
+          "--checkpoint-id",
+          "missing-entry",
+        ],
+        { cwd: root, encoding: "utf8" },
+      );
+    } catch (error) {
+      showExitCode = error.status;
+      showStdout = error.stdout;
+    }
+
+    assert.equal(listPayload.ok, true);
+    assert.equal(listPayload.checkpoints.count, 0);
+    assert.equal(showExitCode, 1);
+    assert.equal(JSON.parse(showStdout).ok, false);
+    assert.equal(JSON.parse(showStdout).error, "Checkpoint not found.");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("getNodeRuntimeStatus enforces the minimum supported major version", () => {
   assert.equal(getNodeRuntimeStatus("18.0.0").supported, true);
   assert.equal(getNodeRuntimeStatus("17.9.1").supported, false);

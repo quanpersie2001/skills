@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import { readDependencyHealthSafe } from "./pulse_dependencies.mjs";
 
 export const STATE_SCHEMA_VERSION = "1.0";
+export const CHECKPOINT_SCHEMA_VERSION = "1.0";
 
 function utcNow() {
   return new Date().toISOString();
@@ -358,6 +359,28 @@ function listDirectoryFiles(dirPath) {
   }
 }
 
+function toRepoRelative(repoRoot, targetPath) {
+  return path.relative(repoRoot, targetPath).split(path.sep).join("/");
+}
+
+function normalizeSelector(selector) {
+  return String(selector || "").trim().replaceAll("\\", "/");
+}
+
+function slugifyCheckpointPart(value, fallback = "checkpoint") {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || fallback;
+}
+
+function ensureCheckpointFeatureDir(paths, feature) {
+  const featureDir = path.join(paths.checkpointsRoot, feature);
+  fs.mkdirSync(featureDir, { recursive: true });
+  return featureDir;
+}
+
 function buildCheckpointRecordSummary(record, relativePath) {
   if (!record || typeof record !== "object" || Array.isArray(record)) {
     return null;
@@ -413,6 +436,59 @@ function buildCheckpointRecordSummary(record, relativePath) {
   };
 }
 
+function readCheckpointManifest(featureDir) {
+  const manifestPath = path.join(featureDir, "manifest.json");
+  const manifest = readJsonIfExists(manifestPath);
+  return {
+    path: manifestPath,
+    manifest: manifest && typeof manifest === "object" && !Array.isArray(manifest) ? manifest : null,
+  };
+}
+
+function listCheckpointEntries(repoRoot, featureDir, manifest) {
+  const listedEntries = Array.isArray(manifest?.checkpoints) ? manifest.checkpoints : [];
+  const entries = [];
+  const relativeFeatureDir = toRepoRelative(repoRoot, featureDir);
+
+  for (const entry of listedEntries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const checkpointPath = typeof entry.path === "string" ? entry.path : "";
+    if (!checkpointPath) {
+      continue;
+    }
+    const checkpointFile = path.join(featureDir, checkpointPath);
+    const checkpointRecord = readJsonIfExists(checkpointFile);
+    const summary = buildCheckpointRecordSummary(
+      checkpointRecord,
+      `${relativeFeatureDir}/${normalizeSelector(checkpointPath)}`,
+    );
+    if (summary) {
+      entries.push(summary);
+    }
+  }
+
+  const knownEntryPaths = new Set(entries.map((entry) => entry.path));
+  for (const fileName of listDirectoryFiles(featureDir)) {
+    if (fileName === "manifest.json" || !fileName.endsWith(".json")) {
+      continue;
+    }
+    const relativePath = `${relativeFeatureDir}/${fileName}`;
+    if (knownEntryPaths.has(relativePath)) {
+      continue;
+    }
+    const checkpointRecord = readJsonIfExists(path.join(featureDir, fileName));
+    const summary = buildCheckpointRecordSummary(checkpointRecord, relativePath);
+    if (summary) {
+      entries.push(summary);
+    }
+  }
+
+  entries.sort((left, right) => (right.created_at || "").localeCompare(left.created_at || ""));
+  return entries;
+}
+
 function summarizeCheckpointFeature(paths, feature) {
   const checkpointsRootExists = fs.existsSync(paths.checkpointsRoot);
   if (!feature) {
@@ -427,49 +503,10 @@ function summarizeCheckpointFeature(paths, feature) {
     };
   }
 
+  const repoRoot = path.dirname(paths.agents);
   const featureDir = path.join(paths.checkpointsRoot, feature);
-  const manifestPath = path.join(featureDir, "manifest.json");
-  const manifest = readJsonIfExists(manifestPath);
-  const listedEntries = Array.isArray(manifest?.checkpoints) ? manifest.checkpoints : [];
-  const relativeFeatureDir = path.relative(path.dirname(paths.agents), featureDir);
-
-  const entries = [];
-  for (const entry of listedEntries) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      continue;
-    }
-    const checkpointPath = typeof entry.path === "string" ? entry.path : "";
-    if (!checkpointPath) {
-      continue;
-    }
-    const checkpointFile = path.join(featureDir, checkpointPath);
-    const checkpointRecord = readJsonIfExists(checkpointFile);
-    const summary = buildCheckpointRecordSummary(
-      checkpointRecord,
-      path.join(relativeFeatureDir, checkpointPath),
-    );
-    if (summary) {
-      entries.push(summary);
-    }
-  }
-
-  const knownEntryPaths = new Set(entries.map((entry) => entry.path));
-  for (const fileName of listDirectoryFiles(featureDir)) {
-    if (fileName === "manifest.json" || !fileName.endsWith(".json")) {
-      continue;
-    }
-    const relativePath = path.join(relativeFeatureDir, fileName);
-    if (knownEntryPaths.has(relativePath)) {
-      continue;
-    }
-    const checkpointRecord = readJsonIfExists(path.join(featureDir, fileName));
-    const summary = buildCheckpointRecordSummary(checkpointRecord, relativePath);
-    if (summary) {
-      entries.push(summary);
-    }
-  }
-
-  entries.sort((left, right) => (right.created_at || "").localeCompare(left.created_at || ""));
+  const { manifest } = readCheckpointManifest(featureDir);
+  const entries = listCheckpointEntries(repoRoot, featureDir, manifest);
 
   return {
     root_exists: checkpointsRootExists,
@@ -522,6 +559,170 @@ function summarizeMemoryRecall(paths, feature, status) {
     learnings: pickRelevant(learnings),
     corrections: pickRelevant(corrections),
     ratchet: pickRelevant(ratchet),
+  };
+}
+
+function buildCheckpointMemoryHooks(paths, status, feature) {
+  const recall = summarizeMemoryRecall(paths, feature, status);
+  return {
+    critical_patterns: recall.critical_patterns,
+    learnings: recall.learnings,
+    corrections: recall.corrections,
+    ratchet: recall.ratchet,
+  };
+}
+
+function pickRuntimeSourcePath(relativePath, repoRoot) {
+  if (!relativePath || typeof relativePath !== "string") {
+    return "";
+  }
+  return fs.existsSync(path.join(repoRoot, relativePath)) ? normalizeSelector(relativePath) : "";
+}
+
+function inferCheckpointCaptured(status) {
+  const currentFeature = status.current_feature && typeof status.current_feature === "object"
+    ? status.current_feature
+    : {};
+  const runtimeSnapshot = status.runtime_snapshot && typeof status.runtime_snapshot === "object"
+    ? status.runtime_snapshot
+    : {};
+  const stateJson = status.state_json && typeof status.state_json === "object" ? status.state_json : {};
+
+  return {
+    phase: currentFeature.phase || runtimeSnapshot.phase || stateJson.phase || "",
+    gate: currentFeature.gate || "",
+    mode: runtimeSnapshot.recommended_mode || stateJson.recommended_mode || "",
+    story: "",
+    bead: "",
+  };
+}
+
+function inferCheckpointSummary(status, feature) {
+  const phase = status.current_feature?.phase || status.runtime_snapshot?.phase || status.state_json?.phase || "idle";
+  const gate = status.current_feature?.gate || "";
+  const parts = [feature || "feature", `phase ${phase}`];
+  if (gate) {
+    parts.push(gate.toLowerCase());
+  }
+  return `${parts.join(" ")} snapshot`.trim();
+}
+
+function inferCheckpointNextAction(status) {
+  if (status.handoff_manifest?.active?.[0]?.next_action) {
+    return status.handoff_manifest.active[0].next_action;
+  }
+  if (status.tooling_status?.next_skill) {
+    return `Open ${status.tooling_status.next_skill}`;
+  }
+  if (Array.isArray(status.recommended_actions) && status.recommended_actions[0]) {
+    return status.recommended_actions[0];
+  }
+  return "Review current state before continuing.";
+}
+
+function inferCheckpointLinks(paths, status, feature, repoRoot) {
+  const links = {
+    context: "",
+    handoff: "",
+    runtime_snapshot: "",
+    verification: "",
+  };
+
+  if (feature) {
+    const contextPath = path.join(repoRoot, "history", feature, "CONTEXT.md");
+    if (fs.existsSync(contextPath)) {
+      links.context = `history/${feature}/CONTEXT.md`;
+    }
+
+    const verificationPath = path.join(repoRoot, ".pulse", "verification", feature);
+    if (fs.existsSync(verificationPath)) {
+      links.verification = `.pulse/verification/${feature}/`;
+    }
+  }
+
+  const activeHandoffPath = status.handoff_manifest?.active?.[0]?.path || "";
+  if (activeHandoffPath) {
+    links.handoff = normalizeSelector(activeHandoffPath);
+  }
+
+  links.runtime_snapshot = pickRuntimeSourcePath(".pulse/runtime-snapshot.json", repoRoot);
+  return links;
+}
+
+function buildCheckpointRecordFromStatus(paths, status, options = {}) {
+  const repoRoot = path.dirname(paths.agents);
+  const feature = String(options.feature || deriveFeature(status) || "").trim();
+  if (!feature) {
+    throw new Error("Cannot save checkpoint without an active feature.");
+  }
+
+  const createdAt = typeof options.created_at === "string" && options.created_at
+    ? options.created_at
+    : utcNow();
+  const captured = {
+    ...inferCheckpointCaptured(status),
+    ...(options.captured && typeof options.captured === "object" ? options.captured : {}),
+  };
+  const summary = typeof options.summary === "string" && options.summary.trim()
+    ? options.summary.trim()
+    : inferCheckpointSummary(status, feature);
+  const nextAction = typeof options.next_action === "string" && options.next_action.trim()
+    ? options.next_action.trim()
+    : inferCheckpointNextAction(status);
+  const checkpointId = typeof options.checkpoint_id === "string" && options.checkpoint_id.trim()
+    ? options.checkpoint_id.trim()
+    : `${createdAt.replace(/[:.]/g, "-")}-${slugifyCheckpointPart(captured.phase || captured.gate || "snapshot")}`;
+  const blockers = Array.isArray(options.blockers)
+    ? options.blockers.filter(Boolean)
+    : Array.isArray(status.tooling_status?.blockers)
+      ? status.tooling_status.blockers.filter(Boolean)
+      : [];
+  const links = {
+    ...inferCheckpointLinks(paths, status, feature, repoRoot),
+    ...(options.links && typeof options.links === "object" ? options.links : {}),
+  };
+  const memory_hooks = {
+    ...buildCheckpointMemoryHooks(paths, status, feature),
+    ...(options.memory_hooks && typeof options.memory_hooks === "object" ? options.memory_hooks : {}),
+  };
+
+  return {
+    schema_version: CHECKPOINT_SCHEMA_VERSION,
+    checkpoint_id: checkpointId,
+    feature,
+    created_at: createdAt,
+    summary,
+    next_action: nextAction,
+    captured: {
+      phase: typeof captured.phase === "string" ? captured.phase : "",
+      gate: typeof captured.gate === "string" ? captured.gate : "",
+      mode: typeof captured.mode === "string" ? captured.mode : "",
+      story: typeof captured.story === "string" ? captured.story : "",
+      bead: typeof captured.bead === "string" ? captured.bead : "",
+    },
+    links: {
+      context: typeof links.context === "string" ? normalizeSelector(links.context) : "",
+      handoff: typeof links.handoff === "string" ? normalizeSelector(links.handoff) : "",
+      runtime_snapshot: typeof links.runtime_snapshot === "string"
+        ? normalizeSelector(links.runtime_snapshot)
+        : "",
+      verification: typeof links.verification === "string" ? normalizeSelector(links.verification) : "",
+    },
+    blockers,
+    memory_hooks: {
+      critical_patterns: typeof memory_hooks.critical_patterns === "string"
+        ? normalizeSelector(memory_hooks.critical_patterns)
+        : "",
+      learnings: Array.isArray(memory_hooks.learnings)
+        ? memory_hooks.learnings.filter(Boolean).map((item) => normalizeSelector(item))
+        : [],
+      corrections: Array.isArray(memory_hooks.corrections)
+        ? memory_hooks.corrections.filter(Boolean).map((item) => normalizeSelector(item))
+        : [],
+      ratchet: Array.isArray(memory_hooks.ratchet)
+        ? memory_hooks.ratchet.filter(Boolean).map((item) => normalizeSelector(item))
+        : [],
+    },
   };
 }
 
@@ -793,6 +994,199 @@ export async function readPulseStatus(repoRoot) {
   status.next_reads = buildNextReads(status);
   status.recommended_actions = buildRecommendedActions(status);
   return status;
+}
+
+async function loadStatusAndPaths(repoRoot) {
+  return {
+    repoRoot,
+    paths: getPulseStatePaths(repoRoot),
+    status: await readPulseStatus(repoRoot),
+  };
+}
+
+function selectCheckpointEntry(entries, selector) {
+  if (!selector) {
+    return entries[0] || null;
+  }
+
+  const normalized = normalizeSelector(selector);
+  return entries.find((entry) => {
+    const entryPath = normalizeSelector(entry.path);
+    return entry.checkpoint_id === selector || entryPath === normalized || entryPath.endsWith(`/${normalized}`);
+  }) || null;
+}
+
+function buildCheckpointDiff(left, right) {
+  const diffField = (beforeValue, afterValue) => ({
+    before: beforeValue,
+    after: afterValue,
+    changed: beforeValue !== afterValue,
+  });
+
+  return {
+    from: left ? {
+      checkpoint_id: left.checkpoint_id,
+      path: left.path,
+      created_at: left.created_at,
+    } : null,
+    to: right ? {
+      checkpoint_id: right.checkpoint_id,
+      path: right.path,
+      created_at: right.created_at,
+    } : null,
+    fields: {
+      summary: diffField(left?.summary || "", right?.summary || ""),
+      next_action: diffField(left?.next_action || "", right?.next_action || ""),
+      phase: diffField(left?.captured?.phase || "", right?.captured?.phase || ""),
+      gate: diffField(left?.captured?.gate || "", right?.captured?.gate || ""),
+      mode: diffField(left?.captured?.mode || "", right?.captured?.mode || ""),
+      story: diffField(left?.captured?.story || "", right?.captured?.story || ""),
+      bead: diffField(left?.captured?.bead || "", right?.captured?.bead || ""),
+      blockers: diffField(
+        JSON.stringify(left?.blockers || []),
+        JSON.stringify(right?.blockers || []),
+      ),
+      handoff: diffField(left?.links?.handoff || "", right?.links?.handoff || ""),
+      verification: diffField(left?.links?.verification || "", right?.links?.verification || ""),
+      critical_patterns: diffField(
+        left?.memory_hooks?.critical_patterns || "",
+        right?.memory_hooks?.critical_patterns || "",
+      ),
+      learnings: diffField(
+        JSON.stringify(left?.memory_hooks?.learnings || []),
+        JSON.stringify(right?.memory_hooks?.learnings || []),
+      ),
+      corrections: diffField(
+        JSON.stringify(left?.memory_hooks?.corrections || []),
+        JSON.stringify(right?.memory_hooks?.corrections || []),
+      ),
+      ratchet: diffField(
+        JSON.stringify(left?.memory_hooks?.ratchet || []),
+        JSON.stringify(right?.memory_hooks?.ratchet || []),
+      ),
+    },
+  };
+}
+
+export async function checkpointSave(repoRoot, options = {}) {
+  const { status, paths } = await loadStatusAndPaths(repoRoot);
+  const record = buildCheckpointRecordFromStatus(paths, status, options);
+  const featureDir = ensureCheckpointFeatureDir(paths, record.feature);
+  const fileName = `${record.checkpoint_id}.json`;
+  const filePath = path.join(featureDir, fileName);
+  fs.writeFileSync(filePath, `${JSON.stringify(record, null, 2)}\n`, "utf8");
+
+  const { manifest } = readCheckpointManifest(featureDir);
+  const listed = Array.isArray(manifest?.checkpoints) ? manifest.checkpoints.filter(Boolean) : [];
+  const nextManifest = {
+    schema_version: CHECKPOINT_SCHEMA_VERSION,
+    updated_at: utcNow(),
+    checkpoints: [
+      {
+        checkpoint_id: record.checkpoint_id,
+        path: fileName,
+      },
+      ...listed.filter((entry) => entry.checkpoint_id !== record.checkpoint_id && entry.path !== fileName),
+    ],
+  };
+  fs.writeFileSync(
+    path.join(featureDir, "manifest.json"),
+    `${JSON.stringify(nextManifest, null, 2)}\n`,
+    "utf8",
+  );
+
+  return {
+    ok: true,
+    operation: "save",
+    feature: record.feature,
+    checkpoint: buildCheckpointRecordSummary(record, `.pulse/checkpoints/${record.feature}/${fileName}`),
+  };
+}
+
+export async function checkpointList(repoRoot, options = {}) {
+  const { status } = await loadStatusAndPaths(repoRoot);
+  const feature = String(options.feature || deriveFeature(status) || "").trim();
+  const checkpoints = summarizeCheckpointFeature(getPulseStatePaths(repoRoot), feature);
+  return {
+    ok: true,
+    operation: "list",
+    feature,
+    checkpoints,
+  };
+}
+
+export async function checkpointShow(repoRoot, options = {}) {
+  const { status } = await loadStatusAndPaths(repoRoot);
+  const feature = String(options.feature || deriveFeature(status) || "").trim();
+  const checkpoints = summarizeCheckpointFeature(getPulseStatePaths(repoRoot), feature);
+  const checkpoint = selectCheckpointEntry(checkpoints.entries, options.selector || options.checkpoint_id || options.path);
+  return {
+    ok: Boolean(checkpoint),
+    operation: "show",
+    feature,
+    checkpoint: checkpoint || null,
+    error: checkpoint ? "" : "Checkpoint not found.",
+  };
+}
+
+export async function checkpointDiff(repoRoot, options = {}) {
+  const { status } = await loadStatusAndPaths(repoRoot);
+  const feature = String(options.feature || deriveFeature(status) || "").trim();
+  const checkpoints = summarizeCheckpointFeature(getPulseStatePaths(repoRoot), feature);
+  const left = selectCheckpointEntry(checkpoints.entries, options.left || options.from);
+  const right = selectCheckpointEntry(checkpoints.entries, options.right || options.to) || checkpoints.entries[0] || null;
+  if (!left || !right) {
+    return {
+      ok: false,
+      operation: "diff",
+      feature,
+      error: "Two checkpoints are required for diff.",
+      diff: null,
+    };
+  }
+
+  return {
+    ok: true,
+    operation: "diff",
+    feature,
+    diff: buildCheckpointDiff(left, right),
+  };
+}
+
+export async function checkpointResumeBrief(repoRoot, options = {}) {
+  const { status } = await loadStatusAndPaths(repoRoot);
+  const feature = String(options.feature || deriveFeature(status) || "").trim();
+  const checkpoints = summarizeCheckpointFeature(getPulseStatePaths(repoRoot), feature);
+  const checkpoint = selectCheckpointEntry(checkpoints.entries, options.selector || options.checkpoint_id || options.path);
+  if (!checkpoint) {
+    return {
+      ok: false,
+      operation: "resume-brief",
+      feature,
+      error: "Checkpoint not found.",
+      resume_brief: null,
+    };
+  }
+
+  return {
+    ok: true,
+    operation: "resume-brief",
+    feature,
+    checkpoint,
+    resume_brief: {
+      feature,
+      checkpoint,
+      authoritative_handoffs: status.handoff_manifest.active,
+      current_runtime: status.runtime_snapshot,
+      current_feature: status.current_feature,
+      memory_recall: status.memory_recall,
+      next_reads: [...new Set([
+        checkpoint.path,
+        ...status.next_reads,
+      ])],
+      note: "Checkpoints are advisory snapshots. Current handoffs and state files remain authoritative.",
+    },
+  };
 }
 
 function formatDependencyTarget(target) {
