@@ -280,6 +280,8 @@ Pulse does not use one global handoff file. It uses:
 
 Load `references/handoff-contract.md` before resuming.
 
+That reference also defines optional human-readable companion formats for pause summaries, resume briefings, and paste-ready transfer blocks. Use them when helpful, but treat the JSON manifest and owner handoff files as the only source of truth.
+
 If the manifest contains active entries:
 
 1. Read the manifest, not random owner files.

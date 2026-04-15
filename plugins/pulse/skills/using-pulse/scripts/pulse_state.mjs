@@ -509,7 +509,6 @@ function summarizeHandoffManifest(handoffManifest) {
     active: activeEntries,
   };
 }
-
 export async function readPulseStatus(repoRoot) {
   const paths = getPulseStatePaths(repoRoot);
   const onboarding = readJsonIfExists(paths.onboarding);

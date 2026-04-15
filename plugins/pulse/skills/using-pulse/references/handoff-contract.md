@@ -158,6 +158,93 @@ Examples:
 4. After successful resume, mark the owner file `consumed` or move it to `archive/`.
 5. Remove the manifest entry only after the resume is confirmed.
 
+## Human-Readable Companion Formats
+
+The JSON files are the source of truth for machine-readable resume state. They do not auto-generate human summaries today.
+
+If a Pulse skill presents or writes a human-facing handoff note, keep it consistent with the JSON handoff and use the formats below.
+
+### 1. Handoff Summary Format
+
+Use this when pausing work and explaining what the next person or next session should know at a glance.
+
+```markdown
+## Handoff Summary
+- Owner: planning
+- Skill: pulse:planning
+- Feature: auth-refresh
+- Phase: planning/phase-4
+- Status: ready_to_resume
+- Paused at: 2026-03-27T10:15:00Z
+- Reason: context_critical
+- Next action: Create remaining task beads
+- Read first:
+  - .pulse/STATE.md
+  - history/auth-refresh/CONTEXT.md
+- Summary: Discovery and approach are complete; bead creation is next.
+```
+
+Guidance:
+
+- Keep it short enough to scan in one screen.
+- Reuse the same values already present in the owner envelope.
+- Do not invent fields that are not represented in the JSON handoff.
+- `Summary` should explain the current state in plain language, not just restate the phase name.
+
+### 2. Resume Briefing Format
+
+Use this after a user chooses a manifest entry to resume. This is for conversation output, not a replacement for the owner file.
+
+```markdown
+## Resume Briefing
+- Resuming: planning via pulse:planning
+- Feature: auth-refresh
+- Phase: planning/phase-4
+- Current state: Discovery and approach are complete.
+- Next action: Create remaining task beads.
+- Required reads:
+  - .pulse/STATE.md
+  - history/auth-refresh/CONTEXT.md
+- Resume check: wait for explicit user confirmation before continuing.
+```
+
+Guidance:
+
+- Frame the briefing around what will happen next in practical terms.
+- Translate technical status into plain language when possible.
+- Keep the `Next action` aligned with the manifest and owner file.
+- Always preserve the explicit confirmation rule before continuing work.
+
+### 3. Paste-Ready Transfer Block Format
+
+Use this when one agent, owner, or session needs to hand off context to another chat or tool. It should be easy to copy and paste without extra cleanup.
+
+````markdown
+```text
+PULSE TRANSFER
+owner=planning
+skill=pulse:planning
+feature=auth-refresh
+phase=planning/phase-4
+status=ready_to_resume
+paused_at=2026-03-27T10:15:00Z
+reason=context_critical
+next_action=Create remaining task beads
+read_first=.pulse/STATE.md | history/auth-refresh/CONTEXT.md
+summary=Discovery and approach are complete; bead creation is next.
+handoff_path=.pulse/handoffs/planning.json
+manifest_path=.pulse/handoffs/manifest.json
+```
+````
+
+Guidance:
+
+- Keep it single-purpose and copyable.
+- Prefer one field per line.
+- Use repo-relative paths exactly as they appear in the repo.
+- Include both the owner handoff path and the manifest path.
+- Do not claim the block was auto-generated unless a real command produced it.
+
 ## Rules
 
 1. One owner file = one writer.
@@ -165,3 +252,5 @@ Examples:
 3. Workers do not overwrite coordinator state.
 4. Coordinator does not overwrite worker state.
 5. Resume flows always require user confirmation.
+6. Human-readable summaries must stay consistent with the JSON handoff; if they drift, the JSON handoff wins.
+7. Human-readable handoff notes are optional documentation, not a second source of truth.

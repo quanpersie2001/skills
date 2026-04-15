@@ -257,6 +257,7 @@ test("pulse status scout surfaces current-feature, runtime snapshot, and canonic
     assert.match(textStdout, /Operator surface:/);
     assert.match(textStdout, /Current feature snapshot: present/);
     assert.match(textStdout, /Runtime snapshot: present/);
+    assert.match(textStdout, /active_feature: snapshot-feature/);
     assert.match(textStdout, /Active handoffs: 2/);
     assert.match(
       textStdout,
