@@ -475,6 +475,21 @@ cm list --recent
 
 Use `pulse:using-pulse` first in this repo unless you are resuming an already approved Pulse handoff.
 
+## What Pulse Is / Is Not
+
+Pulse is a validate-first, docs-first skill workflow for Claude Code and Codex.
+Pulse is not a license to skip `CONTEXT.md`, validating, review gates, or human approval.
+
+## One-Line Glossary
+
+- `CONTEXT.md` — locked decisions downstream work must honor.
+- `phase-plan.md` — the whole-feature slice plan.
+- phase contract — the current phase's proof and exit conditions.
+- story map — the reason beads are sequenced the way they are.
+- bead — one worker-sized unit of work with exact files and checks.
+- handoff — the pause/resume contract for the next actor.
+- `pulse_status` — the read-only scout for current workflow state.
+
 ## Startup
 
 1. Read this file at session start and again after any context compaction.
@@ -506,6 +521,12 @@ pulse:preflight
 5. After compaction, re-read `AGENTS.md`, run `node .codex/pulse_status.mjs --json` if present, then re-open `.pulse/handoffs/manifest.json`, `.pulse/state.json`, `.pulse/STATE.md`, and the active feature context before more work.
 6. P1 review findings block merge.
 
+## 3-Plane Model
+
+1. **Control plane — `.pulse/`**: live workflow state, routing mirrors, handoffs, and operator surfaces.
+2. **Memory plane — `.pulse/memory/`**: shared root for reusable cross-feature memory, including critical patterns, learnings, corrections, and ratchet artifacts.
+3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, and durable narrative.
+
 ## Working Files
 
 ```
@@ -515,21 +536,40 @@ pulse:preflight
   STATE.md            ← current phase and focus
   handoffs/
     manifest.json     ← pause/resume artifact
+  memory/             ← shared reusable memory root
+    critical-patterns.md ← globally promoted patterns
+    learnings/          ← durable cross-feature learning entries
+    corrections/        ← durable corrections to prior guidance
+    ratchet/            ← durable quality bars and non-regression rules
 
 history/<feature>/
   CONTEXT.md          ← locked decisions
   discovery.md        ← research findings
   approach.md         ← approach + risk map
 
-.pulse/memory/
-  critical-patterns.md
-  learnings/
-  corrections/
-  ratchet/
-
 .beads/               ← bead/task files when beads are in use
 .spikes/              ← spike outputs when validation requires them
 ```
+
+## Operator Cookbook
+
+### Startup scout
+
+1. Run `pulse:using-pulse` if onboarding is missing or stale.
+2. Run `node .codex/pulse_status.mjs --json` when available.
+3. Use the scout to choose the next artifact instead of opening everything at once.
+
+### Resume scout
+
+- If `.pulse/handoffs/manifest.json` exists, surface it and wait for explicit confirmation.
+- Re-open the handoff plus `.pulse/state.json` and `.pulse/STATE.md` before continuing.
+- If current state and a handoff disagree, surface the mismatch instead of guessing.
+
+### Swarm vs single-worker
+
+- Use swarm when the current phase has enough parallelizable beads to justify coordination overhead.
+- Use single-worker when Pulse discipline is still needed but parallelism is not.
+- Gate 3 still blocks both modes until validating approves execution.
 
 ## Codex Guardrails
 

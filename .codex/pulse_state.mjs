@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { readDependencyHealthSafe } from "./pulse_dependencies.mjs";
 
 export const STATE_SCHEMA_VERSION = "1.0";
 
@@ -27,6 +28,205 @@ function readJsonIfExists(filePath) {
   } catch {
     return null;
   }
+}
+
+const SUPPORTED_GKG_LANGUAGE_EXTENSIONS = {
+  TypeScript: [".ts", ".tsx"],
+  JavaScript: [".js", ".jsx", ".mjs", ".cjs"],
+  Ruby: [".rb"],
+  Java: [".java"],
+  Kotlin: [".kt", ".kts"],
+  Python: [".py"],
+};
+
+const SUPPORTED_GKG_BASENAMES = new Set(["Gemfile", "Rakefile", "Vagrantfile"]);
+
+const OTHER_SOURCE_EXTENSIONS = new Set([
+  ".go", ".rs", ".c", ".h", ".cpp", ".hpp", ".cc", ".cs",
+  ".swift", ".m", ".mm", ".lua", ".r", ".R", ".scala",
+  ".clj", ".ex", ".exs", ".hs", ".erl", ".dart", ".php",
+]);
+
+const WALK_SKIP_DIRS = new Set([
+  "node_modules", ".git", "dist", "build", "vendor", ".bundle",
+  "__pycache__", ".venv", "venv", ".tox", "target", ".gradle",
+  ".codex", ".pulse", ".beads", ".spikes", ".worktrees",
+]);
+
+const MANIFEST_LANGUAGE_HINTS = {
+  "package.json": "JavaScript",
+  "tsconfig.json": "TypeScript",
+  "Gemfile": "Ruby",
+  "Rakefile": "Ruby",
+  "build.gradle": "Java",
+  "build.gradle.kts": "Kotlin",
+  "pom.xml": "Java",
+  "setup.py": "Python",
+  "pyproject.toml": "Python",
+  "requirements.txt": "Python",
+  "Pipfile": "Python",
+};
+
+const MAX_WALK_DEPTH = 3;
+
+function collectRepoLanguageSignals(repoRoot) {
+  const counts = { supported: 0, unsupported_code: 0, ignored: 0 };
+  const supportedLanguages = new Set();
+  const flatExtensions = new Map();
+
+  for (const [lang, exts] of Object.entries(SUPPORTED_GKG_LANGUAGE_EXTENSIONS)) {
+    for (const ext of exts) {
+      flatExtensions.set(ext, lang);
+    }
+  }
+
+  for (const entry of fs.readdirSync(repoRoot, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const hint = MANIFEST_LANGUAGE_HINTS[entry.name];
+    if (hint) supportedLanguages.add(hint);
+  }
+
+  function walk(dir, depth) {
+    if (depth > MAX_WALK_DEPTH) return;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (!WALK_SKIP_DIRS.has(entry.name)) {
+          walk(path.join(dir, entry.name), depth + 1);
+        }
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      const ext = path.extname(entry.name);
+      const lang = flatExtensions.get(ext);
+      if (lang) {
+        counts.supported += 1;
+        supportedLanguages.add(lang);
+        continue;
+      }
+      if (SUPPORTED_GKG_BASENAMES.has(entry.name)) {
+        counts.supported += 1;
+        supportedLanguages.add("Ruby");
+        continue;
+      }
+      if (OTHER_SOURCE_EXTENSIONS.has(ext)) {
+        counts.unsupported_code += 1;
+        continue;
+      }
+      counts.ignored += 1;
+    }
+  }
+
+  walk(repoRoot, 0);
+
+  const sortedLanguages = [...supportedLanguages].sort();
+  const total = counts.supported + counts.unsupported_code;
+  let coverage = "none";
+  if (total > 0) {
+    coverage = counts.unsupported_code === 0 ? "full" : counts.supported > 0 ? "limited" : "none";
+  }
+
+  return {
+    supported_languages: sortedLanguages,
+    primary_supported_language: sortedLanguages[0] || null,
+    counts,
+    coverage,
+  };
+}
+
+function normalizeFsPath(p) {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
+async function fetchJsonWithTimeout(url, timeoutMs = 1500) {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function extractProjectPaths(payload) {
+  const paths = new Set();
+  function walk(obj) {
+    if (!obj || typeof obj !== "object") return;
+    if (Array.isArray(obj)) { obj.forEach(walk); return; }
+    for (const [key, value] of Object.entries(obj)) {
+      if (typeof value === "string" && /folder_path|project_root|repo_path|root_path|path/i.test(key)) {
+        paths.add(value);
+      }
+      if (typeof value === "object") walk(value);
+    }
+  }
+  walk(payload);
+  return [...paths];
+}
+
+async function readGkgServerStatus(repoRoot) {
+  const serverUrl = process.env.PULSE_GKG_SERVER_URL || "http://127.0.0.1:27495";
+  const [info, workspace] = await Promise.all([
+    fetchJsonWithTimeout(`${serverUrl}/api/info`),
+    fetchJsonWithTimeout(`${serverUrl}/api/workspace/list`),
+  ]);
+  if (!info) {
+    return { server_reachable: false, server_version: null, project_indexed: false };
+  }
+
+  const projectPaths = workspace ? extractProjectPaths(workspace) : [];
+  const normalizedRoot = normalizeFsPath(repoRoot);
+  const project_indexed = projectPaths.some((p) => normalizeFsPath(p) === normalizedRoot);
+
+  return {
+    server_reachable: true,
+    server_version: info.version || info.server_version || null,
+    project_indexed,
+  };
+}
+
+function buildGkgRecommendedAction(signals, serverStatus) {
+  if (!signals.supported_languages.length) {
+    return "Use grep/file inspection fallback — this repo is outside gkg's supported language set.";
+  }
+  if (!serverStatus.server_reachable && !serverStatus.project_indexed) {
+    return "Run `gkg index <repo-root>`, then `gkg server start` to enable gkg discovery.";
+  }
+  if (!serverStatus.server_reachable && serverStatus.project_indexed) {
+    return "Run `gkg server start` to enable gkg discovery.";
+  }
+  if (serverStatus.server_reachable && !serverStatus.project_indexed) {
+    return "Stop the server if needed, run `gkg index <repo-root>`, then restart it so this project is ready for gkg discovery.";
+  }
+  return "gkg is ready — use MCP tools as the default discovery path.";
+}
+
+export async function readGkgReadiness(repoRoot) {
+  const signals = collectRepoLanguageSignals(repoRoot);
+  const serverStatus = await readGkgServerStatus(repoRoot);
+  const recommended_action = buildGkgRecommendedAction(signals, serverStatus);
+
+  return {
+    supported_repo: signals.supported_languages.length > 0,
+    supported_languages: signals.supported_languages,
+    primary_supported_language: signals.primary_supported_language,
+    coverage: signals.coverage,
+    ...serverStatus,
+    recommended_action,
+  };
 }
 
 export function resolveRepoRoot(explicitRoot, startFrom = process.cwd()) {
@@ -93,9 +293,16 @@ export function getPulseStatePaths(repoRoot) {
     toolingStatus: path.join(repoRoot, ".pulse", "tooling-status.json"),
     stateJson: path.join(repoRoot, ".pulse", "state.json"),
     stateMarkdown: path.join(repoRoot, ".pulse", "STATE.md"),
+    currentFeature: path.join(repoRoot, ".pulse", "current-feature.json"),
+    runtimeSnapshot: path.join(repoRoot, ".pulse", "runtime-snapshot.json"),
     handoffManifest: path.join(repoRoot, ".pulse", "handoffs", "manifest.json"),
+    checkpointsRoot: path.join(repoRoot, ".pulse", "checkpoints"),
+    memoryRoot: path.join(repoRoot, ".pulse", "memory"),
+    memoryLearnings: path.join(repoRoot, ".pulse", "memory", "learnings"),
+    memoryCorrections: path.join(repoRoot, ".pulse", "memory", "corrections"),
+    memoryRatchet: path.join(repoRoot, ".pulse", "memory", "ratchet"),
     agents: path.join(repoRoot, "AGENTS.md"),
-    criticalPatterns: path.join(repoRoot, "history", "learnings", "critical-patterns.md"),
+    criticalPatterns: path.join(repoRoot, ".pulse", "memory", "critical-patterns.md"),
   };
 }
 
@@ -126,11 +333,196 @@ function parseLooseKeyValueMarkdown(text) {
 }
 
 function deriveFeature(status) {
+  if (status.current_feature?.feature_key) {
+    return status.current_feature.feature_key;
+  }
   if (status.state_json.active_feature) {
     return status.state_json.active_feature;
   }
   const focus = status.state_markdown.focus || "";
   return focus === "(none)" ? "" : focus;
+}
+
+function listDirectoryFiles(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
+
+  try {
+    return fs.readdirSync(dirPath, { withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b));
+  } catch {
+    return [];
+  }
+}
+
+function buildCheckpointRecordSummary(record, relativePath) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) {
+    return null;
+  }
+
+  const captured = record.captured && typeof record.captured === "object" ? record.captured : {};
+  const links = record.links && typeof record.links === "object" ? record.links : {};
+  const blockers = Array.isArray(record.blockers) ? record.blockers.filter(Boolean) : [];
+  const memoryHooks = record.memory_hooks && typeof record.memory_hooks === "object"
+    ? record.memory_hooks
+    : {};
+
+  return {
+    schema_version: typeof record.schema_version === "string" ? record.schema_version : "",
+    checkpoint_id: typeof record.checkpoint_id === "string" ? record.checkpoint_id : "",
+    feature: typeof record.feature === "string" ? record.feature : "",
+    created_at: typeof record.created_at === "string" ? record.created_at : "",
+    summary: typeof record.summary === "string" ? record.summary : "",
+    next_action: typeof record.next_action === "string" ? record.next_action : "",
+    path: relativePath || "",
+    captured: {
+      phase: typeof captured.phase === "string" ? captured.phase : "",
+      gate: typeof captured.gate === "string" ? captured.gate : "",
+      mode: typeof captured.mode === "string" ? captured.mode : "",
+      story: typeof captured.story === "string" ? captured.story : "",
+      bead: typeof captured.bead === "string" ? captured.bead : "",
+    },
+    blockers,
+    links: {
+      context: typeof links.context === "string" ? links.context : "",
+      handoff: typeof links.handoff === "string" ? links.handoff : "",
+      runtime_snapshot: typeof links.runtime_snapshot === "string" ? links.runtime_snapshot : "",
+      verification: typeof links.verification === "string" ? links.verification : "",
+    },
+    memory_hooks: {
+      critical_patterns: typeof memoryHooks.critical_patterns === "string"
+        ? memoryHooks.critical_patterns
+        : "",
+      learnings: Array.isArray(memoryHooks.learnings) ? memoryHooks.learnings.filter(Boolean) : [],
+      corrections: Array.isArray(memoryHooks.corrections)
+        ? memoryHooks.corrections.filter(Boolean)
+        : [],
+      ratchet: Array.isArray(memoryHooks.ratchet) ? memoryHooks.ratchet.filter(Boolean) : [],
+    },
+    operator_summary: [
+      typeof record.checkpoint_id === "string" && record.checkpoint_id ? record.checkpoint_id : "(unnamed checkpoint)",
+      typeof captured.phase === "string" && captured.phase ? `phase=${captured.phase}` : "",
+      typeof captured.gate === "string" && captured.gate ? `gate=${captured.gate}` : "",
+      typeof record.next_action === "string" && record.next_action ? `next=${record.next_action}` : "",
+      typeof record.summary === "string" && record.summary ? `summary=${record.summary}` : "",
+      relativePath ? `path=${relativePath}` : "",
+    ].filter(Boolean).join(" | "),
+  };
+}
+
+function summarizeCheckpointFeature(paths, feature) {
+  const checkpointsRootExists = fs.existsSync(paths.checkpointsRoot);
+  if (!feature) {
+    return {
+      root_exists: checkpointsRootExists,
+      feature: "",
+      directory_exists: false,
+      manifest_exists: false,
+      count: 0,
+      latest: null,
+      entries: [],
+    };
+  }
+
+  const featureDir = path.join(paths.checkpointsRoot, feature);
+  const manifestPath = path.join(featureDir, "manifest.json");
+  const manifest = readJsonIfExists(manifestPath);
+  const listedEntries = Array.isArray(manifest?.checkpoints) ? manifest.checkpoints : [];
+  const relativeFeatureDir = path.relative(path.dirname(paths.agents), featureDir);
+
+  const entries = [];
+  for (const entry of listedEntries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const checkpointPath = typeof entry.path === "string" ? entry.path : "";
+    if (!checkpointPath) {
+      continue;
+    }
+    const checkpointFile = path.join(featureDir, checkpointPath);
+    const checkpointRecord = readJsonIfExists(checkpointFile);
+    const summary = buildCheckpointRecordSummary(
+      checkpointRecord,
+      path.join(relativeFeatureDir, checkpointPath),
+    );
+    if (summary) {
+      entries.push(summary);
+    }
+  }
+
+  const knownEntryPaths = new Set(entries.map((entry) => entry.path));
+  for (const fileName of listDirectoryFiles(featureDir)) {
+    if (fileName === "manifest.json" || !fileName.endsWith(".json")) {
+      continue;
+    }
+    const relativePath = path.join(relativeFeatureDir, fileName);
+    if (knownEntryPaths.has(relativePath)) {
+      continue;
+    }
+    const checkpointRecord = readJsonIfExists(path.join(featureDir, fileName));
+    const summary = buildCheckpointRecordSummary(checkpointRecord, relativePath);
+    if (summary) {
+      entries.push(summary);
+    }
+  }
+
+  entries.sort((left, right) => (right.created_at || "").localeCompare(left.created_at || ""));
+
+  return {
+    root_exists: checkpointsRootExists,
+    feature,
+    directory_exists: fs.existsSync(featureDir),
+    manifest_exists: Boolean(manifest),
+    manifest_updated_at: typeof manifest?.updated_at === "string" ? manifest.updated_at : "",
+    count: entries.length,
+    latest: entries[0] || null,
+    entries,
+  };
+}
+
+function summarizeMemoryRecall(paths, feature, status) {
+  const memoryRootExists = fs.existsSync(paths.memoryRoot);
+  const criticalPatternsExists = fs.existsSync(paths.criticalPatterns);
+  const learnings = listDirectoryFiles(paths.memoryLearnings).map((fileName) => path.join(".pulse", "memory", "learnings", fileName));
+  const corrections = listDirectoryFiles(paths.memoryCorrections).map((fileName) => path.join(".pulse", "memory", "corrections", fileName));
+  const ratchet = listDirectoryFiles(paths.memoryRatchet).map((fileName) => path.join(".pulse", "memory", "ratchet", fileName));
+
+  const tokenize = (value) => String(value || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const featureTokens = new Set(tokenize(feature));
+  const blockerTokens = new Set(
+    (Array.isArray(status.tooling_status?.blockers) ? status.tooling_status.blockers : [])
+      .flatMap((item) => tokenize(item)),
+  );
+  const phaseTokens = new Set(tokenize(status.current_feature?.phase || status.state_json?.phase || ""));
+  const interestingTokens = new Set([...featureTokens, ...blockerTokens, ...phaseTokens]);
+
+  function pickRelevant(pathsList) {
+    const matched = [];
+    const fallback = [];
+    for (const relativePath of pathsList) {
+      const fileName = path.basename(relativePath, path.extname(relativePath)).toLowerCase();
+      if ([...interestingTokens].some((token) => token && fileName.includes(token))) {
+        matched.push(relativePath);
+      } else {
+        fallback.push(relativePath);
+      }
+    }
+    return matched.length > 0 ? matched.slice(0, 3) : fallback.slice(0, 3);
+  }
+
+  return {
+    root_exists: memoryRootExists,
+    critical_patterns: criticalPatternsExists ? ".pulse/memory/critical-patterns.md" : "",
+    learnings: pickRelevant(learnings),
+    corrections: pickRelevant(corrections),
+    ratchet: pickRelevant(ratchet),
+  };
 }
 
 function buildNextReads(status) {
@@ -153,11 +545,25 @@ function buildNextReads(status) {
     reads.push(`history/${feature}/CONTEXT.md`);
   }
 
+  if (status.checkpoints?.latest?.path) {
+    reads.push(status.checkpoints.latest.path);
+  }
+
   if (status.critical_patterns_exists) {
     reads.push(".pulse/memory/critical-patterns.md");
   }
 
-  return reads;
+  for (const learningPath of status.memory_recall?.learnings || []) {
+    reads.push(learningPath);
+  }
+  for (const correctionPath of status.memory_recall?.corrections || []) {
+    reads.push(correctionPath);
+  }
+  for (const ratchetPath of status.memory_recall?.ratchet || []) {
+    reads.push(ratchetPath);
+  }
+
+  return [...new Set(reads)];
 }
 
 function buildRecommendedActions(status) {
@@ -169,30 +575,188 @@ function buildRecommendedActions(status) {
   }
 
   if (status.handoff_manifest.active_count > 0) {
-    return [
+    const actions = [
       "Surface the active handoffs to the user before resuming.",
       "Read the chosen handoff path, then reopen the active feature context.",
     ];
+
+    if (status.checkpoints?.latest?.path) {
+      actions.push("Use the latest checkpoint as an advisory resume brief, not as a replacement for the active handoff.");
+    }
+
+    return actions;
   }
 
   if (status.tooling_status.next_skill) {
-    return [`Next skill suggestion: ${status.tooling_status.next_skill}.`];
+    const actions = [`Next skill suggestion: ${status.tooling_status.next_skill}.`];
+    if (status.checkpoints?.latest?.path) {
+      actions.push("If you are re-entering an active feature, compare the latest checkpoint against the current runtime snapshot before planning or execution.");
+    }
+    return actions;
   }
 
-  return [
+  const actions = [
     "Use this snapshot for fast orientation before deeper reads.",
     "If work is resuming, reopen the active feature context before planning or execution.",
   ];
+
+  if (status.checkpoints?.latest?.path) {
+    actions.push("Use the latest checkpoint for a quick resume brief or diff, but treat current state and handoffs as authoritative.");
+  }
+
+  return actions;
 }
 
-export function readPulseStatus(repoRoot) {
+function summarizeCurrentFeature(currentFeature) {
+  if (!currentFeature || typeof currentFeature !== "object" || Array.isArray(currentFeature)) {
+    return {
+      exists: false,
+      feature_key: "",
+      phase: "",
+      gate: "",
+      updated_at: "",
+      status: "",
+    };
+  }
+
+  return {
+    exists: true,
+    feature_key: typeof currentFeature.feature_key === "string" ? currentFeature.feature_key : "",
+    phase: typeof currentFeature.phase === "string" ? currentFeature.phase : "",
+    gate: typeof currentFeature.gate === "string" ? currentFeature.gate : "",
+    updated_at: typeof currentFeature.updated_at === "string" ? currentFeature.updated_at : "",
+    status: typeof currentFeature.status === "string" ? currentFeature.status : "",
+  };
+}
+
+function summarizeRuntimeSnapshot(runtimeSnapshot) {
+  if (!runtimeSnapshot || typeof runtimeSnapshot !== "object" || Array.isArray(runtimeSnapshot)) {
+    return {
+      exists: false,
+      schema_version: "",
+      active_feature: "",
+      active_skill: "",
+      phase: "",
+      requested_mode: "",
+      recommended_mode: "",
+      updated_at: "",
+      source: null,
+    };
+  }
+
+  const source = runtimeSnapshot.source && typeof runtimeSnapshot.source === "object"
+    ? {
+        state_json: typeof runtimeSnapshot.source.state_json === "string"
+          ? runtimeSnapshot.source.state_json
+          : "",
+        state_markdown: typeof runtimeSnapshot.source.state_markdown === "string"
+          ? runtimeSnapshot.source.state_markdown
+          : "",
+        current_feature: typeof runtimeSnapshot.source.current_feature === "string"
+          ? runtimeSnapshot.source.current_feature
+          : "",
+      }
+    : null;
+
+  return {
+    exists: true,
+    schema_version: typeof runtimeSnapshot.schema_version === "string"
+      ? runtimeSnapshot.schema_version
+      : "",
+    active_feature: typeof runtimeSnapshot.active_feature === "string"
+      ? runtimeSnapshot.active_feature
+      : "",
+    active_skill: typeof runtimeSnapshot.active_skill === "string" ? runtimeSnapshot.active_skill : "",
+    phase: typeof runtimeSnapshot.phase === "string" ? runtimeSnapshot.phase : "",
+    requested_mode: typeof runtimeSnapshot.requested_mode === "string"
+      ? runtimeSnapshot.requested_mode
+      : "",
+    recommended_mode: typeof runtimeSnapshot.recommended_mode === "string"
+      ? runtimeSnapshot.recommended_mode
+      : "",
+    updated_at: typeof runtimeSnapshot.updated_at === "string" ? runtimeSnapshot.updated_at : "",
+    source,
+  };
+}
+
+function summarizeActiveHandoffEntry(entry) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return null;
+  }
+
+  const ownerId = typeof entry.owner_id === "string" ? entry.owner_id : "";
+  const ownerType = typeof entry.owner_type === "string" ? entry.owner_type : "";
+  const skill = typeof entry.skill === "string" ? entry.skill : "";
+  const feature = typeof entry.feature === "string" ? entry.feature : "";
+  const phase = typeof entry.phase === "string" ? entry.phase : "";
+  const nextAction = typeof entry.next_action === "string" ? entry.next_action : "";
+  const summary = typeof entry.summary === "string" ? entry.summary : "";
+  const handoffPath = typeof entry.path === "string" ? entry.path : "";
+
+  return {
+    owner_id: ownerId,
+    owner_type: ownerType,
+    skill,
+    feature,
+    phase,
+    next_action: nextAction,
+    summary,
+    path: handoffPath,
+    operator_summary: [
+      ownerId || "(unknown owner)",
+      skill ? `via ${skill}` : "",
+      feature ? `feature=${feature}` : "",
+      phase ? `phase=${phase}` : "",
+      nextAction ? `next=${nextAction}` : "",
+      summary ? `summary=${summary}` : "",
+      handoffPath ? `path=${handoffPath}` : "",
+    ].filter(Boolean).join(" | "),
+  };
+}
+
+function summarizeHandoffManifest(handoffManifest) {
+  const activeEntries = Array.isArray(handoffManifest?.active)
+    ? handoffManifest.active.map(summarizeActiveHandoffEntry).filter(Boolean)
+    : [];
+
+  return {
+    exists: Boolean(handoffManifest),
+    active_count: activeEntries.length,
+    updated_at: typeof handoffManifest?.updated_at === "string" ? handoffManifest.updated_at : "",
+    active: activeEntries,
+  };
+}
+export async function readPulseStatus(repoRoot) {
   const paths = getPulseStatePaths(repoRoot);
   const onboarding = readJsonIfExists(paths.onboarding);
   const toolingStatus = readJsonIfExists(paths.toolingStatus);
   const stateJson = readJsonIfExists(paths.stateJson);
   const stateMarkdownText = fileTextIfExists(paths.stateMarkdown);
   const stateMarkdown = parseLooseKeyValueMarkdown(stateMarkdownText);
+  const currentFeature = readJsonIfExists(paths.currentFeature);
+  const runtimeSnapshot = readJsonIfExists(paths.runtimeSnapshot);
   const handoffManifest = readJsonIfExists(paths.handoffManifest);
+
+  const dependencyHealth = readDependencyHealthSafe(repoRoot);
+  const gkgReadiness = await readGkgReadiness(repoRoot);
+
+  const stateJsonSummary = {
+    exists: Boolean(stateJson),
+    ...normalizePulseState(stateJson),
+  };
+  const stateMarkdownSummary = {
+    exists: stateMarkdownText.trim() !== "",
+    ...stateMarkdown,
+  };
+  const currentFeatureSummary = summarizeCurrentFeature(currentFeature);
+  const runtimeSnapshotSummary = summarizeRuntimeSnapshot(runtimeSnapshot);
+  const handoffManifestSummary = summarizeHandoffManifest(handoffManifest);
+  const derivedFeature = deriveFeature({
+    current_feature: currentFeatureSummary,
+    state_json: stateJsonSummary,
+    state_markdown: stateMarkdownSummary,
+  });
+  const checkpoints = summarizeCheckpointFeature(paths, derivedFeature);
 
   const status = {
     repo_root: repoRoot,
@@ -211,27 +775,212 @@ export function readPulseStatus(repoRoot) {
       next_skill: typeof toolingStatus?.next_skill === "string" ? toolingStatus.next_skill : "",
       blockers: Array.isArray(toolingStatus?.blockers) ? toolingStatus.blockers : [],
     },
-    state_json: {
-      exists: Boolean(stateJson),
-      ...normalizePulseState(stateJson),
-    },
-    state_markdown: {
-      exists: stateMarkdownText.trim() !== "",
-      ...stateMarkdown,
-    },
-    handoff_manifest: {
-      exists: Boolean(handoffManifest),
-      active_count: Array.isArray(handoffManifest?.active) ? handoffManifest.active.length : 0,
-      updated_at: typeof handoffManifest?.updated_at === "string" ? handoffManifest.updated_at : "",
-    },
+    state_json: stateJsonSummary,
+    state_markdown: stateMarkdownSummary,
+    current_feature: currentFeatureSummary,
+    runtime_snapshot: runtimeSnapshotSummary,
+    handoff_manifest: handoffManifestSummary,
+    checkpoints,
     critical_patterns_exists: fs.existsSync(paths.criticalPatterns),
+    dependency_health: dependencyHealth,
+    gkg_readiness: gkgReadiness,
+    memory_recall: null,
     next_reads: [],
     recommended_actions: [],
   };
 
+  status.memory_recall = summarizeMemoryRecall(paths, derivedFeature, status);
   status.next_reads = buildNextReads(status);
   status.recommended_actions = buildRecommendedActions(status);
   return status;
+}
+
+function formatDependencyTarget(target) {
+  if (Array.isArray(target)) {
+    return target.filter(Boolean).join(", ");
+  }
+  return String(target || "");
+}
+
+function formatDependencyImpact(missingDependency) {
+  const requiredBy = Array.isArray(missingDependency.required_by)
+    ? missingDependency.required_by.join(", ")
+    : "(unknown skills)";
+  const effects = Array.isArray(missingDependency.missing_effects)
+    ? missingDependency.missing_effects.join(", ")
+    : "degraded";
+  return `Affects: ${requiredBy}. Reported status impact: ${effects}.`;
+}
+
+function renderDependencyHealthLines(status) {
+  const dependencyHealth =
+    status.dependency_health && typeof status.dependency_health === "object"
+      ? status.dependency_health
+      : null;
+  const summary = dependencyHealth?.summary || {};
+  const missingDependencies = Array.isArray(dependencyHealth?.missing_dependencies)
+    ? dependencyHealth.missing_dependencies
+    : [];
+  const uncoveredSkills = Array.isArray(dependencyHealth?.uncovered_skills)
+    ? dependencyHealth.uncovered_skills
+    : [];
+
+  const lines = [
+    "Dependency health:",
+    `- Packaged skill coverage: ${summary.skills_total || 0} total (${summary.skills_with_declared_dependencies || 0} with declared dependencies, ${summary.skills_dependency_free || 0} dependency-free, ${summary.skills_uncovered || 0} uncovered)`,
+    `- Availability among covered skills: ${summary.skills_available || 0} available, ${summary.skills_degraded || 0} degraded, ${summary.skills_unavailable || 0} unavailable`,
+    `- Declared dependencies: ${summary.declared_dependencies || 0}`,
+    `- Missing declared dependencies: ${summary.missing_dependencies || 0}`,
+  ];
+
+  lines.push("- Uncovered packaged skills:");
+  if (uncoveredSkills.length === 0) {
+    lines.push("  - none");
+  } else {
+    for (const skill of uncoveredSkills) {
+      lines.push(`  - ${skill.skill_name} (${skill.skill_file})`);
+    }
+  }
+
+  if (missingDependencies.length === 0) {
+    lines.push("- Missing commands: none");
+    lines.push("- Missing MCP server configuration: none");
+    return lines;
+  }
+
+  const missingCommands = missingDependencies.filter((dependency) => dependency.kind === "command");
+  const missingMcpServers = missingDependencies.filter(
+    (dependency) => dependency.kind === "mcp_server",
+  );
+
+  lines.push("- Missing commands:");
+  if (missingCommands.length === 0) {
+    lines.push("  - none");
+  } else {
+    for (const dependency of missingCommands) {
+      lines.push(
+        `  - ${formatDependencyTarget(dependency.target)}. ${formatDependencyImpact(dependency)}`,
+      );
+    }
+  }
+
+  lines.push("- Missing MCP server configuration:");
+  if (missingMcpServers.length === 0) {
+    lines.push("  - none");
+  } else {
+    for (const dependency of missingMcpServers) {
+      lines.push(
+        `  - ${formatDependencyTarget(dependency.target)}. ${formatDependencyImpact(dependency)}`,
+      );
+    }
+  }
+
+  return lines;
+}
+
+function renderGkgReadinessLines(status) {
+  const readiness = status.gkg_readiness && typeof status.gkg_readiness === "object"
+    ? status.gkg_readiness
+    : null;
+  if (!readiness) {
+    return [];
+  }
+
+  const supportedLanguages =
+    Array.isArray(readiness.supported_languages) && readiness.supported_languages.length > 0
+      ? readiness.supported_languages.join(", ")
+      : "none";
+  const serverStatus = readiness.server_reachable
+    ? `reachable${readiness.server_version ? ` (${readiness.server_version})` : ""}`
+    : "unreachable";
+
+  return [
+    "gkg readiness:",
+    `- Supported repo: ${readiness.supported_repo ? "yes" : "no"}`,
+    `- Supported languages: ${supportedLanguages}`,
+    `- Primary supported language: ${readiness.primary_supported_language || "n/a"}`,
+    `- Coverage: ${readiness.coverage || "unknown"}`,
+    `- Server: ${serverStatus}`,
+    `- Project indexed: ${readiness.project_indexed ? "yes" : "no"}`,
+    `- Recommended action: ${readiness.recommended_action || "n/a"}`,
+  ];
+}
+
+function renderOperatorSurfaceLines(status) {
+  const lines = ["Operator surface:"];
+  const currentFeature = status.current_feature && typeof status.current_feature === "object"
+    ? status.current_feature
+    : { exists: false };
+  const runtimeSnapshot = status.runtime_snapshot && typeof status.runtime_snapshot === "object"
+    ? status.runtime_snapshot
+    : { exists: false };
+  const handoffManifest = status.handoff_manifest && typeof status.handoff_manifest === "object"
+    ? status.handoff_manifest
+    : { exists: false, active_count: 0, active: [] };
+  const checkpoints = status.checkpoints && typeof status.checkpoints === "object"
+    ? status.checkpoints
+    : { root_exists: false, count: 0, latest: null };
+  const memoryRecall = status.memory_recall && typeof status.memory_recall === "object"
+    ? status.memory_recall
+    : { root_exists: false, critical_patterns: "", learnings: [], corrections: [], ratchet: [] };
+
+  lines.push(
+    `- Current feature snapshot: ${currentFeature.exists ? "present" : "missing"}`,
+  );
+  if (currentFeature.exists) {
+    lines.push(`  - feature_key: ${currentFeature.feature_key || "(none)"}`);
+    lines.push(`  - phase: ${currentFeature.phase || "(none)"}`);
+    lines.push(`  - gate: ${currentFeature.gate || "(none)"}`);
+    lines.push(`  - status: ${currentFeature.status || "(none)"}`);
+    lines.push(`  - updated_at: ${currentFeature.updated_at || "(none)"}`);
+  }
+
+  lines.push(
+    `- Runtime snapshot: ${runtimeSnapshot.exists ? "present" : "missing"}`,
+  );
+  if (runtimeSnapshot.exists) {
+    lines.push(`  - schema_version: ${runtimeSnapshot.schema_version || "(none)"}`);
+    lines.push(`  - active_feature: ${runtimeSnapshot.active_feature || "(none)"}`);
+    lines.push(`  - active_skill: ${runtimeSnapshot.active_skill || "(none)"}`);
+    lines.push(`  - phase: ${runtimeSnapshot.phase || "(none)"}`);
+    lines.push(`  - requested_mode: ${runtimeSnapshot.requested_mode || "(unspecified)"}`);
+    lines.push(`  - recommended_mode: ${runtimeSnapshot.recommended_mode || "(unspecified)"}`);
+    lines.push(`  - updated_at: ${runtimeSnapshot.updated_at || "(none)"}`);
+  }
+
+  lines.push(`- Active handoffs: ${handoffManifest.active_count || 0}`);
+  if (Array.isArray(handoffManifest.active) && handoffManifest.active.length > 0) {
+    for (const handoff of handoffManifest.active) {
+      lines.push(`  - ${handoff.operator_summary}`);
+    }
+    lines.push(`  - manifest_updated_at: ${handoffManifest.updated_at || "(none)"}`);
+  }
+
+  lines.push(`- Checkpoint root: ${checkpoints.root_exists ? "present" : "missing"}`);
+  if (checkpoints.feature) {
+    lines.push(`  - feature: ${checkpoints.feature}`);
+    lines.push(`  - checkpoint_count: ${checkpoints.count || 0}`);
+    if (checkpoints.latest) {
+      lines.push(`  - latest_checkpoint: ${checkpoints.latest.operator_summary}`);
+      lines.push(`  - latest_checkpoint_created_at: ${checkpoints.latest.created_at || "(none)"}`);
+    }
+  }
+
+  lines.push(`- Memory recall root: ${memoryRecall.root_exists ? "present" : "missing"}`);
+  if (memoryRecall.critical_patterns) {
+    lines.push(`  - critical_patterns: ${memoryRecall.critical_patterns}`);
+  }
+  if ((memoryRecall.learnings || []).length > 0) {
+    lines.push(`  - learnings: ${(memoryRecall.learnings || []).join(", ")}`);
+  }
+  if ((memoryRecall.corrections || []).length > 0) {
+    lines.push(`  - corrections: ${(memoryRecall.corrections || []).join(", ")}`);
+  }
+  if ((memoryRecall.ratchet || []).length > 0) {
+    lines.push(`  - ratchet: ${(memoryRecall.ratchet || []).join(", ")}`);
+  }
+
+  return lines;
 }
 
 export function renderPulseStatus(status) {
@@ -256,6 +1005,12 @@ export function renderPulseStatus(status) {
     `Requested mode: ${requestedMode}`,
     `Recommended mode: ${recommendedMode}`,
     `Active handoffs: ${status.handoff_manifest.active_count}`,
+    "",
+    ...renderOperatorSurfaceLines(status),
+    "",
+    ...renderGkgReadinessLines(status),
+    "",
+    ...renderDependencyHealthLines(status),
     "",
     "Next reads:",
     ...status.next_reads.map((item) => `- ${item}`),
