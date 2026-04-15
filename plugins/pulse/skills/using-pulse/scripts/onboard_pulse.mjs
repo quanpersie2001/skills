@@ -628,6 +628,7 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
   const hooksPath = path.join(repoRoot, ".codex", "hooks.json");
   const onboardingPath = path.join(repoRoot, ".pulse", "onboarding.json");
   const statePath = path.join(repoRoot, ".pulse", "state.json");
+  const checkpointsRootPath = path.join(repoRoot, ".pulse", "checkpoints");
   const memoryRootPath = path.join(repoRoot, ".pulse", "memory");
   const memoryLearningsPath = path.join(memoryRootPath, "learnings");
   const memoryCorrectionsPath = path.join(memoryRootPath, "corrections");
@@ -638,6 +639,7 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
   ensureParent(hooksPath);
   ensureParent(onboardingPath);
   ensureParent(statePath);
+  fs.mkdirSync(checkpointsRootPath, { recursive: true });
   fs.mkdirSync(memoryLearningsPath, { recursive: true });
   fs.mkdirSync(memoryCorrectionsPath, { recursive: true });
   fs.mkdirSync(memoryRatchetPath, { recursive: true });
@@ -683,6 +685,7 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
       hook_scripts: hookScripts,
       support_scripts: supportScripts,
       state_file: path.relative(repoRoot, statePath),
+      checkpoints_root: path.relative(repoRoot, checkpointsRootPath),
       memory_root: path.relative(repoRoot, memoryRootPath),
       memory_directories: [
         path.relative(repoRoot, memoryLearningsPath),

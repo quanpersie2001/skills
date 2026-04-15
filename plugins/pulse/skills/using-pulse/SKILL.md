@@ -97,6 +97,8 @@ The scout is read-only. It summarizes:
 - `.pulse/state.json`
 - `.pulse/STATE.md`
 - `.pulse/handoffs/manifest.json`
+- `.pulse/checkpoints/<feature>/...` when checkpoints exist for the active feature
+- targeted memory-plane recall hooks from `.pulse/memory/`
 - recommended next reads/actions
 
 Use it to get the current truth quickly, then open the deeper files it points to. The scout tells you what already exists; it does not grant permission to skip the normal gates or downstream skill contracts.
@@ -297,8 +299,11 @@ If the manifest contains active entries:
    - `summary` -> the one-read handoff headline
    - `next_action` + `read_first` -> the resume briefing
    - `payload.transfer` -> the detailed transfer block
-5. Load the skill named by the chosen handoff and continue from that owner file.
-6. Do not auto-resume without user confirmation.
+5. If `.pulse/checkpoints/<feature>/...` exists, treat the latest matching checkpoint as an advisory resume aid only:
+   - use it for quick comparison, memory recall hooks, or a compact resume brief
+   - never let it override the active handoff or current state mirrors
+6. Load the skill named by the chosen handoff and continue from that owner file.
+7. Do not auto-resume without user confirmation.
 
 ## Go Mode
 
@@ -508,7 +513,11 @@ This is the scout-plane map of the shared Pulse working set.
   verification/                <- execution verification evidence artifacts
   debug-notes/                 <- debugging debug notes for compounding
   dream-pending/               <- ambiguous dream decisions awaiting approval
-  memory/                      <- preferred shared-memory subtree when present; use truthfully, not as a claim that all memory has migrated
+  memory/                      <- shared reusable memory subtree for recall hooks and durable learnings
+  checkpoints/                 <- advisory feature-scoped checkpoints for list/show/diff/resume-brief
+    <feature>/
+      manifest.json           <- optional checkpoint index for one feature
+      *.json                  <- checkpoint records
   handoffs/
     manifest.json             <- active handoff index
     planning.json             <- planning checkpoint

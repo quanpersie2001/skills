@@ -88,8 +88,9 @@ After preflight passes, bootstrap the pipeline:
 
 1. Run State Bootstrap from `pulse:using-pulse` (check `.pulse/`, read `critical-patterns.md`).
 2. Determine feature slug from the user's description (lowercase-hyphenated, e.g. `agent-email-inbox`).
-3. Create `history/<feature>/` if it does not exist.
-4. Write `.pulse/STATE.md`:
+3. If `.pulse/checkpoints/<feature>/...` already exists, use it only as an advisory resume aid; do not let it override active handoffs or state mirrors.
+4. Create `history/<feature>/` if it does not exist.
+5. Write `.pulse/STATE.md`:
    ```text
    focus: <feature>
    phase: go-mode/exploring

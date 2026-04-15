@@ -29,6 +29,7 @@ test("applyRepo creates full repo onboarding with node-based hooks", () => {
     assert.ok(fs.existsSync(path.join(root, ".codex", "hooks.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "onboarding.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "state.json")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "checkpoints")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "learnings")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "corrections")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "ratchet")));
@@ -140,10 +141,15 @@ test("pulse status scout renders json for an onboarded repo", async () => {
     assert.equal(normalizedPayloadRoot, normalizedRoot);
     assert.equal(payload.state_json.exists, true);
     assert.equal(payload.current_feature.exists, false);
+    assert.equal(fs.existsSync(path.join(root, ".pulse", "checkpoints")), true);
     assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "learnings")), true);
     assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "corrections")), true);
     assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "ratchet")), true);
     assert.equal(payload.runtime_snapshot.exists, false);
+    assert.equal(payload.checkpoints.root_exists, true);
+    assert.equal(payload.checkpoints.count, 0);
+    assert.equal(payload.memory_recall.root_exists, true);
+    assert.equal(payload.memory_recall.critical_patterns, "");
     assert.equal(payload.handoff_manifest.active_count, 0);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -181,6 +187,75 @@ test("pulse status scout surfaces current-feature, runtime snapshot, and canonic
           state_json: ".pulse/state.json",
           state_markdown: ".pulse/STATE.md",
           current_feature: ".pulse/current-feature.json",
+        },
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "memory", "critical-patterns.md"),
+      "# Critical patterns\n",
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "memory", "learnings", "operator-surface-foundation.md"),
+      "learning\n",
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "memory", "corrections", "planning-gate.md"),
+      "correction\n",
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "memory", "ratchet", "planning-ratchet.md"),
+      "ratchet\n",
+      "utf8",
+    );
+    fs.mkdirSync(path.join(root, ".pulse", "checkpoints", "operator-surface-foundation"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(root, ".pulse", "checkpoints", "operator-surface-foundation", "manifest.json"),
+      `${JSON.stringify({
+        schema_version: "1.0",
+        updated_at: "2026-04-16T10:07:00.000Z",
+        checkpoints: [
+          {
+            checkpoint_id: "2026-04-16T10-07-00Z-planning",
+            path: "2026-04-16T10-07-00Z-planning.json",
+          },
+        ],
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "checkpoints", "operator-surface-foundation", "2026-04-16T10-07-00Z-planning.json"),
+      `${JSON.stringify({
+        schema_version: "1.0",
+        checkpoint_id: "2026-04-16T10-07-00Z-planning",
+        feature: "operator-surface-foundation",
+        created_at: "2026-04-16T10:07:00.000Z",
+        summary: "Planning is complete and validating is next",
+        next_action: "Run pulse:validating for the current phase",
+        captured: {
+          phase: "planning/phase-4",
+          gate: "GATE 2",
+          mode: "standard_feature",
+          story: "Story 2",
+          bead: "BEAD-014",
+        },
+        links: {
+          context: "history/operator-surface-foundation/CONTEXT.md",
+          handoff: ".pulse/handoffs/planning.json",
+          runtime_snapshot: ".pulse/runtime-snapshot.json",
+          verification: ".pulse/verification/operator-surface-foundation/",
+        },
+        blockers: ["Awaiting validation approval"],
+        memory_hooks: {
+          critical_patterns: ".pulse/memory/critical-patterns.md",
+          learnings: [".pulse/memory/learnings/operator-surface-foundation.md"],
+          corrections: [".pulse/memory/corrections/planning-gate.md"],
+          ratchet: [".pulse/memory/ratchet/planning-ratchet.md"],
         },
       }, null, 2)}\n`,
       "utf8",
@@ -251,17 +326,49 @@ test("pulse status scout surfaces current-feature, runtime snapshot, and canonic
       payload.handoff_manifest.active[1].operator_summary,
       "worker-blue-lake | via pulse:executing | feature=operator-surface-foundation | phase=execution/phase-4 | next=Resume bead implementation | summary=Verification is pending after the code change | path=.pulse/handoffs/worker-blue-lake.json",
     );
+    assert.equal(payload.checkpoints.root_exists, true);
+    assert.equal(payload.checkpoints.feature, "operator-surface-foundation");
+    assert.equal(payload.checkpoints.count, 1);
+    assert.equal(payload.checkpoints.latest.checkpoint_id, "2026-04-16T10-07-00Z-planning");
+    assert.equal(
+      payload.checkpoints.latest.operator_summary,
+      "2026-04-16T10-07-00Z-planning | phase=planning/phase-4 | gate=GATE 2 | next=Run pulse:validating for the current phase | summary=Planning is complete and validating is next | path=.pulse/checkpoints/operator-surface-foundation/2026-04-16T10-07-00Z-planning.json",
+    );
+    assert.equal(payload.memory_recall.critical_patterns, ".pulse/memory/critical-patterns.md");
+    assert.deepEqual(payload.memory_recall.learnings, [
+      ".pulse/memory/learnings/operator-surface-foundation.md",
+    ]);
+    assert.deepEqual(payload.memory_recall.corrections, [
+      ".pulse/memory/corrections/planning-gate.md",
+    ]);
+    assert.deepEqual(payload.memory_recall.ratchet, [
+      ".pulse/memory/ratchet/planning-ratchet.md",
+    ]);
     assert.ok(payload.next_reads.includes(".pulse/handoffs/manifest.json"));
     assert.ok(payload.next_reads.includes("history/operator-surface-foundation/CONTEXT.md"));
+    assert.ok(
+      payload.next_reads.includes(
+        ".pulse/checkpoints/operator-surface-foundation/2026-04-16T10-07-00Z-planning.json",
+      ),
+    );
+    assert.ok(payload.next_reads.includes(".pulse/memory/critical-patterns.md"));
     assert.match(textStdout, /Feature: operator-surface-foundation/);
     assert.match(textStdout, /Operator surface:/);
     assert.match(textStdout, /Current feature snapshot: present/);
     assert.match(textStdout, /Runtime snapshot: present/);
     assert.match(textStdout, /active_feature: snapshot-feature/);
+    assert.match(textStdout, /Checkpoint root: present/);
+    assert.match(textStdout, /checkpoint_count: 1/);
+    assert.match(textStdout, /Memory recall root: present/);
+    assert.match(textStdout, /critical_patterns: \.pulse\/memory\/critical-patterns\.md/);
     assert.match(textStdout, /Active handoffs: 2/);
     assert.match(
       textStdout,
       /planning \| via pulse:planning \| feature=operator-surface-foundation \| phase=planning\/phase-4 \| next=Create remaining task beads \| summary=Discovery and approach are complete \| path=.pulse\/handoffs\/planning.json/,
+    );
+    assert.match(
+      textStdout,
+      /2026-04-16T10-07-00Z-planning \| phase=planning\/phase-4 \| gate=GATE 2 \| next=Run pulse:validating for the current phase \| summary=Planning is complete and validating is next \| path=.pulse\/checkpoints\/operator-surface-foundation\/2026-04-16T10-07-00Z-planning.json/,
     );
     assert.match(
       textStdout,

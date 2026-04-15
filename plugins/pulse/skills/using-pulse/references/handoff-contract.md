@@ -245,6 +245,59 @@ Guidance:
 - Include both the owner handoff path and the manifest path.
 - Do not claim the block was auto-generated unless a real command produced it.
 
+## Checkpoint Companion Contract (v1)
+
+Pulse checkpoints are feature-scoped operator aids under `.pulse/checkpoints/<feature>/...`.
+They are not a replacement for owner handoffs, and they are not a second workflow state machine.
+
+Recommended v1 actions:
+
+- `save` -> capture a feature-scoped checkpoint artifact from known current state
+- `list` -> enumerate checkpoints for a feature with compact summaries
+- `show` -> render one checkpoint in human-readable and JSON-friendly form
+- `diff` -> compare two checkpoints at the summary level
+- `resume-brief` -> synthesize a restart packet from a checkpoint plus current runtime/handoff state
+
+Recommended checkpoint record shape:
+
+```json
+{
+  "schema_version": "1.0",
+  "checkpoint_id": "2026-04-16T10-30-00Z-planning",
+  "feature": "auth-refresh",
+  "created_at": "2026-04-16T10:30:00.000Z",
+  "summary": "Planning is complete and validation is next.",
+  "next_action": "Re-open the current phase contract and run validating.",
+  "captured": {
+    "phase": "planning/phase-2",
+    "gate": "GATE 2",
+    "mode": "standard_feature",
+    "story": "Story 2",
+    "bead": "BEAD-014"
+  },
+  "links": {
+    "context": "history/auth-refresh/CONTEXT.md",
+    "handoff": ".pulse/handoffs/planning.json",
+    "runtime_snapshot": ".pulse/runtime-snapshot.json",
+    "verification": ".pulse/verification/auth-refresh/"
+  },
+  "blockers": [],
+  "memory_hooks": {
+    "critical_patterns": ".pulse/memory/critical-patterns.md",
+    "learnings": [".pulse/memory/learnings/20260415-auth-refresh.md"],
+    "corrections": [],
+    "ratchet": []
+  }
+}
+```
+
+Checkpoint rules:
+
+- Checkpoints are advisory snapshots. If checkpoint content disagrees with current handoff or state artifacts, current handoff/state artifacts win.
+- `resume-brief` can point to relevant memory files, but it should not create a second durable memory store.
+- `diff` should stay summary-level: phase, gate, mode, next action, blockers, links, and memory hooks.
+- `save` may write a checkpoint record, but read-only status/scout flows must never mutate runtime state.
+
 ## Rules
 
 1. One owner file = one writer.
@@ -254,3 +307,4 @@ Guidance:
 5. Resume flows always require user confirmation.
 6. Human-readable summaries must stay consistent with the JSON handoff; if they drift, the JSON handoff wins.
 7. Human-readable handoff notes are optional documentation, not a second source of truth.
+8. Checkpoints are advisory artifacts, not authoritative pause/resume ownership records.

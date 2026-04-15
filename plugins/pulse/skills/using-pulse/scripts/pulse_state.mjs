@@ -296,6 +296,11 @@ export function getPulseStatePaths(repoRoot) {
     currentFeature: path.join(repoRoot, ".pulse", "current-feature.json"),
     runtimeSnapshot: path.join(repoRoot, ".pulse", "runtime-snapshot.json"),
     handoffManifest: path.join(repoRoot, ".pulse", "handoffs", "manifest.json"),
+    checkpointsRoot: path.join(repoRoot, ".pulse", "checkpoints"),
+    memoryRoot: path.join(repoRoot, ".pulse", "memory"),
+    memoryLearnings: path.join(repoRoot, ".pulse", "memory", "learnings"),
+    memoryCorrections: path.join(repoRoot, ".pulse", "memory", "corrections"),
+    memoryRatchet: path.join(repoRoot, ".pulse", "memory", "ratchet"),
     agents: path.join(repoRoot, "AGENTS.md"),
     criticalPatterns: path.join(repoRoot, ".pulse", "memory", "critical-patterns.md"),
   };
@@ -338,6 +343,188 @@ function deriveFeature(status) {
   return focus === "(none)" ? "" : focus;
 }
 
+function listDirectoryFiles(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
+
+  try {
+    return fs.readdirSync(dirPath, { withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b));
+  } catch {
+    return [];
+  }
+}
+
+function buildCheckpointRecordSummary(record, relativePath) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) {
+    return null;
+  }
+
+  const captured = record.captured && typeof record.captured === "object" ? record.captured : {};
+  const links = record.links && typeof record.links === "object" ? record.links : {};
+  const blockers = Array.isArray(record.blockers) ? record.blockers.filter(Boolean) : [];
+  const memoryHooks = record.memory_hooks && typeof record.memory_hooks === "object"
+    ? record.memory_hooks
+    : {};
+
+  return {
+    schema_version: typeof record.schema_version === "string" ? record.schema_version : "",
+    checkpoint_id: typeof record.checkpoint_id === "string" ? record.checkpoint_id : "",
+    feature: typeof record.feature === "string" ? record.feature : "",
+    created_at: typeof record.created_at === "string" ? record.created_at : "",
+    summary: typeof record.summary === "string" ? record.summary : "",
+    next_action: typeof record.next_action === "string" ? record.next_action : "",
+    path: relativePath || "",
+    captured: {
+      phase: typeof captured.phase === "string" ? captured.phase : "",
+      gate: typeof captured.gate === "string" ? captured.gate : "",
+      mode: typeof captured.mode === "string" ? captured.mode : "",
+      story: typeof captured.story === "string" ? captured.story : "",
+      bead: typeof captured.bead === "string" ? captured.bead : "",
+    },
+    blockers,
+    links: {
+      context: typeof links.context === "string" ? links.context : "",
+      handoff: typeof links.handoff === "string" ? links.handoff : "",
+      runtime_snapshot: typeof links.runtime_snapshot === "string" ? links.runtime_snapshot : "",
+      verification: typeof links.verification === "string" ? links.verification : "",
+    },
+    memory_hooks: {
+      critical_patterns: typeof memoryHooks.critical_patterns === "string"
+        ? memoryHooks.critical_patterns
+        : "",
+      learnings: Array.isArray(memoryHooks.learnings) ? memoryHooks.learnings.filter(Boolean) : [],
+      corrections: Array.isArray(memoryHooks.corrections)
+        ? memoryHooks.corrections.filter(Boolean)
+        : [],
+      ratchet: Array.isArray(memoryHooks.ratchet) ? memoryHooks.ratchet.filter(Boolean) : [],
+    },
+    operator_summary: [
+      typeof record.checkpoint_id === "string" && record.checkpoint_id ? record.checkpoint_id : "(unnamed checkpoint)",
+      typeof captured.phase === "string" && captured.phase ? `phase=${captured.phase}` : "",
+      typeof captured.gate === "string" && captured.gate ? `gate=${captured.gate}` : "",
+      typeof record.next_action === "string" && record.next_action ? `next=${record.next_action}` : "",
+      typeof record.summary === "string" && record.summary ? `summary=${record.summary}` : "",
+      relativePath ? `path=${relativePath}` : "",
+    ].filter(Boolean).join(" | "),
+  };
+}
+
+function summarizeCheckpointFeature(paths, feature) {
+  const checkpointsRootExists = fs.existsSync(paths.checkpointsRoot);
+  if (!feature) {
+    return {
+      root_exists: checkpointsRootExists,
+      feature: "",
+      directory_exists: false,
+      manifest_exists: false,
+      count: 0,
+      latest: null,
+      entries: [],
+    };
+  }
+
+  const featureDir = path.join(paths.checkpointsRoot, feature);
+  const manifestPath = path.join(featureDir, "manifest.json");
+  const manifest = readJsonIfExists(manifestPath);
+  const listedEntries = Array.isArray(manifest?.checkpoints) ? manifest.checkpoints : [];
+  const relativeFeatureDir = path.relative(path.dirname(paths.agents), featureDir);
+
+  const entries = [];
+  for (const entry of listedEntries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const checkpointPath = typeof entry.path === "string" ? entry.path : "";
+    if (!checkpointPath) {
+      continue;
+    }
+    const checkpointFile = path.join(featureDir, checkpointPath);
+    const checkpointRecord = readJsonIfExists(checkpointFile);
+    const summary = buildCheckpointRecordSummary(
+      checkpointRecord,
+      path.join(relativeFeatureDir, checkpointPath),
+    );
+    if (summary) {
+      entries.push(summary);
+    }
+  }
+
+  const knownEntryPaths = new Set(entries.map((entry) => entry.path));
+  for (const fileName of listDirectoryFiles(featureDir)) {
+    if (fileName === "manifest.json" || !fileName.endsWith(".json")) {
+      continue;
+    }
+    const relativePath = path.join(relativeFeatureDir, fileName);
+    if (knownEntryPaths.has(relativePath)) {
+      continue;
+    }
+    const checkpointRecord = readJsonIfExists(path.join(featureDir, fileName));
+    const summary = buildCheckpointRecordSummary(checkpointRecord, relativePath);
+    if (summary) {
+      entries.push(summary);
+    }
+  }
+
+  entries.sort((left, right) => (right.created_at || "").localeCompare(left.created_at || ""));
+
+  return {
+    root_exists: checkpointsRootExists,
+    feature,
+    directory_exists: fs.existsSync(featureDir),
+    manifest_exists: Boolean(manifest),
+    manifest_updated_at: typeof manifest?.updated_at === "string" ? manifest.updated_at : "",
+    count: entries.length,
+    latest: entries[0] || null,
+    entries,
+  };
+}
+
+function summarizeMemoryRecall(paths, feature, status) {
+  const memoryRootExists = fs.existsSync(paths.memoryRoot);
+  const criticalPatternsExists = fs.existsSync(paths.criticalPatterns);
+  const learnings = listDirectoryFiles(paths.memoryLearnings).map((fileName) => path.join(".pulse", "memory", "learnings", fileName));
+  const corrections = listDirectoryFiles(paths.memoryCorrections).map((fileName) => path.join(".pulse", "memory", "corrections", fileName));
+  const ratchet = listDirectoryFiles(paths.memoryRatchet).map((fileName) => path.join(".pulse", "memory", "ratchet", fileName));
+
+  const tokenize = (value) => String(value || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const featureTokens = new Set(tokenize(feature));
+  const blockerTokens = new Set(
+    (Array.isArray(status.tooling_status?.blockers) ? status.tooling_status.blockers : [])
+      .flatMap((item) => tokenize(item)),
+  );
+  const phaseTokens = new Set(tokenize(status.current_feature?.phase || status.state_json?.phase || ""));
+  const interestingTokens = new Set([...featureTokens, ...blockerTokens, ...phaseTokens]);
+
+  function pickRelevant(pathsList) {
+    const matched = [];
+    const fallback = [];
+    for (const relativePath of pathsList) {
+      const fileName = path.basename(relativePath, path.extname(relativePath)).toLowerCase();
+      if ([...interestingTokens].some((token) => token && fileName.includes(token))) {
+        matched.push(relativePath);
+      } else {
+        fallback.push(relativePath);
+      }
+    }
+    return matched.length > 0 ? matched.slice(0, 3) : fallback.slice(0, 3);
+  }
+
+  return {
+    root_exists: memoryRootExists,
+    critical_patterns: criticalPatternsExists ? ".pulse/memory/critical-patterns.md" : "",
+    learnings: pickRelevant(learnings),
+    corrections: pickRelevant(corrections),
+    ratchet: pickRelevant(ratchet),
+  };
+}
+
 function buildNextReads(status) {
   const reads = ["AGENTS.md", ".pulse/tooling-status.json"];
 
@@ -358,11 +545,25 @@ function buildNextReads(status) {
     reads.push(`history/${feature}/CONTEXT.md`);
   }
 
+  if (status.checkpoints?.latest?.path) {
+    reads.push(status.checkpoints.latest.path);
+  }
+
   if (status.critical_patterns_exists) {
     reads.push(".pulse/memory/critical-patterns.md");
   }
 
-  return reads;
+  for (const learningPath of status.memory_recall?.learnings || []) {
+    reads.push(learningPath);
+  }
+  for (const correctionPath of status.memory_recall?.corrections || []) {
+    reads.push(correctionPath);
+  }
+  for (const ratchetPath of status.memory_recall?.ratchet || []) {
+    reads.push(ratchetPath);
+  }
+
+  return [...new Set(reads)];
 }
 
 function buildRecommendedActions(status) {
@@ -374,20 +575,36 @@ function buildRecommendedActions(status) {
   }
 
   if (status.handoff_manifest.active_count > 0) {
-    return [
+    const actions = [
       "Surface the active handoffs to the user before resuming.",
       "Read the chosen handoff path, then reopen the active feature context.",
     ];
+
+    if (status.checkpoints?.latest?.path) {
+      actions.push("Use the latest checkpoint as an advisory resume brief, not as a replacement for the active handoff.");
+    }
+
+    return actions;
   }
 
   if (status.tooling_status.next_skill) {
-    return [`Next skill suggestion: ${status.tooling_status.next_skill}.`];
+    const actions = [`Next skill suggestion: ${status.tooling_status.next_skill}.`];
+    if (status.checkpoints?.latest?.path) {
+      actions.push("If you are re-entering an active feature, compare the latest checkpoint against the current runtime snapshot before planning or execution.");
+    }
+    return actions;
   }
 
-  return [
+  const actions = [
     "Use this snapshot for fast orientation before deeper reads.",
     "If work is resuming, reopen the active feature context before planning or execution.",
   ];
+
+  if (status.checkpoints?.latest?.path) {
+    actions.push("Use the latest checkpoint for a quick resume brief or diff, but treat current state and handoffs as authoritative.");
+  }
+
+  return actions;
 }
 
 function summarizeCurrentFeature(currentFeature) {
@@ -523,6 +740,24 @@ export async function readPulseStatus(repoRoot) {
   const dependencyHealth = readDependencyHealthSafe(repoRoot);
   const gkgReadiness = await readGkgReadiness(repoRoot);
 
+  const stateJsonSummary = {
+    exists: Boolean(stateJson),
+    ...normalizePulseState(stateJson),
+  };
+  const stateMarkdownSummary = {
+    exists: stateMarkdownText.trim() !== "",
+    ...stateMarkdown,
+  };
+  const currentFeatureSummary = summarizeCurrentFeature(currentFeature);
+  const runtimeSnapshotSummary = summarizeRuntimeSnapshot(runtimeSnapshot);
+  const handoffManifestSummary = summarizeHandoffManifest(handoffManifest);
+  const derivedFeature = deriveFeature({
+    current_feature: currentFeatureSummary,
+    state_json: stateJsonSummary,
+    state_markdown: stateMarkdownSummary,
+  });
+  const checkpoints = summarizeCheckpointFeature(paths, derivedFeature);
+
   const status = {
     repo_root: repoRoot,
     onboarding: {
@@ -540,24 +775,21 @@ export async function readPulseStatus(repoRoot) {
       next_skill: typeof toolingStatus?.next_skill === "string" ? toolingStatus.next_skill : "",
       blockers: Array.isArray(toolingStatus?.blockers) ? toolingStatus.blockers : [],
     },
-    state_json: {
-      exists: Boolean(stateJson),
-      ...normalizePulseState(stateJson),
-    },
-    state_markdown: {
-      exists: stateMarkdownText.trim() !== "",
-      ...stateMarkdown,
-    },
-    current_feature: summarizeCurrentFeature(currentFeature),
-    runtime_snapshot: summarizeRuntimeSnapshot(runtimeSnapshot),
-    handoff_manifest: summarizeHandoffManifest(handoffManifest),
+    state_json: stateJsonSummary,
+    state_markdown: stateMarkdownSummary,
+    current_feature: currentFeatureSummary,
+    runtime_snapshot: runtimeSnapshotSummary,
+    handoff_manifest: handoffManifestSummary,
+    checkpoints,
     critical_patterns_exists: fs.existsSync(paths.criticalPatterns),
     dependency_health: dependencyHealth,
     gkg_readiness: gkgReadiness,
+    memory_recall: null,
     next_reads: [],
     recommended_actions: [],
   };
 
+  status.memory_recall = summarizeMemoryRecall(paths, derivedFeature, status);
   status.next_reads = buildNextReads(status);
   status.recommended_actions = buildRecommendedActions(status);
   return status;
@@ -685,6 +917,12 @@ function renderOperatorSurfaceLines(status) {
   const handoffManifest = status.handoff_manifest && typeof status.handoff_manifest === "object"
     ? status.handoff_manifest
     : { exists: false, active_count: 0, active: [] };
+  const checkpoints = status.checkpoints && typeof status.checkpoints === "object"
+    ? status.checkpoints
+    : { root_exists: false, count: 0, latest: null };
+  const memoryRecall = status.memory_recall && typeof status.memory_recall === "object"
+    ? status.memory_recall
+    : { root_exists: false, critical_patterns: "", learnings: [], corrections: [], ratchet: [] };
 
   lines.push(
     `- Current feature snapshot: ${currentFeature.exists ? "present" : "missing"}`,
@@ -716,6 +954,30 @@ function renderOperatorSurfaceLines(status) {
       lines.push(`  - ${handoff.operator_summary}`);
     }
     lines.push(`  - manifest_updated_at: ${handoffManifest.updated_at || "(none)"}`);
+  }
+
+  lines.push(`- Checkpoint root: ${checkpoints.root_exists ? "present" : "missing"}`);
+  if (checkpoints.feature) {
+    lines.push(`  - feature: ${checkpoints.feature}`);
+    lines.push(`  - checkpoint_count: ${checkpoints.count || 0}`);
+    if (checkpoints.latest) {
+      lines.push(`  - latest_checkpoint: ${checkpoints.latest.operator_summary}`);
+      lines.push(`  - latest_checkpoint_created_at: ${checkpoints.latest.created_at || "(none)"}`);
+    }
+  }
+
+  lines.push(`- Memory recall root: ${memoryRecall.root_exists ? "present" : "missing"}`);
+  if (memoryRecall.critical_patterns) {
+    lines.push(`  - critical_patterns: ${memoryRecall.critical_patterns}`);
+  }
+  if ((memoryRecall.learnings || []).length > 0) {
+    lines.push(`  - learnings: ${(memoryRecall.learnings || []).join(", ")}`);
+  }
+  if ((memoryRecall.corrections || []).length > 0) {
+    lines.push(`  - corrections: ${(memoryRecall.corrections || []).join(", ")}`);
+  }
+  if ((memoryRecall.ratchet || []).length > 0) {
+    lines.push(`  - ratchet: ${(memoryRecall.ratchet || []).join(", ")}`);
   }
 
   return lines;
