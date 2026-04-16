@@ -258,6 +258,8 @@ Pulse is getting clearer about three artifact planes:
 1. **Control plane — `.pulse/`**
    - live workflow state
    - routing mirrors
+   - `current-feature.json` as the active feature pointer
+   - `runtime-snapshot.json` as the derived scout mirror
    - handoffs
    - active verification and operator surfaces
 2. **Memory plane — `.pulse/memory/`**
@@ -274,9 +276,11 @@ Pulse is getting clearer about three artifact planes:
   tooling-status.json        ← preflight output
   state.json                 ← machine-readable routing mirror
   STATE.md                   ← shared state
+  current-feature.json       ← active feature pointer derived from current state
+  runtime-snapshot.json      ← persisted scout mirror derived from current state
   handoffs/manifest.json     ← resume index
   handoffs/<owner>.json      ← per-actor checkpoints
-  verification/<feature>/    ← per-bead execution evidence in the current repo state
+  runs/<feature>/verification/ ← active execution/review evidence
   debug-notes/               ← debugging notes → compounding
   dream-pending/             ← ambiguous learnings awaiting approval
   memory/                    ← shared reusable memory root

@@ -5,7 +5,11 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { buildDefaultState, normalizePulseState } from "./pulse_state.mjs";
+import {
+  buildDefaultState,
+  normalizePulseState,
+  syncPulseRuntimeArtifacts,
+} from "./pulse_state.mjs";
 import {
   readDependencyHealthSafe,
   buildDependencyWarningSummary,
@@ -659,6 +663,7 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
     ...readJsonIfExists(statePath),
   });
   fs.writeFileSync(statePath, `${JSON.stringify(nextState, null, 2)}\n`, "utf8");
+  syncPulseRuntimeArtifacts(repoRoot);
 
   const hookScripts = writeHookScripts(repoRoot);
   const supportScripts = writeSupportScripts(repoRoot);

@@ -255,7 +255,7 @@ flowchart TD
     I --> J
     J --> K{all pass?}
     K -->|no| G
-    K -->|yes| L[Write verification evidence\n.pulse/verification/feature/bead.md]
+    K -->|yes| L[Write verification evidence\n.pulse/runs/feature/verification/bead.md]
     L --> M[br close bead]
     M --> N[git commit — one bead, scoped files]
     N --> O{swarm mode?}
@@ -268,7 +268,7 @@ flowchart TD
 
 **Hard rules:** One commit per bead. Never modify files outside bead's `files` list. Never close a bead without substantive verification evidence.
 
-**Outputs:** Committed code, `.pulse/verification/` evidence, closed beads  
+**Outputs:** Committed code, active `.pulse/runs/<feature>/verification/` evidence, closed beads  
 **Next:** Loop back to planning for subsequent phases; `pulse:reviewing` after final phase
 
 ---
@@ -290,7 +290,7 @@ flowchart TD
 
     start([reviewing starts]) --> parallel
     parallel --> R5
-    R5 --> AV[Artifact verification\ncheck .pulse/verification/ exists + substantive]
+    R5 --> AV[Artifact verification\ncheck .pulse/runs/<feature>/verification/ exists + substantive]
     AV --> UAT[UAT walkthrough\nstep through every CONTEXT.md decision]
     UAT --> G4{Gate 4\nP1 count?}
     G4 -->|P1 > 0| BLOCK[Block merge\nfix P1 beads first]
@@ -305,7 +305,7 @@ Each finding becomes a review bead with severity:
 - **P3** — advisory; can defer
 
 Also runs:
-- **Artifact verification** — confirms `.pulse/verification/` files exist and are substantive
+- **Artifact verification** — confirms active `.pulse/runs/<feature>/verification/` files exist and are substantive
 - **UAT walkthrough** — steps through every decision in `CONTEXT.md` and confirms implementation matches
 
 **Gate 4:** presents P1/P2/P3 counts; P1 > 0 blocks merge.

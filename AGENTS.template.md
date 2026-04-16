@@ -58,7 +58,8 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 .pulse/tooling-status.json      ← Preflight result + recommended mode
 .pulse/handoffs/manifest.json   ← Owner-scoped handoff index
 .pulse/handoffs/*.json          ← Per-owner pause/resume state
-.pulse/verification/            ← Execution evidence artifacts
+.pulse/runs/<feature>/verification/ ← Active execution/review evidence
+history/<feature>/verification/      ← Promoted durable verification evidence
 .pulse/memory/                  ← Shared reusable memory root
 history/<feature>/              ← Per-feature artifacts
 .beads/                         ← Bead files

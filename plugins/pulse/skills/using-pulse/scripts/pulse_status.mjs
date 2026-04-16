@@ -12,6 +12,7 @@ import {
   readPulseStatus,
   renderPulseStatus,
   resolveRepoRoot,
+  syncPulseRuntimeArtifacts,
 } from "./pulse_state.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,7 @@ function parseCliArgs(argv) {
     to: "",
     summary: "",
     next_action: "",
+    sync: false,
   };
 
   let index = 0;
@@ -116,14 +118,19 @@ function parseCliArgs(argv) {
       args.json = true;
       continue;
     }
+    if (arg === "--sync") {
+      args.sync = true;
+      continue;
+    }
     if (arg === "--help" || arg === "-h") {
       process.stdout.write(
         [
           "Usage:",
-          "  pulse_status.mjs [--repo-root <path>] [--json]",
+          "  pulse_status.mjs [--repo-root <path>] [--json] [--sync]",
           "  pulse_status.mjs checkpoint <save|list|show|diff|resume-brief> [options] [--json]",
           "",
           "Shows a read-only Pulse status snapshot or checkpoint operator aid output.",
+          "Use --sync to refresh persisted runtime artifacts before rendering status.",
         ].join("\n"),
       );
       process.exit(0);
@@ -235,6 +242,10 @@ export async function main(argv = process.argv.slice(2)) {
     const result = await runCheckpointCommand(repoRoot, args);
     process.stdout.write(args.json ? `${JSON.stringify(result, null, 2)}\n` : `${renderCheckpointResult(result)}\n`);
     return result.ok === false ? 1 : 0;
+  }
+
+  if (args.sync) {
+    syncPulseRuntimeArtifacts(repoRoot);
   }
 
   const status = await readPulseStatus(repoRoot);

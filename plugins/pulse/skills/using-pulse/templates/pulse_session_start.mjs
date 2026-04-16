@@ -8,7 +8,7 @@ import {
   normalizeDependencyTarget,
   uniqueSorted,
 } from "../pulse_dependencies.mjs";
-import { readGkgReadiness } from "../pulse_state.mjs";
+import { readGkgReadiness, syncPulseRuntimeArtifacts } from "../pulse_state.mjs";
 
 function findRepoRoot(start) {
   let candidate = path.resolve(start || ".");
@@ -83,6 +83,7 @@ export async function main() {
 
   const notes = [];
   if (fs.existsSync(onboardingPath)) {
+    syncPulseRuntimeArtifacts(repoRoot);
     notes.push(
       "Pulse onboarding is installed for this repo. Read AGENTS.md, then run node .codex/pulse_status.mjs --json for a quick scout before substantive work.",
     );

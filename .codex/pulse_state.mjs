@@ -7,6 +7,8 @@ import { readDependencyHealthSafe } from "./pulse_dependencies.mjs";
 
 export const STATE_SCHEMA_VERSION = "1.0";
 export const CHECKPOINT_SCHEMA_VERSION = "1.0";
+export const CURRENT_FEATURE_SCHEMA_VERSION = "1.0";
+export const RUNTIME_SNAPSHOT_SCHEMA_VERSION = "1.0";
 
 function utcNow() {
   return new Date().toISOString();
@@ -318,6 +320,202 @@ export function writePulseState(repoRoot, nextState) {
   ensureParent(paths.stateJson);
   fs.writeFileSync(paths.stateJson, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
   return normalized;
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+function normalizeFeaturePointer(value) {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return normalized === "(none)" ? "" : normalized;
+}
+
+function buildCurrentFeatureRecord(status) {
+  const featureKey = firstNonEmptyString(
+    normalizeFeaturePointer(status.state_json?.active_feature),
+    normalizeFeaturePointer(status.state_markdown?.focus),
+    normalizeFeaturePointer(status.current_feature?.feature_key),
+  );
+  const phase = firstNonEmptyString(
+    status.state_json?.phase,
+    status.state_markdown?.phase,
+    status.runtime_snapshot?.phase,
+    status.current_feature?.phase,
+    featureKey ? "idle" : "",
+  );
+  const gate = firstNonEmptyString(status.state_markdown?.gate, status.current_feature?.gate);
+  const currentStatus = featureKey
+    ? (status.current_feature?.status && status.current_feature.status !== "idle"
+        ? status.current_feature.status
+        : "active")
+    : firstNonEmptyString(status.current_feature?.status, "idle");
+
+  return {
+    schema_version: CURRENT_FEATURE_SCHEMA_VERSION,
+    feature_key: featureKey,
+    phase,
+    gate,
+    status: currentStatus,
+    updated_at: utcNow(),
+  };
+}
+
+function buildRuntimeSnapshotRecord(status) {
+  const source = {
+    state_json: ".pulse/state.json",
+    state_markdown: ".pulse/STATE.md",
+    current_feature: ".pulse/current-feature.json",
+  };
+
+  return {
+    schema_version: RUNTIME_SNAPSHOT_SCHEMA_VERSION,
+    active_feature: firstNonEmptyString(
+      normalizeFeaturePointer(status.state_json?.active_feature),
+      normalizeFeaturePointer(status.state_markdown?.focus),
+      normalizeFeaturePointer(status.current_feature?.feature_key),
+    ),
+    active_skill: firstNonEmptyString(status.state_json?.active_skill, "pulse:using-pulse"),
+    phase: firstNonEmptyString(
+      status.current_feature?.phase,
+      status.state_json?.phase,
+      status.state_markdown?.phase,
+      "idle",
+    ),
+    requested_mode: firstNonEmptyString(
+      status.tooling_status?.requested_mode,
+      status.state_json?.requested_mode,
+    ),
+    recommended_mode: firstNonEmptyString(
+      status.tooling_status?.recommended_mode,
+      status.state_json?.recommended_mode,
+    ),
+    updated_at: utcNow(),
+    source,
+  };
+}
+
+export function writeCurrentFeature(repoRoot, nextCurrentFeature) {
+  const paths = getPulseStatePaths(repoRoot);
+  const normalized = {
+    schema_version: CURRENT_FEATURE_SCHEMA_VERSION,
+    feature_key: typeof nextCurrentFeature?.feature_key === "string" ? nextCurrentFeature.feature_key.trim() : "",
+    phase: typeof nextCurrentFeature?.phase === "string" ? nextCurrentFeature.phase.trim() : "",
+    gate: typeof nextCurrentFeature?.gate === "string" ? nextCurrentFeature.gate.trim() : "",
+    status: typeof nextCurrentFeature?.status === "string" ? nextCurrentFeature.status.trim() : "",
+    updated_at: typeof nextCurrentFeature?.updated_at === "string" && nextCurrentFeature.updated_at
+      ? nextCurrentFeature.updated_at
+      : utcNow(),
+  };
+  ensureParent(paths.currentFeature);
+  fs.writeFileSync(paths.currentFeature, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
+  return normalized;
+}
+
+export function writeRuntimeSnapshot(repoRoot, nextRuntimeSnapshot) {
+  const paths = getPulseStatePaths(repoRoot);
+  const source = nextRuntimeSnapshot?.source && typeof nextRuntimeSnapshot.source === "object"
+    ? nextRuntimeSnapshot.source
+    : {};
+  const normalized = {
+    schema_version: RUNTIME_SNAPSHOT_SCHEMA_VERSION,
+    active_feature: typeof nextRuntimeSnapshot?.active_feature === "string" ? nextRuntimeSnapshot.active_feature.trim() : "",
+    active_skill: typeof nextRuntimeSnapshot?.active_skill === "string" ? nextRuntimeSnapshot.active_skill.trim() : "",
+    phase: typeof nextRuntimeSnapshot?.phase === "string" ? nextRuntimeSnapshot.phase.trim() : "",
+    requested_mode: typeof nextRuntimeSnapshot?.requested_mode === "string"
+      ? nextRuntimeSnapshot.requested_mode.trim()
+      : "",
+    recommended_mode: typeof nextRuntimeSnapshot?.recommended_mode === "string"
+      ? nextRuntimeSnapshot.recommended_mode.trim()
+      : "",
+    updated_at: typeof nextRuntimeSnapshot?.updated_at === "string" && nextRuntimeSnapshot.updated_at
+      ? nextRuntimeSnapshot.updated_at
+      : utcNow(),
+    source: {
+      state_json: typeof source.state_json === "string" ? source.state_json.trim() : ".pulse/state.json",
+      state_markdown: typeof source.state_markdown === "string" ? source.state_markdown.trim() : ".pulse/STATE.md",
+      current_feature: typeof source.current_feature === "string" ? source.current_feature.trim() : ".pulse/current-feature.json",
+    },
+  };
+  ensureParent(paths.runtimeSnapshot);
+  fs.writeFileSync(paths.runtimeSnapshot, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
+  return normalized;
+}
+
+function deriveAndPersistRuntimeArtifacts(repoRoot) {
+  const paths = getPulseStatePaths(repoRoot);
+  const stateJson = readJsonIfExists(paths.stateJson);
+  const stateMarkdownText = fileTextIfExists(paths.stateMarkdown);
+  const stateMarkdown = parseLooseKeyValueMarkdown(stateMarkdownText);
+  const currentFeature = readJsonIfExists(paths.currentFeature);
+  const runtimeSnapshot = readJsonIfExists(paths.runtimeSnapshot);
+  const toolingStatus = readJsonIfExists(paths.toolingStatus);
+  const handoffManifest = readJsonIfExists(paths.handoffManifest);
+
+  const draftStatus = {
+    repo_root: repoRoot,
+    onboarding: {
+      exists: Boolean(readJsonIfExists(paths.onboarding)),
+      status: "",
+      plugin_version: "",
+    },
+    tooling_status: {
+      exists: Boolean(toolingStatus),
+      status: typeof toolingStatus?.status === "string" ? toolingStatus.status : "",
+      requested_mode: typeof toolingStatus?.requested_mode === "string" ? toolingStatus.requested_mode : "",
+      recommended_mode: typeof toolingStatus?.recommended_mode === "string" ? toolingStatus.recommended_mode : "",
+      next_skill: typeof toolingStatus?.next_skill === "string" ? toolingStatus.next_skill : "",
+      blockers: Array.isArray(toolingStatus?.blockers) ? toolingStatus.blockers : [],
+    },
+    state_json: {
+      exists: Boolean(stateJson),
+      ...normalizePulseState(stateJson),
+    },
+    state_markdown: {
+      exists: stateMarkdownText.trim() !== "",
+      ...stateMarkdown,
+    },
+    current_feature: summarizeCurrentFeature(currentFeature),
+    runtime_snapshot: summarizeRuntimeSnapshot(runtimeSnapshot),
+    handoff_manifest: summarizeHandoffManifest(handoffManifest),
+    dependency_health: null,
+    gkg_readiness: null,
+    checkpoints: { root_exists: fs.existsSync(paths.checkpointsRoot), feature: "", count: 0, latest: null, entries: [] },
+    critical_patterns_exists: fs.existsSync(paths.criticalPatterns),
+    memory_recall: null,
+    next_reads: [],
+    recommended_actions: [],
+  };
+
+  const nextCurrentFeature = buildCurrentFeatureRecord(draftStatus);
+  const persistedCurrentFeature = writeCurrentFeature(repoRoot, {
+    ...currentFeature,
+    ...nextCurrentFeature,
+  });
+
+  const nextRuntimeSnapshot = buildRuntimeSnapshotRecord({
+    ...draftStatus,
+    current_feature: summarizeCurrentFeature(persistedCurrentFeature),
+  });
+  const persistedRuntimeSnapshot = writeRuntimeSnapshot(repoRoot, {
+    ...runtimeSnapshot,
+    ...nextRuntimeSnapshot,
+  });
+
+  return {
+    current_feature: persistedCurrentFeature,
+    runtime_snapshot: persistedRuntimeSnapshot,
+  };
+}
+
+export function syncPulseRuntimeArtifacts(repoRoot) {
+  const normalizedRoot = resolveRepoRoot(repoRoot);
+  return deriveAndPersistRuntimeArtifacts(normalizedRoot);
 }
 
 function parseLooseKeyValueMarkdown(text) {
@@ -1170,12 +1368,18 @@ export async function readPulseStatus(repoRoot) {
   const stateJson = readJsonIfExists(paths.stateJson);
   const stateMarkdownText = fileTextIfExists(paths.stateMarkdown);
   const stateMarkdown = parseLooseKeyValueMarkdown(stateMarkdownText);
-  const currentFeature = readJsonIfExists(paths.currentFeature);
-  const runtimeSnapshot = readJsonIfExists(paths.runtimeSnapshot);
+  let currentFeature = readJsonIfExists(paths.currentFeature);
+  let runtimeSnapshot = readJsonIfExists(paths.runtimeSnapshot);
   const handoffManifest = readJsonIfExists(paths.handoffManifest);
 
   const dependencyHealth = readDependencyHealthSafe(repoRoot);
   const gkgReadiness = await readGkgReadiness(repoRoot);
+
+  if (!currentFeature || !runtimeSnapshot) {
+    const synced = deriveAndPersistRuntimeArtifacts(repoRoot);
+    currentFeature = currentFeature || synced.current_feature;
+    runtimeSnapshot = runtimeSnapshot || synced.runtime_snapshot;
+  }
 
   const stateJsonSummary = {
     exists: Boolean(stateJson),
@@ -1305,6 +1509,7 @@ function buildCheckpointDiff(left, right) {
 }
 
 export async function checkpointSave(repoRoot, options = {}) {
+  syncPulseRuntimeArtifacts(repoRoot);
   const { status, paths } = await loadStatusAndPaths(repoRoot);
   const built = buildCheckpointRecordFromStatus(paths, status, options);
   if (!built.ok || !built.record) {

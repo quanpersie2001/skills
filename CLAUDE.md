@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 13 Pulse ecosystem skills and 6 standalone utility skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 20 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ## Repository Layout
 
@@ -26,7 +26,7 @@ Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation
 | Agent Mail | — | Worker orchestration (swarm mode only) |
 | GKG | `gkg` | Optional codebase intelligence |
 
-**Important:** The beads CLI binary is `br`. AGENTS.md incorrectly references `bd` in its example commands — substitute `br` everywhere.
+**Important:** The beads CLI binary is `br`. Use `br` in Pulse workflows and examples.
 
 ## Delivery Chain
 
@@ -49,7 +49,8 @@ Four human gates control progression:
 .pulse/state.json                    ← machine-readable routing mirror
 .pulse/STATE.md                      ← shared state across phases
 .pulse/handoffs/manifest.json        ← owner-scoped pause/resume index
-.pulse/verification/<feature>/*.md   ← execution evidence
+.pulse/runs/<feature>/verification/ ← active execution/review evidence
+history/<feature>/verification/      ← promoted durable verification evidence
 history/<feature>/CONTEXT.md         ← exploring output (source of truth for decisions)
 history/<feature>/approach.md        ← planning synthesis
 .beads/                              ← bead files (planning creates, executing closes)

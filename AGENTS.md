@@ -30,7 +30,7 @@ Pulse is not:
 - handoff — the pause/resume contract for the next actor.
 - `pulse_status` — the read-only scout for current workflow state.
 
-## Skill Catalog
+## Skill Catalog (core chain + selected support)
 
 | Skill | Purpose | Invoke When |
 |-------|---------|-------------|
@@ -90,7 +90,7 @@ Use this mental model when deciding where to read next:
 .pulse/tooling-status.json      ← Preflight result + recommended mode
 .pulse/handoffs/manifest.json   ← Owner-scoped handoff index
 .pulse/handoffs/*.json          ← Per-owner pause/resume state
-.pulse/verification/            ← Execution evidence artifacts in the current repo state
+.pulse/runs/<feature>/verification/ ← Active execution/review evidence for the current feature
 .pulse/memory/                  ← Shared reusable memory root
 history/<feature>/              ← Per-feature artifacts
 .beads/                         ← Bead files

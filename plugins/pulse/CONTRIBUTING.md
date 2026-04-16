@@ -131,7 +131,7 @@ Include the version bump commit in the same PR as the change that caused it.
 
 ## Key Constraint: Beads CLI
 
-The beads CLI binary is **`br`**, not `bd`. `AGENTS.md` contains stale `bd` references — substitute `br` everywhere.
+The beads CLI binary is **`br`**, not `bd`. Use `br` consistently in examples, docs, and workflow instructions.
 
 ```bash
 br sync          # commit bead changes

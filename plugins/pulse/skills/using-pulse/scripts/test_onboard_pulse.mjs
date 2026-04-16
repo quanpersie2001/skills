@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 
 import { applyRepo, checkRepo, getNodeRuntimeStatus } from "./onboard_pulse.mjs";
 import { buildPulseDependencyReport } from "./pulse_dependencies.mjs";
+import { syncPulseRuntimeArtifacts } from "./pulse_state.mjs";
 
 const LOCAL_USING_PULSE_SKILL_PATH = fileURLToPath(new URL("../SKILL.md", import.meta.url));
 const LOCAL_REPO_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
@@ -29,6 +30,8 @@ test("applyRepo creates full repo onboarding with node-based hooks", () => {
     assert.ok(fs.existsSync(path.join(root, ".codex", "hooks.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "onboarding.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "state.json")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "current-feature.json")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "runtime-snapshot.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "checkpoints")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "learnings")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "corrections")));
@@ -140,17 +143,98 @@ test("pulse status scout renders json for an onboarded repo", async () => {
     const normalizedPayloadRoot = fs.realpathSync.native(payload.repo_root);
     assert.equal(normalizedPayloadRoot, normalizedRoot);
     assert.equal(payload.state_json.exists, true);
-    assert.equal(payload.current_feature.exists, false);
+    assert.equal(payload.current_feature.exists, true);
+    assert.equal(payload.current_feature.feature_key, "");
+    assert.equal(payload.current_feature.phase, "idle");
+    assert.equal(payload.current_feature.status, "idle");
+    assert.equal(payload.runtime_snapshot.exists, true);
+    assert.equal(payload.runtime_snapshot.active_feature, "");
+    assert.equal(payload.runtime_snapshot.phase, "idle");
+    assert.equal(payload.runtime_snapshot.active_skill, "pulse:using-pulse");
     assert.equal(fs.existsSync(path.join(root, ".pulse", "checkpoints")), true);
     assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "learnings")), true);
     assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "corrections")), true);
     assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "ratchet")), true);
-    assert.equal(payload.runtime_snapshot.exists, false);
     assert.equal(payload.checkpoints.root_exists, true);
     assert.equal(payload.checkpoints.count, 0);
     assert.equal(payload.memory_recall.root_exists, true);
     assert.equal(payload.memory_recall.critical_patterns, "");
     assert.equal(payload.handoff_manifest.active_count, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("syncPulseRuntimeArtifacts initializes and refreshes persisted control-plane mirrors", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+    fs.writeFileSync(
+      path.join(root, ".pulse", "state.json"),
+      `${JSON.stringify({
+        active_feature: "sync-feature",
+        active_skill: "pulse:planning",
+        phase: "planning",
+        requested_mode: "swarm",
+        recommended_mode: "single-worker",
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "STATE.md"),
+      "Focus: markdown-feature\nPhase: execution\nGate: GATE 3\n",
+      "utf8",
+    );
+
+    const synced = syncPulseRuntimeArtifacts(root);
+    const currentFeature = JSON.parse(
+      fs.readFileSync(path.join(root, ".pulse", "current-feature.json"), "utf8"),
+    );
+    const runtimeSnapshot = JSON.parse(
+      fs.readFileSync(path.join(root, ".pulse", "runtime-snapshot.json"), "utf8"),
+    );
+
+    assert.equal(synced.current_feature.feature_key, "sync-feature");
+    assert.equal(currentFeature.feature_key, "sync-feature");
+    assert.equal(currentFeature.phase, "planning");
+    assert.equal(currentFeature.gate, "GATE 3");
+    assert.equal(currentFeature.status, "active");
+    assert.equal(runtimeSnapshot.active_feature, "sync-feature");
+    assert.equal(runtimeSnapshot.active_skill, "pulse:planning");
+    assert.equal(runtimeSnapshot.phase, "planning");
+    assert.equal(runtimeSnapshot.requested_mode, "swarm");
+    assert.equal(runtimeSnapshot.recommended_mode, "single-worker");
+    assert.equal(runtimeSnapshot.source.current_feature, ".pulse/current-feature.json");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("syncPulseRuntimeArtifacts treats '(none)' feature placeholders as empty pointers", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+    fs.writeFileSync(
+      path.join(root, ".pulse", "STATE.md"),
+      "Focus: (none)\nPhase: preflight\n",
+      "utf8",
+    );
+
+    const synced = syncPulseRuntimeArtifacts(root);
+    const currentFeature = JSON.parse(
+      fs.readFileSync(path.join(root, ".pulse", "current-feature.json"), "utf8"),
+    );
+    const runtimeSnapshot = JSON.parse(
+      fs.readFileSync(path.join(root, ".pulse", "runtime-snapshot.json"), "utf8"),
+    );
+
+    assert.equal(synced.current_feature.feature_key, "");
+    assert.equal(synced.current_feature.status, "idle");
+    assert.equal(currentFeature.feature_key, "");
+    assert.equal(currentFeature.status, "idle");
+    assert.equal(runtimeSnapshot.active_feature, "");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -597,6 +681,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
     assert.equal(saveOne.feature, "checkpoint-ops");
     assert.equal(saveOne.checkpoint.links.context, "history/checkpoint-ops/CONTEXT.md");
     assert.equal(saveOne.checkpoint.links.handoff, ".pulse/handoffs/planning.json");
+    assert.equal(saveOne.checkpoint.links.runtime_snapshot, ".pulse/runtime-snapshot.json");
     assert.equal(saveOne.checkpoint.links.verification, ".pulse/runs/checkpoint-ops/verification/");
     assert.equal(saveOne.checkpoint.memory_hooks.critical_patterns, ".pulse/memory/critical-patterns.md");
     assert.deepEqual(saveOne.checkpoint.memory_hooks.learnings, [".pulse/memory/learnings/checkpoint-ops.md"]);
@@ -616,6 +701,41 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
       resumePayload.resume_brief.note,
       "Checkpoints are advisory snapshots. Current handoffs and state files remain authoritative.",
     );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("checkpoint commands prefer active verification paths but fall back to legacy verification paths", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+    fs.mkdirSync(path.join(root, "history", "legacy-verification"), { recursive: true });
+    fs.writeFileSync(path.join(root, "history", "legacy-verification", "CONTEXT.md"), "# Context\n", "utf8");
+    fs.mkdirSync(path.join(root, ".pulse", "verification", "legacy-verification"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, ".pulse", "current-feature.json"),
+      `${JSON.stringify({
+        feature_key: "legacy-verification",
+        phase: "reviewing",
+        gate: "GATE 4",
+        status: "active",
+        updated_at: "2026-04-16T12:00:00.000Z",
+      }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const savePayload = JSON.parse(
+      execFileSync(
+        "node",
+        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+
+    assert.equal(savePayload.ok, true);
+    assert.equal(savePayload.checkpoint.links.verification, ".pulse/verification/legacy-verification/");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

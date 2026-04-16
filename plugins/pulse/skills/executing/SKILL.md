@@ -140,7 +140,7 @@ Minimum fields to confirm:
 | `files` | Files/modules in scope for this bead |
 | `verify` | Concrete verification commands to run |
 | `verification_evidence` | Path to active evidence artifact (typically `.pulse/runs/<feature>/verification/<bead-id>.md`) |
-| `testing_mode` | `tdd-required` / `test-after` / `no-test` |
+| `testing_mode` | `standard` / `tdd-required` |
 | `decision_refs` | Locked decisions from CONTEXT.md relevant to this bead |
 | `learning_refs` | Learning file paths to read before implementing |
 
