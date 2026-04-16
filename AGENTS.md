@@ -80,7 +80,7 @@ Use this mental model when deciding where to read next:
 
 1. **Control plane — `.pulse/`**: live workflow state, routing, handoffs, and active operator surfaces.
 2. **Memory plane — `.pulse/memory/`**: shared root for reusable cross-feature memory, including critical patterns, learnings, corrections, and ratchet artifacts.
-3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, promoted verification, and durable audit narrative.
+3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, canonical verification evidence, and durable audit narrative.
 
 ## File Conventions
 
@@ -90,9 +90,10 @@ Use this mental model when deciding where to read next:
 .pulse/tooling-status.json      ← Preflight result + recommended mode
 .pulse/handoffs/manifest.json   ← Owner-scoped handoff index
 .pulse/handoffs/*.json          ← Per-owner pause/resume state
-.pulse/runs/<feature>/verification/ ← Active execution/review evidence for the current feature
+history/<feature>/verification/      ← Canonical verification evidence for the current feature
+.pulse/runs/<feature>/verification/ ← Legacy verification fallback for older repos only
 .pulse/memory/                  ← Shared reusable memory root
-history/<feature>/              ← Per-feature artifacts, including lifecycle-summary.md for promoted audit state
+history/<feature>/              ← Per-feature artifacts, including lifecycle-summary.md and canonical verification evidence
 .beads/                         ← Bead files
 .spikes/                        ← Spike verification results
 ```
@@ -525,7 +526,7 @@ pulse:preflight
 
 1. **Control plane — `.pulse/`**: live workflow state, routing mirrors, handoffs, and operator surfaces.
 2. **Memory plane — `.pulse/memory/`**: shared root for reusable cross-feature memory, including critical patterns, learnings, corrections, and ratchet artifacts.
-3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, promoted verification, and durable audit narrative.
+3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, canonical verification evidence, and durable audit narrative.
 
 ## Working Files
 
@@ -546,6 +547,7 @@ history/<feature>/
   CONTEXT.md          ← locked decisions
   discovery.md        ← research findings
   approach.md         ← approach + risk map
+  verification/       ← canonical verification evidence for the feature
 
 .beads/               ← bead/task files when beads are in use
 .spikes/              ← spike outputs when validation requires them

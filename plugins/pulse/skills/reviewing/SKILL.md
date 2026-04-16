@@ -214,7 +214,7 @@ For changes that cannot be manually walked through (APIs, config, infrastructure
 - Log output showing the change is active
 - Automated test results covering the modified behavior
 
-Treat `.pulse/runs/<feature>/verification/` as the active evidence surface during execution and review. Only the final, durable subset should be promoted into `history/<feature>/verification/` during finishing or closeout.
+Treat `history/<feature>/verification/` as the canonical evidence surface during execution and review. Only read `.pulse/runs/<feature>/verification/` when verifying a legacy repo that has not moved its evidence into history yet.
 
 ## Review Intake
 
@@ -278,12 +278,12 @@ You are the last step before compounding. Close the loop completely.
     3. Keep branch for further work
     4. Discard branch
 
-[ ] Promote durable verification evidence
-    -> keep active execution/review evidence under `.pulse/runs/<feature>/verification/` while the feature is still live
-    -> copy or move only the final subset worth keeping into `history/<feature>/verification/`
+[ ] Confirm canonical verification evidence is complete
+    -> verify `history/<feature>/verification/` contains the evidence needed for audit and closeout
+    -> only consult `.pulse/runs/<feature>/verification/` when older repos still rely on the legacy fallback path
 
 [ ] Write or refresh `history/<feature>/lifecycle-summary.md`
-    -> record approved context/plan links, gate outcomes, promoted verification pointers, key promoted learnings, and unresolved follow-up debt
+    -> record approved context/plan links, gate outcomes, canonical verification pointers, key durable learnings, and unresolved follow-up debt
     -> do not mirror live runtime state or use this file as a resume artifact
 
 [ ] Clean up worktree (if used)

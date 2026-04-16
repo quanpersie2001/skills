@@ -520,7 +520,7 @@ This is the scout-plane map of the shared Pulse working set.
   STATE.md                     <- shared project state
   config.json                  <- feature toggles
   tooling-status.json          <- preflight output
-  runs/                        <- active runtime artifacts, including verification evidence
+  runs/                        <- active runtime artifacts and legacy verification fallback paths
   debug-notes/                 <- debugging debug notes for compounding
   dream-pending/               <- ambiguous dream decisions awaiting approval
   memory/                      <- shared reusable memory subtree for recall hooks and durable learnings
@@ -546,6 +546,7 @@ history/<feature>/
   phase-plan.md               <- whole feature phase breakdown (approved before current-phase prep)
   phase-<n>-contract.md       <- current phase entry state, exit state, demo, unlocks, pivot signals
   phase-<n>-story-map.md      <- story sequence inside the current phase; maps stories to beads
+  verification/               <- canonical verification evidence for the feature
 
 .pulse/memory/
   critical-patterns.md        <- promoted critical learnings
@@ -569,7 +570,7 @@ Each skill reads upstream artifacts and writes downstream artifacts:
 | planning | `CONTEXT.md`, relevant learnings, optional `pulse:gkg` findings | `discovery.md`, `approach.md`, `phase-plan.md`, `phase-<n>-contract.md`, `phase-<n>-story-map.md`, canonical bead files |
 | validating | phase-plan.md, phase-<n>-contract.md, phase-<n>-story-map.md, .beads/*, approach.md, CONTEXT.md | validated current phase, `.spikes/` results |
 | swarming | validated beads, `tooling-status.json`, `state.json`, `STATE.md` | coordinator mail state, coordinator handoff, updated `state.json`, updated `STATE.md` |
-| executing | bead file, `STATE.md`, `CONTEXT.md` | implementation commits, active evidence under `.pulse/runs/<feature>/verification/`, `br close`, worker handoff if needed |
+| executing | bead file, `STATE.md`, `CONTEXT.md` | implementation commits, canonical evidence under `history/<feature>/verification/`, `br close`, worker handoff if needed |
 | reviewing | diff, `CONTEXT.md`, `approach.md` | review beads, artifact verification results, UAT outcome |
 | compounding | feature history, review output | learning files under `.pulse/memory/learnings/` |
 

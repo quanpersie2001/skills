@@ -271,13 +271,13 @@ Pulse is getting clearer about three artifact planes:
    - `current-feature.json` as the active feature pointer
    - `runtime-snapshot.json` as the derived scout mirror
    - handoffs
-   - active verification and operator surfaces
+   - operator surfaces and legacy verification fallback paths
 2. **Memory plane — `.pulse/memory/`**
    - the shared root for reusable cross-feature memory
    - `critical-patterns.md`, `learnings/`, `corrections/`, and `ratchet/` live here
    - this is where Pulse should read and write durable shared memory going forward
 3. **Feature record plane — `history/`**
-   - feature-specific decisions, discovery, plans, contracts, story maps, promoted verification, and durable audit summaries
+   - feature-specific decisions, discovery, plans, contracts, story maps, canonical verification evidence, and durable audit summaries
 
 ## Artifact Map
 
@@ -290,7 +290,7 @@ Pulse is getting clearer about three artifact planes:
   runtime-snapshot.json      ← persisted scout mirror derived from current state
   handoffs/manifest.json     ← resume index
   handoffs/<owner>.json      ← per-actor checkpoints
-  runs/<feature>/verification/ ← active execution/review evidence
+  runs/<feature>/verification/ ← legacy verification fallback for older repos only
   debug-notes/               ← debugging notes → compounding
   dream-pending/             ← ambiguous learnings awaiting approval
   memory/                    ← shared reusable memory root
@@ -306,8 +306,9 @@ history/<feature>/
   phase-plan.md              ← whole-feature phase breakdown
   phase-<n>-contract.md      ← phase entry/exit/demo/pivots
   phase-<n>-story-map.md     ← stories → beads mapping
-  lifecycle-summary.md       ← promoted audit summary of key gates/outcomes/follow-up debt
+  lifecycle-summary.md       ← durable audit summary of key gates/outcomes/follow-up debt
                             ← see `plugins/pulse/skills/using-pulse/references/history-lifecycle-contract.md`
+  verification/              ← canonical verification evidence for the feature
 
 .beads/                      ← bead files (br managed)
 .spikes/                     ← spike execution results

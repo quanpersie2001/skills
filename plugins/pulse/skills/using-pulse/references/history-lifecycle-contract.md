@@ -6,11 +6,11 @@ It is not a resume artifact and it is not a replay log of transient runtime stat
 
 ## Purpose
 
-Use this file to preserve the promoted lifecycle of a feature at the level that matters for audit and onboarding:
+Use this file to preserve the durable lifecycle of a feature at the level that matters for audit and onboarding:
 
 - which approved artifacts define the feature
 - which major gates were crossed
-- which verification evidence was promoted
+- which canonical verification evidence matters for audit
 - which learnings/corrections/ratchet entries matter durably
 - which follow-up debt remains after closeout
 
@@ -18,10 +18,10 @@ Use this file to preserve the promoted lifecycle of a feature at the level that 
 
 - links to `CONTEXT.md`, `approach.md`, and `phase-plan.md`
 - gate decisions and notable pivots that affected the durable outcome
-- promoted verification paths under `history/<feature>/verification/`
+- canonical verification paths under `history/<feature>/verification/`
 - durable memory outputs promoted from compounding
 - unresolved follow-up work worth carrying forward
-- enough promoted artifacts that a reader can reconstruct the feature-level delivery lifecycle from `history/<feature>/` alone for audit/onboarding purposes
+- enough durable artifacts that a reader can reconstruct the feature-level delivery lifecycle from `history/<feature>/` alone for audit/onboarding purposes
 
 ## What does NOT belong here
 
@@ -51,7 +51,7 @@ Use this file to preserve the promoted lifecycle of a feature at the level that 
 - GATE 3: execution approved
 - GATE 4: review accepted after P1 fixes
 
-## Promoted verification
+## Canonical verification
 - history/auth-refresh/verification/final-review.md
 - history/auth-refresh/verification/uat-summary.md
 

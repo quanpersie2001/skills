@@ -584,7 +584,7 @@ If any field is missing, that is an incomplete planning artifact, not a valid be
 - Never create a bead that requires reading 10+ files
 - File scope must be tight enough for reservation planning
 - Verification must be runnable and concrete
-- `verification_evidence` should point to `.pulse/runs/<feature>/verification/<bead-id>.md` for active evidence, or another explicit evidence record path when the bead intentionally writes elsewhere
+- `verification_evidence` should point to `history/<feature>/verification/<bead-id>.md` as the canonical evidence record, or another explicit evidence record path when the bead intentionally writes elsewhere
 - `testing_mode: tdd-required` for bugfixes, stateful logic, contract changes, or other high-risk behavior changes unless the approach explicitly says otherwise
 - Shared files require explicit dependencies
 - Story closure matters more than layer purity

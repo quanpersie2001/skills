@@ -86,7 +86,7 @@ If you reference a decision ID such as `D5`, include one short sentence translat
 
 ## Verification Evidence
 
-**Preferred artifact:** `.pulse/runs/<feature>/verification/<bead-id>.md`
+**Preferred artifact:** `history/<feature>/verification/<bead-id>.md`
 
 **Artifact status:** Missing | Stubbed | Substantive | Integrated
 
@@ -158,6 +158,6 @@ Do **not** use `--parent <epic-id>` for `P2` / `P3` review follow-up beads. That
 ## Artifact Verification Guidance
 
 Use `P1` when the evidence itself is missing, stubbed, or untrustworthy.
-Use `P1` when the expected `.pulse/runs/<feature>/verification/<bead-id>.md` artifact is absent or lacks command/exit/evidence summaries.
+Use `P1` when the expected `history/<feature>/verification/<bead-id>.md` artifact is absent or lacks command/exit/evidence summaries.
 Use `P2` when evidence exists, but the artifact is still not wired into the review or merge path.
 Use `P3` when the issue is real but clearly follow-up material that does not affect the current path.

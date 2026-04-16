@@ -1366,13 +1366,13 @@ function inferCheckpointLinks(paths, status, feature, repoRoot) {
       links.lifecycle_summary = historyLifecycle.lifecycle_summary;
     }
 
-    const activeVerificationPath = path.join(repoRoot, ".pulse", "runs", feature, "verification");
-    if (fs.existsSync(activeVerificationPath)) {
-      links.verification = `.pulse/runs/${feature}/verification/`;
+    const canonicalVerificationPath = path.join(repoRoot, "history", feature, "verification");
+    if (fs.existsSync(canonicalVerificationPath)) {
+      links.verification = `history/${feature}/verification/`;
     } else {
-      const promotedVerificationPath = path.join(repoRoot, "history", feature, "verification");
-      if (fs.existsSync(promotedVerificationPath)) {
-        links.verification = `history/${feature}/verification/`;
+      const legacyVerificationPath = path.join(repoRoot, ".pulse", "runs", feature, "verification");
+      if (fs.existsSync(legacyVerificationPath)) {
+        links.verification = `.pulse/runs/${feature}/verification/`;
       }
     }
   }
@@ -2282,7 +2282,7 @@ function renderOperatorSurfaceLines(status) {
       lines.push(`  - lifecycle_signals: ${historyLifecycle.lifecycle_signals.join(", ")}`);
     }
     if ((historyLifecycle.verification || []).length > 0) {
-      lines.push(`  - promoted_verification: ${historyLifecycle.verification.join(", ")}`);
+      lines.push(`  - canonical_verification: ${historyLifecycle.verification.join(", ")}`);
     }
   }
 

@@ -857,7 +857,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
     assert.equal(saveOne.checkpoint.links.context, "history/checkpoint-ops/CONTEXT.md");
     assert.equal(saveOne.checkpoint.links.handoff, ".pulse/handoffs/planning.json");
     assert.equal(saveOne.checkpoint.links.runtime_snapshot, ".pulse/runtime-snapshot.json");
-    assert.equal(saveOne.checkpoint.links.verification, ".pulse/runs/checkpoint-ops/verification/");
+    assert.equal(saveOne.checkpoint.links.verification, "history/checkpoint-ops/verification/");
     assert.equal(saveOne.checkpoint.links.lifecycle_summary, "history/checkpoint-ops/lifecycle-summary.md");
     assert.equal(saveOne.checkpoint.memory_hooks.critical_patterns, ".pulse/memory/critical-patterns.md");
     assert.deepEqual(saveOne.checkpoint.memory_hooks.learnings, [".pulse/memory/learnings/checkpoint-ops.md"]);
@@ -887,21 +887,23 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
   }
 });
 
-test("checkpoint commands use active verification paths first and promoted history verification second", () => {
+test("checkpoint commands prefer canonical history verification paths and fall back to legacy runtime paths", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 
   try {
     applyRepo(root, false);
-    fs.mkdirSync(path.join(root, "history", "promoted-verification", "verification"), { recursive: true });
-    fs.writeFileSync(path.join(root, "history", "promoted-verification", "CONTEXT.md"), "# Context\n", "utf8");
-    fs.writeFileSync(path.join(root, "history", "promoted-verification", "approach.md"), "# Approach\n", "utf8");
-    fs.writeFileSync(path.join(root, "history", "promoted-verification", "phase-plan.md"), "# Phase Plan\n", "utf8");
-    fs.writeFileSync(path.join(root, "history", "promoted-verification", "phase-1-contract.md"), "# Contract\n", "utf8");
-    fs.writeFileSync(path.join(root, "history", "promoted-verification", "lifecycle-summary.md"), "# Lifecycle Summary\n", "utf8");
+
+    fs.mkdirSync(path.join(root, "history", "canonical-verification", "verification"), { recursive: true });
+    fs.writeFileSync(path.join(root, "history", "canonical-verification", "CONTEXT.md"), "# Context\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "canonical-verification", "approach.md"), "# Approach\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "canonical-verification", "phase-plan.md"), "# Phase Plan\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "canonical-verification", "phase-1-contract.md"), "# Contract\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "canonical-verification", "lifecycle-summary.md"), "# Lifecycle Summary\n", "utf8");
+    fs.mkdirSync(path.join(root, ".pulse", "runs", "canonical-verification", "verification"), { recursive: true });
     fs.writeFileSync(
       path.join(root, ".pulse", "current-feature.json"),
       `${JSON.stringify({
-        feature_key: "promoted-verification",
+        feature_key: "canonical-verification",
         phase: "reviewing",
         gate: "GATE 4",
         status: "active",
@@ -910,7 +912,7 @@ test("checkpoint commands use active verification paths first and promoted histo
       "utf8",
     );
 
-    const savePayload = JSON.parse(
+    const saveHistoryPreferred = JSON.parse(
       execFileSync(
         "node",
         [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
@@ -918,9 +920,23 @@ test("checkpoint commands use active verification paths first and promoted histo
       ),
     );
 
-    assert.equal(savePayload.ok, true);
-    assert.equal(savePayload.checkpoint.links.verification, "history/promoted-verification/verification/");
-    assert.equal(savePayload.checkpoint.links.lifecycle_summary, "history/promoted-verification/lifecycle-summary.md");
+    assert.equal(saveHistoryPreferred.ok, true);
+    assert.equal(saveHistoryPreferred.checkpoint.links.verification, "history/canonical-verification/verification/");
+    assert.equal(saveHistoryPreferred.checkpoint.links.lifecycle_summary, "history/canonical-verification/lifecycle-summary.md");
+
+    fs.rmSync(path.join(root, "history", "canonical-verification", "verification"), { recursive: true, force: true });
+
+    const saveLegacyFallback = JSON.parse(
+      execFileSync(
+        "node",
+        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+
+    assert.equal(saveLegacyFallback.ok, true);
+    assert.equal(saveLegacyFallback.checkpoint.links.verification, ".pulse/runs/canonical-verification/verification/");
+    assert.equal(saveLegacyFallback.checkpoint.links.lifecycle_summary, "history/canonical-verification/lifecycle-summary.md");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

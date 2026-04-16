@@ -49,11 +49,11 @@ Four human gates control progression:
 .pulse/state.json                    ← machine-readable routing mirror
 .pulse/STATE.md                      ← shared state across phases
 .pulse/handoffs/manifest.json        ← owner-scoped pause/resume index
-.pulse/runs/<feature>/verification/ ← active execution/review evidence
-history/<feature>/verification/      ← promoted durable verification evidence
+history/<feature>/verification/      ← canonical verification evidence
+.pulse/runs/<feature>/verification/ ← legacy verification fallback for older repos only
 history/<feature>/CONTEXT.md         ← exploring output (source of truth for decisions)
 history/<feature>/approach.md        ← planning synthesis
-history/<feature>/lifecycle-summary.md ← promoted audit summary for gates/outcomes/follow-up debt
+history/<feature>/lifecycle-summary.md ← durable audit summary for gates/outcomes/follow-up debt
                                        ← contract: using-pulse/references/history-lifecycle-contract.md
 .beads/                              ← bead files (planning creates, executing closes)
 .spikes/                             ← spike verification results
