@@ -17,7 +17,7 @@ Pulse is:
 Pulse is not:
 
 - a license for agents to skip `CONTEXT.md`, validating, or review gates
-- a promise that every repo is fully migrated to the latest artifact layout
+- a promise that every task needs the heaviest possible process path
 - a replacement for human gate approval or operator judgment
 
 ## One-Line Glossary
@@ -91,7 +91,6 @@ Use this mental model when deciding where to read next:
 .pulse/handoffs/manifest.json   ← Owner-scoped handoff index
 .pulse/handoffs/*.json          ← Per-owner pause/resume state
 history/<feature>/verification/      ← Canonical verification evidence for the current feature
-.pulse/runs/<feature>/verification/ ← Legacy verification fallback for older repos only
 .pulse/memory/                  ← Shared reusable memory root
 history/<feature>/              ← Per-feature artifacts, including lifecycle-summary.md and canonical verification evidence
 .beads/                         ← Bead files

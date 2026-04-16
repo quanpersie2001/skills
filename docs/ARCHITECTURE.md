@@ -538,7 +538,6 @@ flowchart TD
     coordinator.json          — swarm coordinator checkpoint
     worker-<agent>.json       — per-worker checkpoint
     single-worker.json        — single-worker checkpoint
-  runs/<feature>/verification/ — legacy verification fallback for older repos only
   debug-notes/                — debugging debug notes (input to compounding)
   dream-pending/              — ambiguous dream decisions awaiting approval
 ```

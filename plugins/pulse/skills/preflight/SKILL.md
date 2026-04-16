@@ -77,7 +77,7 @@ Run `node --version` first.
 
 - If `node` is missing or reports a version below 18: set `onboarding` to `NEEDS_SETUP` and include a blocker entry: "Node.js 18+ required for onboarding — install or upgrade before continuing." Do not proceed to the onboarding script.
 
-If Node.js 18+ is available, run from this skill's directory:
+If Node.js 18+ is available, run the onboarding status check from this skill's directory. `needs_migration` is a remediation path for stale installs, not the normal Pulse bootstrap result:
 
 ```bash
 node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <project_root>

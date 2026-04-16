@@ -59,7 +59,6 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 .pulse/handoffs/manifest.json   ← Owner-scoped handoff index
 .pulse/handoffs/*.json          ← Per-owner pause/resume state
 history/<feature>/verification/      ← Canonical verification evidence
-.pulse/runs/<feature>/verification/ ← Legacy verification fallback for older repos only
 .pulse/memory/                  ← Shared reusable memory root
 history/<feature>/              ← Per-feature artifacts
 .beads/                         ← Bead files

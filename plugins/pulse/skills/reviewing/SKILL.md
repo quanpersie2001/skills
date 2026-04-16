@@ -214,7 +214,7 @@ For changes that cannot be manually walked through (APIs, config, infrastructure
 - Log output showing the change is active
 - Automated test results covering the modified behavior
 
-Treat `history/<feature>/verification/` as the canonical evidence surface during execution and review. Only read `.pulse/runs/<feature>/verification/` when verifying a legacy repo that has not moved its evidence into history yet.
+Treat `history/<feature>/verification/` as the canonical evidence surface during execution and review.
 
 ## Review Intake
 
@@ -280,7 +280,6 @@ You are the last step before compounding. Close the loop completely.
 
 [ ] Confirm canonical verification evidence is complete
     -> verify `history/<feature>/verification/` contains the evidence needed for audit and closeout
-    -> only consult `.pulse/runs/<feature>/verification/` when older repos still rely on the legacy fallback path
 
 [ ] Write or refresh `history/<feature>/lifecycle-summary.md`
     -> record approved context/plan links, gate outcomes, canonical verification pointers, key durable learnings, and unresolved follow-up debt

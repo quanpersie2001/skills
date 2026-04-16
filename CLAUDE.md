@@ -50,7 +50,6 @@ Four human gates control progression:
 .pulse/STATE.md                      ← shared state across phases
 .pulse/handoffs/manifest.json        ← owner-scoped pause/resume index
 history/<feature>/verification/      ← canonical verification evidence
-.pulse/runs/<feature>/verification/ ← legacy verification fallback for older repos only
 history/<feature>/CONTEXT.md         ← exploring output (source of truth for decisions)
 history/<feature>/approach.md        ← planning synthesis
 history/<feature>/lifecycle-summary.md ← durable audit summary for gates/outcomes/follow-up debt

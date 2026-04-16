@@ -38,6 +38,8 @@ Think of this skill as the router and scout brief for Pulse. It does not replace
 
 Before any normal bootstrap, verify that the current repo is onboarded for the current Pulse plugin layout.
 
+Most repos should already be on the current v3 layout. The migration wrapper is a remediation path for stale onboarding or older installs, not the default day-to-day Pulse flow.
+
 Requires **Node.js 18+**. Run `node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <repo-root>` and inspect the JSON result.
 
 - If `status = "up_to_date"`: proceed immediately.
@@ -520,7 +522,6 @@ This is the scout-plane map of the shared Pulse working set.
   STATE.md                     <- shared project state
   config.json                  <- feature toggles
   tooling-status.json          <- preflight output
-  runs/                        <- active runtime artifacts and legacy verification fallback paths
   debug-notes/                 <- debugging debug notes for compounding
   dream-pending/               <- ambiguous dream decisions awaiting approval
   memory/                      <- shared reusable memory subtree for recall hooks and durable learnings

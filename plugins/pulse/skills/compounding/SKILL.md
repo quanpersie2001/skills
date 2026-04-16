@@ -51,7 +51,6 @@ history/<feature>/verification/       <- canonical feature verification evidence
 .beads/ or `br show` output           <- the executable work graph we actually ran
 review findings or review beads       <- P1/P2/P3 output from reviewing
 .pulse/debug-notes/                   <- debug notes from debugging invocations
-.pulse/runs/<feature>/verification/   <- only for legacy repos that do not have canonical history evidence yet
 ```
 
 Also inspect the bead files to see which prior learnings were actually propagated through `learning_refs`.
@@ -69,7 +68,7 @@ Build an internal summary:
 - which prior learnings helped
 - which missing learnings should have been embedded into beads
 
-Treat `history/<feature>/verification/` as the canonical evidence plane. Fall back to `.pulse/runs/<feature>/verification/` only when reading a legacy repo that does not have history-based verification evidence yet.
+Treat `history/<feature>/verification/` as the canonical evidence plane.
 
 If `history/<feature>/lifecycle-summary.md` exists, read it early as the durable audit summary. Do not treat it as a live resume artifact; it is for approved decisions, gates, outcomes, and follow-up debt only.
 

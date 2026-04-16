@@ -271,7 +271,7 @@ Pulse is getting clearer about three artifact planes:
    - `current-feature.json` as the active feature pointer
    - `runtime-snapshot.json` as the derived scout mirror
    - handoffs
-   - operator surfaces and legacy verification fallback paths
+   - operator surfaces for the active Pulse run
 2. **Memory plane — `.pulse/memory/`**
    - the shared root for reusable cross-feature memory
    - `critical-patterns.md`, `learnings/`, `corrections/`, and `ratchet/` live here
@@ -290,7 +290,6 @@ Pulse is getting clearer about three artifact planes:
   runtime-snapshot.json      ← persisted scout mirror derived from current state
   handoffs/manifest.json     ← resume index
   handoffs/<owner>.json      ← per-actor checkpoints
-  runs/<feature>/verification/ ← legacy verification fallback for older repos only
   debug-notes/               ← debugging notes → compounding
   dream-pending/             ← ambiguous learnings awaiting approval
   memory/                    ← shared reusable memory root
