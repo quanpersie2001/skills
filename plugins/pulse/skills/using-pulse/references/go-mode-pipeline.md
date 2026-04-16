@@ -47,7 +47,7 @@ User: "/go <feature>"
        |
        v
 [STEP 6] reviewing (after final phase only)
-       | 5 parallel review agents -> P1/P2/P3 findings
+       | 4 specialist review agents + final synthesizer -> P1/P2/P3 findings
        | Artifact verification + human UAT
        |
        v
@@ -307,7 +307,7 @@ After current-phase execution completes:
 
 **The pulse:reviewing skill will:**
 
-- dispatch 5 specialist review agents (agents 1-4 are specialists, agent 5 is the final synthesizer and always runs last)
+- dispatch 4 specialist review agents first, then run the final synthesizer as agent 5
 - run 3-level artifact verification
 - run human UAT
 - run final finishing tasks
