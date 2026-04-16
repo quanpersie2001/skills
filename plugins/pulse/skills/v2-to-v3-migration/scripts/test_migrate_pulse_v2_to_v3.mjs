@@ -16,7 +16,7 @@ import {
 
 const MIGRATION_SCRIPT_PATH = fileURLToPath(new URL("./migrate_pulse_v2_to_v3.mjs", import.meta.url));
 
-function createLegacyPulseRepo() {
+function createLegacyPulseRepo({ usePluralLearningRoot = false, useSingularRunRoot = false, usePluralVerificationDir = false } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-migrate-"));
   applyRepo(root, false);
 
@@ -67,11 +67,12 @@ function createLegacyPulseRepo() {
   const memoryFile = path.join(root, ".pulse", "memory", "learnings", "keep.md");
   fs.writeFileSync(memoryFile, "keep this memory\n", "utf8");
 
-  fs.mkdirSync(path.join(root, "history", "learning", "learnings"), { recursive: true });
-  fs.mkdirSync(path.join(root, "history", "learning", "corrections"), { recursive: true });
-  fs.mkdirSync(path.join(root, "history", "learning", "ratchet"), { recursive: true });
+  const learningRoot = path.join(root, "history", usePluralLearningRoot ? "learnings" : "learning");
+  fs.mkdirSync(path.join(learningRoot, "learnings"), { recursive: true });
+  fs.mkdirSync(path.join(learningRoot, "corrections"), { recursive: true });
+  fs.mkdirSync(path.join(learningRoot, "ratchet"), { recursive: true });
   fs.writeFileSync(
-    path.join(root, "history", "learning", "learnings", "operator-foundation.md"),
+    path.join(learningRoot, "learnings", "operator-foundation.md"),
     [
       "# Learning: Operator Surface Foundation",
       "",
@@ -80,7 +81,7 @@ function createLegacyPulseRepo() {
     "utf8",
   );
   fs.writeFileSync(
-    path.join(root, "history", "learning", "corrections", "planning-gate.md"),
+    path.join(learningRoot, "corrections", "planning-gate.md"),
     [
       "# Correction: Planning Gate",
       "",
@@ -91,7 +92,7 @@ function createLegacyPulseRepo() {
     "utf8",
   );
   fs.writeFileSync(
-    path.join(root, "history", "learning", "ratchet", "verification-ratchet.md"),
+    path.join(learningRoot, "ratchet", "verification-ratchet.md"),
     [
       "# Ratchet: Verification Artifacts",
       "",
@@ -103,7 +104,7 @@ function createLegacyPulseRepo() {
     "utf8",
   );
   fs.writeFileSync(
-    path.join(root, "history", "learning", "critical-patterns.md"),
+    path.join(learningRoot, "critical-patterns.md"),
     [
       "## [20260417] Preserve canonical history verification",
       "**Category:** pattern",
@@ -115,9 +116,11 @@ function createLegacyPulseRepo() {
     "utf8",
   );
 
-  fs.mkdirSync(path.join(root, ".pulse", "runs", "operator-surface-foundation", "verification"), { recursive: true });
+  const runRoot = path.join(root, ".pulse", useSingularRunRoot ? "run" : "runs");
+  const verificationDirName = usePluralVerificationDir ? "verifications" : "verification";
+  fs.mkdirSync(path.join(runRoot, "operator-surface-foundation", verificationDirName), { recursive: true });
   fs.writeFileSync(
-    path.join(root, ".pulse", "runs", "operator-surface-foundation", "verification", "final-review.md"),
+    path.join(runRoot, "operator-surface-foundation", verificationDirName, "final-review.md"),
     "# Final Review\nlegacy verification\n",
     "utf8",
   );
@@ -171,7 +174,7 @@ test("applyMigration upgrades a stale repo while preserving unrelated hooks, AGE
 
     assert.equal(result.status, "up_to_date");
     assert.equal(result.mode, "apply");
-    assert.equal(onboarding.plugin_version, "3.0.0");
+    assert.equal(onboarding.plugin_version, "3.0.1");
     assert.equal(fs.existsSync(path.join(root, ".codex", "hooks", "pulse_session_start.py")), false);
     assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_status.mjs")));
     assert.match(agentsText, /# Existing instructions/);
@@ -282,6 +285,36 @@ test("checkRepo surfaces migrated history verification links after legacy verifi
 
     const result = checkRepo(root);
     assert.equal(result.status, "up_to_date");
+    assert.equal(
+      fs.readFileSync(
+        path.join(root, "history", "operator-surface-foundation", "verification", "final-review.md"),
+        "utf8",
+      ),
+      "# Final Review\nlegacy verification\n",
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("migration detects plural learning roots and alternate verification path aliases", () => {
+  const root = createLegacyPulseRepo({
+    usePluralLearningRoot: true,
+    useSingularRunRoot: true,
+    usePluralVerificationDir: true,
+  });
+
+  try {
+    const checkResult = checkMigration(root);
+    assert.ok(checkResult.actions.includes("migrate_legacy_learning_memory"));
+    assert.ok(checkResult.actions.includes("migrate_legacy_critical_patterns"));
+    assert.ok(checkResult.actions.includes("migrate_legacy_verification_artifacts"));
+    assert.equal(checkResult.details.legacy_learning_sources.length, 3);
+    assert.equal(checkResult.details.legacy_verification_features.length, 1);
+
+    const applyResult = applyMigration(root);
+    assert.equal(applyResult.status, "up_to_date");
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "critical-patterns.md")));
     assert.equal(
       fs.readFileSync(
         path.join(root, "history", "operator-surface-foundation", "verification", "final-review.md"),

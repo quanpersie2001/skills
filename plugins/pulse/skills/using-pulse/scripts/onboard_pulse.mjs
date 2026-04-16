@@ -41,7 +41,16 @@ const LEGACY_HOOK_FILENAMES = [
   "pulse_pre_tool_use.py",
   "pulse_stop.py",
 ];
+const LEGACY_LEARNING_ROOTS = [
+  ["history", "learning"],
+  ["history", "learnings"],
+];
 const LEGACY_LEARNING_DIRECTORIES = ["learnings", "learning", "corrections", "ratchet"];
+const LEGACY_VERIFICATION_RUN_ROOTS = [
+  [".pulse", "runs"],
+  [".pulse", "run"],
+];
+const LEGACY_VERIFICATION_DIR_NAMES = ["verification", "verifications"];
 
 export function getNodeRuntimeStatus(version = process.versions.node) {
   const major = Number.parseInt(String(version).split(".")[0] || "0", 10);
@@ -804,38 +813,56 @@ function bodyToLearningCategory(body, type) {
   return "pattern";
 }
 
+function collectLegacyLearningRoots(repoRoot) {
+  return LEGACY_LEARNING_ROOTS
+    .map((segments) => path.join(repoRoot, ...segments))
+    .filter((rootPath) => fs.existsSync(rootPath));
+}
+
 function collectLegacyLearningSources(repoRoot) {
-  const historyLearningRoot = path.join(repoRoot, "history", "learning");
-  if (!fs.existsSync(historyLearningRoot)) {
+  const learningRoots = collectLegacyLearningRoots(repoRoot);
+  if (learningRoots.length === 0) {
     return [];
   }
 
+  const seen = new Set();
   const sources = [];
-  for (const directoryName of LEGACY_LEARNING_DIRECTORIES) {
-    const dirPath = path.join(historyLearningRoot, directoryName);
-    for (const filePath of collectFilesRecursively(dirPath)) {
-      if (path.basename(filePath) === "critical-patterns.md") {
+
+  for (const historyLearningRoot of learningRoots) {
+    for (const directoryName of LEGACY_LEARNING_DIRECTORIES) {
+      const dirPath = path.join(historyLearningRoot, directoryName);
+      for (const filePath of collectFilesRecursively(dirPath)) {
+        if (path.basename(filePath) === "critical-patterns.md") {
+          continue;
+        }
+        if (path.extname(filePath).toLowerCase() !== ".md") {
+          continue;
+        }
+        const normalized = path.resolve(filePath);
+        if (seen.has(normalized)) {
+          continue;
+        }
+        seen.add(normalized);
+        sources.push(filePath);
+      }
+    }
+
+    for (const filePath of collectFilesRecursively(historyLearningRoot)) {
+      const relative = toPosixRelative(repoRoot, filePath);
+      if (relative === `${toPosixRelative(repoRoot, historyLearningRoot)}/critical-patterns.md`) {
+        continue;
+      }
+      if (!relative.startsWith(`${toPosixRelative(repoRoot, historyLearningRoot)}/`)) {
         continue;
       }
       if (path.extname(filePath).toLowerCase() !== ".md") {
         continue;
       }
-      sources.push(filePath);
-    }
-  }
-
-  for (const filePath of collectFilesRecursively(historyLearningRoot)) {
-    const relative = toPosixRelative(repoRoot, filePath);
-    if (relative === "history/learning/critical-patterns.md") {
-      continue;
-    }
-    if (!relative.startsWith("history/learning/")) {
-      continue;
-    }
-    if (path.extname(filePath).toLowerCase() !== ".md") {
-      continue;
-    }
-    if (!sources.includes(filePath)) {
+      const normalized = path.resolve(filePath);
+      if (seen.has(normalized)) {
+        continue;
+      }
+      seen.add(normalized);
       sources.push(filePath);
     }
   }
@@ -844,25 +871,45 @@ function collectLegacyLearningSources(repoRoot) {
   return sources;
 }
 
+function findLegacyCriticalPatternsPath(repoRoot) {
+  for (const rootPath of collectLegacyLearningRoots(repoRoot)) {
+    const candidate = path.join(rootPath, "critical-patterns.md");
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
 function collectLegacyVerificationArtifacts(repoRoot) {
-  const runsRoot = path.join(repoRoot, ".pulse", "runs");
-  if (!fs.existsSync(runsRoot)) {
-    return [];
+  const features = [];
+
+  for (const runRootSegments of LEGACY_VERIFICATION_RUN_ROOTS) {
+    const runsRoot = path.join(repoRoot, ...runRootSegments);
+    if (!fs.existsSync(runsRoot)) {
+      continue;
+    }
+
+    for (const entry of fs.readdirSync(runsRoot, { withFileTypes: true }).filter((item) => item.isDirectory())) {
+      const featureKey = entry.name;
+      for (const verificationDirName of LEGACY_VERIFICATION_DIR_NAMES) {
+        const verificationRoot = path.join(runsRoot, featureKey, verificationDirName);
+        const files = collectFilesRecursively(verificationRoot);
+        if (files.length === 0) {
+          continue;
+        }
+        features.push({
+          featureKey,
+          verificationRoot,
+          runRoot: runsRoot,
+          verificationDirName,
+          files,
+        });
+      }
+    }
   }
 
-  return fs.readdirSync(runsRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => {
-      const featureKey = entry.name;
-      const verificationRoot = path.join(runsRoot, featureKey, "verification");
-      const files = collectFilesRecursively(verificationRoot);
-      return {
-        featureKey,
-        verificationRoot,
-        files,
-      };
-    })
-    .filter((entry) => entry.files.length > 0);
+  return features;
 }
 
 function ensureDestinationFilePath(targetDirectory, baseName, sourceRelativePath) {
@@ -898,7 +945,6 @@ function removeEmptyParents(startDir, stopDir) {
 function migrateLegacyLearningMemory(repoRoot) {
   const sources = collectLegacyLearningSources(repoRoot);
   const memoryRoot = path.join(repoRoot, ".pulse", "memory");
-  const historyLearningRoot = path.join(repoRoot, "history", "learning");
   const result = {
     sources_found: sources.length,
     migrated_files: 0,
@@ -979,7 +1025,11 @@ function migrateLegacyLearningMemory(repoRoot) {
 
     fs.writeFileSync(targetPath, `${normalized.replace(/\s*$/, "")}\n`, "utf8");
     fs.rmSync(sourcePath, { force: true });
-    removeEmptyParents(path.dirname(sourcePath), historyLearningRoot);
+    const sourceRoot = collectLegacyLearningRoots(repoRoot)
+      .find((rootPath) => path.resolve(sourcePath).startsWith(`${path.resolve(rootPath)}${path.sep}`) || path.resolve(sourcePath) === path.resolve(rootPath));
+    if (sourceRoot) {
+      removeEmptyParents(path.dirname(sourcePath), sourceRoot);
+    }
     result.migrated_files += 1;
     result.normalized_counts[type] += 1;
     result.outputs.push(toPosixRelative(repoRoot, targetPath));
@@ -1010,11 +1060,10 @@ function parseCriticalPatternEntries(text) {
 }
 
 function mergeLegacyCriticalPatterns(repoRoot) {
-  const historyLearningRoot = path.join(repoRoot, "history", "learning");
-  const sourcePath = path.join(historyLearningRoot, "critical-patterns.md");
+  const sourcePath = findLegacyCriticalPatternsPath(repoRoot);
   const targetPath = path.join(repoRoot, ".pulse", "memory", "critical-patterns.md");
   const result = {
-    source_exists: fs.existsSync(sourcePath),
+    source_exists: Boolean(sourcePath),
     appended_entries: 0,
     skipped_entries: 0,
   };
@@ -1051,14 +1100,17 @@ function mergeLegacyCriticalPatterns(repoRoot) {
   ensureParent(targetPath);
   fs.writeFileSync(targetPath, `${nextText.replace(/\s*$/, "")}\n`, "utf8");
   fs.rmSync(sourcePath, { force: true });
-  removeEmptyParents(path.dirname(sourcePath), historyLearningRoot);
+  const sourceRoot = collectLegacyLearningRoots(repoRoot)
+    .find((rootPath) => path.resolve(sourcePath).startsWith(`${path.resolve(rootPath)}${path.sep}`) || path.resolve(sourcePath) === path.resolve(rootPath));
+  if (sourceRoot) {
+    removeEmptyParents(path.dirname(sourcePath), sourceRoot);
+  }
   result.appended_entries = additions.length;
   return result;
 }
 
 function migrateLegacyVerificationArtifacts(repoRoot) {
   const features = collectLegacyVerificationArtifacts(repoRoot);
-  const runsRoot = path.join(repoRoot, ".pulse", "runs");
   const result = {
     features_found: features.length,
     copied_files: 0,
@@ -1093,7 +1145,7 @@ function migrateLegacyVerificationArtifacts(repoRoot) {
       fs.rmSync(sourcePath, { force: true });
     }
 
-    removeEmptyParents(feature.verificationRoot, runsRoot);
+    removeEmptyParents(feature.verificationRoot, feature.runRoot);
   }
 
   return result;
@@ -1150,7 +1202,7 @@ export function checkRepo(repoRoot) {
   const compactPromptConflict = hasCompactPrompt(configText) && !compactPromptManaged;
 
   const legacyLearningSources = collectLegacyLearningSources(repoRoot);
-  const legacyCriticalPatternsPath = path.join(repoRoot, "history", "learning", "critical-patterns.md");
+  const legacyCriticalPatternsPath = findLegacyCriticalPatternsPath(repoRoot);
   const legacyVerificationArtifacts = collectLegacyVerificationArtifacts(repoRoot);
 
   const actions = [];

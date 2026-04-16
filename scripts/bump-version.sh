@@ -12,6 +12,7 @@ FILES=(
   "$ROOT/plugins/pulse/.codex-plugin/plugin.json"
   "$ROOT/.agents/plugins/marketplace.json"
 )
+README_FILE="$ROOT/README.md"
 
 # Read current version from first file
 CURRENT=$(grep '"version"' "${FILES[0]}" | head -1 | sed 's/.*"\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/')
@@ -43,6 +44,13 @@ for FILE in "${FILES[@]}"; do
   sed -i '' "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW\"/" "$FILE"
   echo "  updated: $FILE"
 done
+
+if [[ -f "$README_FILE" ]]; then
+  sed -i '' "s/version-$CURRENT-/version-$NEW-/" "$README_FILE"
+  echo "  updated: $README_FILE"
+else
+  echo "Warning: $README_FILE not found, skipping" >&2
+fi
 
 echo ""
 echo "$CURRENT → $NEW"
