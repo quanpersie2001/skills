@@ -258,7 +258,7 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
           context: "history/operator-surface-foundation/CONTEXT.md",
           handoff: ".pulse/handoffs/planning.json",
           runtime_snapshot: ".pulse/runtime-snapshot.json",
-          verification: ".pulse/verification/operator-surface-foundation/",
+          verification: ".pulse/runs/operator-surface-foundation/verification/",
         },
         blockers: ["Awaiting validation approval"],
         memory_hooks: {
@@ -451,7 +451,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
       "# Context\n",
       "utf8",
     );
-    fs.mkdirSync(path.join(root, ".pulse", "verification", "checkpoint-ops"), { recursive: true });
+    fs.mkdirSync(path.join(root, ".pulse", "runs", "checkpoint-ops", "verification"), { recursive: true });
     fs.writeFileSync(
       path.join(root, ".pulse", "current-feature.json"),
       `${JSON.stringify({
@@ -597,7 +597,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
     assert.equal(saveOne.feature, "checkpoint-ops");
     assert.equal(saveOne.checkpoint.links.context, "history/checkpoint-ops/CONTEXT.md");
     assert.equal(saveOne.checkpoint.links.handoff, ".pulse/handoffs/planning.json");
-    assert.equal(saveOne.checkpoint.links.verification, ".pulse/verification/checkpoint-ops/");
+    assert.equal(saveOne.checkpoint.links.verification, ".pulse/runs/checkpoint-ops/verification/");
     assert.equal(saveOne.checkpoint.memory_hooks.critical_patterns, ".pulse/memory/critical-patterns.md");
     assert.deepEqual(saveOne.checkpoint.memory_hooks.learnings, [".pulse/memory/learnings/checkpoint-ops.md"]);
     assert.equal(saveTwo.ok, true);

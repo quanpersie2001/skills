@@ -23,7 +23,7 @@ verify:
     expect: exits 0
 verification_evidence:
   - kind: artifact
-    path: .pulse/verification/<feature>/br-000.md
+    path: .pulse/runs/<feature>/verification/br-000.md
     note: Captured output from the final verification command
 testing_mode: standard
 decision_refs:
@@ -87,7 +87,7 @@ After the structured block, use this body shape:
 - Decision refs: D1, D4
 - Learning refs: .pulse/memory/learnings/20260327-auth-cookie.md
 - Testing mode: standard | tdd-required
-- Verification evidence: .pulse/verification/<feature>/<bead-id>.md or an explicit verification record
+- Verification evidence: .pulse/runs/<feature>/verification/<bead-id>.md or an explicit verification record
 - If `testing_mode` is `tdd-required`, include red and green steps in `tdd_steps`
 
 ## Done When

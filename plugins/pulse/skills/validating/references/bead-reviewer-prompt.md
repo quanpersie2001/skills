@@ -136,7 +136,7 @@ There is no way for the executor to confirm it has succeeded.
 
 **Pass example:**
 - `verify: "npm test -- --grep 'RateLimiter' runs 5 tests, all green. curl -X GET http://localhost:3000/api/users with 101 sequential requests, the 101st returns 429."`
-- `verification_evidence: .pulse/verification/auth-refresh/br-012.md` with captured output or a recorded result
+- `verification_evidence: .pulse/runs/auth-refresh/verification/br-012.md` with captured output or a recorded result
 
 ### CRITICAL Pattern 6: Missing Canonical Schema Fields
 

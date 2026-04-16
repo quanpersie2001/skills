@@ -279,7 +279,7 @@ Recommended checkpoint record shape:
     "context": "history/auth-refresh/CONTEXT.md",
     "handoff": ".pulse/handoffs/planning.json",
     "runtime_snapshot": ".pulse/runtime-snapshot.json",
-    "verification": ".pulse/verification/auth-refresh/"
+    "verification": ".pulse/runs/auth-refresh/verification/"
   },
   "blockers": [],
   "memory_hooks": {

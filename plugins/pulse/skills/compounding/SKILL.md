@@ -45,11 +45,13 @@ Collect all artifacts from the completed feature. Read:
 history/<feature>/CONTEXT.md          <- locked decisions (what we committed to)
 history/<feature>/discovery.md        <- research findings (what we learned before coding)
 history/<feature>/approach.md         <- synthesis + risk map (how we planned to do it)
+history/<feature>/verification/       <- promoted final evidence worth keeping
 .pulse/STATE.md                       <- runtime coordination state
 .pulse/handoffs/manifest.json         <- and any owner files that still matter
 .beads/ or `br show` output           <- the executable work graph we actually ran
 review findings or review beads       <- P1/P2/P3 output from reviewing
 .pulse/debug-notes/                   <- debug notes from debugging invocations
+.pulse/runs/<feature>/verification/   <- only if promoted history evidence does not exist yet
 ```
 
 Also inspect the bead files to see which prior learnings were actually propagated through `learning_refs`.
@@ -66,6 +68,8 @@ Build an internal summary:
 - what surprised us
 - which prior learnings helped
 - which missing learnings should have been embedded into beads
+
+Prefer `history/<feature>/verification/` when it exists because that is the durable evidence plane. Fall back to `.pulse/runs/<feature>/verification/` only when the feature has not promoted final evidence yet.
 
 **If no history files exist:** fall back to reading the conversation/session summary and recent git diff. Compounding is still valuable even with partial context.
 

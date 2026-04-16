@@ -213,6 +213,8 @@ For changes that cannot be manually walked through (APIs, config, infrastructure
 - Log output showing the change is active
 - Automated test results covering the modified behavior
 
+Treat `.pulse/runs/<feature>/verification/` as the active evidence surface during execution and review. Only the final, durable subset should be promoted into `history/<feature>/verification/` during finishing or closeout.
+
 ## Review Intake
 
 When review beads already exist, resolve them deliberately before finishing:
@@ -274,6 +276,10 @@ You are the last step before compounding. Close the loop completely.
     2. Merge directly
     3. Keep branch for further work
     4. Discard branch
+
+[ ] Promote durable verification evidence
+    -> keep active execution/review evidence under `.pulse/runs/<feature>/verification/` while the feature is still live
+    -> copy or move only the final subset worth keeping into `history/<feature>/verification/`
 
 [ ] Clean up worktree (if used)
     -> git worktree remove .worktrees/<feature>

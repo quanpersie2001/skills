@@ -827,9 +827,14 @@ function inferCheckpointLinks(paths, status, feature, repoRoot) {
       links.context = `history/${feature}/CONTEXT.md`;
     }
 
-    const verificationPath = path.join(repoRoot, ".pulse", "verification", feature);
-    if (fs.existsSync(verificationPath)) {
-      links.verification = `.pulse/verification/${feature}/`;
+    const activeVerificationPath = path.join(repoRoot, ".pulse", "runs", feature, "verification");
+    if (fs.existsSync(activeVerificationPath)) {
+      links.verification = `.pulse/runs/${feature}/verification/`;
+    } else {
+      const legacyVerificationPath = path.join(repoRoot, ".pulse", "verification", feature);
+      if (fs.existsSync(legacyVerificationPath)) {
+        links.verification = `.pulse/verification/${feature}/`;
+      }
     }
   }
 

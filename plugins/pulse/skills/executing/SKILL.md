@@ -139,7 +139,7 @@ Minimum fields to confirm:
 | `dependencies` | Upstream bead IDs that must close first |
 | `files` | Files/modules in scope for this bead |
 | `verify` | Concrete verification commands to run |
-| `verification_evidence` | Path to evidence artifact (typically `.pulse/verification/<feature>/<bead-id>.md`) |
+| `verification_evidence` | Path to active evidence artifact (typically `.pulse/runs/<feature>/verification/<bead-id>.md`) |
 | `testing_mode` | `tdd-required` / `test-after` / `no-test` |
 | `decision_refs` | Locked decisions from CONTEXT.md relevant to this bead |
 | `learning_refs` | Learning file paths to read before implementing |
@@ -241,7 +241,7 @@ Read the bead's `verification_evidence` field and update every declared artifact
 The standard artifact path is:
 
 ```text
-.pulse/verification/<feature>/<bead-id>.md
+.pulse/runs/<feature>/verification/<bead-id>.md
 ```
 
 The evidence record must include:
@@ -403,7 +403,7 @@ Worker mode handoff payload (write to `.pulse/handoffs/worker-<agent>.json`):
       ]
     },
     "verification_evidence_paths": [
-      ".pulse/verification/<feature>/<bead-id>.md"
+      ".pulse/runs/<feature>/verification/<bead-id>.md"
     ]
   }
 }
@@ -452,7 +452,7 @@ Standalone mode handoff payload (write to `.pulse/handoffs/single-worker.json`):
       ]
     },
     "verification_evidence_paths": [
-      ".pulse/verification/<feature>/<bead-id>.md"
+      ".pulse/runs/<feature>/verification/<bead-id>.md"
     ]
   }
 }

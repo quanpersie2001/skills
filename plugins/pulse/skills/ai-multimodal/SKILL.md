@@ -143,6 +143,6 @@ Load for detailed guidance:
 
 ## Integration with Pulse
 
-During `pulse:executing`, invoke this skill when beads require multimodal asset processing, media analysis, or content generation. Feed outputs back into the bead's verification evidence at `.pulse/verification/<feature>/<bead-id>.md`.
+During `pulse:executing`, invoke this skill when beads require multimodal asset processing, media analysis, or content generation. Feed outputs back into the bead's active verification evidence at `.pulse/runs/<feature>/verification/<bead-id>.md`.
 
 Write/Edit tools are available for extending or creating processing scripts, not for modifying reference documentation.
