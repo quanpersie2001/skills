@@ -351,7 +351,7 @@ After each bead:
 
 ### Writing the handoff
 
-Use the standard handoff summary/resume briefing/transfer block contract from `pulse:using-pulse`.
+Use the standard handoff summary/resume briefing/transfer block contract from `pulse:using-pulse`. Treat this pause boundary as a checkpoint trigger: capture or refresh the feature checkpoint before stopping when the current phase meaningfully changed.
 
 Worker mode handoff payload (write to `.pulse/handoffs/worker-<agent>.json`):
 

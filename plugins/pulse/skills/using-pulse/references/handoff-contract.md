@@ -160,9 +160,9 @@ Examples:
 
 ## Human-Readable Companion Formats
 
-The JSON files are the source of truth for machine-readable resume state. They do not auto-generate human summaries today.
+The JSON files are the source of truth for machine-readable resume state. The formats below are the canonical rendered outputs for presenting that state to humans.
 
-If a Pulse skill presents or writes a human-facing handoff note, keep it consistent with the JSON handoff and use the formats below.
+If a Pulse skill presents a human-facing handoff note, it should render from the authoritative JSON handoff/manifest values instead of improvising new prose fields.
 
 ### 1. Handoff Summary Format
 
@@ -294,9 +294,10 @@ Recommended checkpoint record shape:
 Checkpoint rules:
 
 - Checkpoints are advisory snapshots. If checkpoint content disagrees with current handoff or state artifacts, current handoff/state artifacts win.
-- `resume-brief` can point to relevant memory files, but it should not create a second durable memory store.
+- `resume-brief` can point to relevant memory files and `history/<feature>/lifecycle-summary.md` when present, but it must not create a second durable memory store.
 - `diff` should stay summary-level: phase, gate, mode, next action, blockers, links, and memory hooks.
 - `save` may write a checkpoint record, but read-only status/scout flows must never mutate runtime state.
+- Productized checkpoint trigger points should be phase/gate transitions, pause-handoff boundaries, and pre-review freeze-frames — not arbitrary heartbeat logging.
 
 ## Rules
 
@@ -306,5 +307,5 @@ Checkpoint rules:
 4. Coordinator does not overwrite worker state.
 5. Resume flows always require user confirmation.
 6. Human-readable summaries must stay consistent with the JSON handoff; if they drift, the JSON handoff wins.
-7. Human-readable handoff notes are optional documentation, not a second source of truth.
+7. Human-readable handoff notes are rendered companions from authoritative JSON, not a second source of truth.
 8. Checkpoints are advisory artifacts, not authoritative pause/resume ownership records.

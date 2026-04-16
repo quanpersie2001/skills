@@ -150,6 +150,7 @@ function renderCheckpointResult(result) {
       `Path: ${result.checkpoint?.path || "(unknown)"}`,
       `Summary: ${result.checkpoint?.summary || "(none)"}`,
       `Next action: ${result.checkpoint?.next_action || "(none)"}`,
+      `Lifecycle summary: ${result.checkpoint?.links?.lifecycle_summary || "(none)"}`,
     ].join("\n");
   }
 
@@ -198,7 +199,12 @@ function renderCheckpointResult(result) {
     return [
       `Resume brief for ${result.feature}`,
       `Checkpoint: ${result.resume_brief.checkpoint?.checkpoint_id || "(missing)"}`,
+      `Lifecycle summary: ${result.resume_brief.lifecycle_summary || "(none)"}`,
       `Note: ${result.resume_brief.note}`,
+      ...(result.resume_brief.rendered_handoff_summary ? ["", result.resume_brief.rendered_handoff_summary] : []),
+      ...(result.resume_brief.rendered_resume_briefing ? ["", result.resume_brief.rendered_resume_briefing] : []),
+      ...(result.resume_brief.rendered_transfer_block ? ["", result.resume_brief.rendered_transfer_block] : []),
+      "",
       "Next reads:",
       ...result.resume_brief.next_reads.map((item) => `- ${item}`),
     ].join("\n");

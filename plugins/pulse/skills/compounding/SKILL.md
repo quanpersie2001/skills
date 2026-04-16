@@ -71,6 +71,8 @@ Build an internal summary:
 
 Prefer `history/<feature>/verification/` when it exists because that is the durable evidence plane. Fall back to `.pulse/runs/<feature>/verification/` only when the feature has not promoted final evidence yet.
 
+If `history/<feature>/lifecycle-summary.md` exists, read it early as the durable audit summary. Do not treat it as a live resume artifact; it is for promoted decisions, gates, outcomes, and follow-up debt only.
+
 **If no history files exist:** fall back to reading the conversation/session summary and recent git diff. Compounding is still valuable even with partial context.
 
 ---

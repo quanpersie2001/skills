@@ -191,6 +191,8 @@ Priority order:
 3. recall-pack learnings that match the current domain
 4. only then run broader manual searches if the recall pack is too thin
 
+Treat the recall pack as metadata-ranked guidance, not just filename heuristics. When a correction or ratchet clearly applies, carry that exact path into bead `learning_refs` instead of assuming a later worker will rediscover it.
+
 The point is to start from the smallest credible context, not to grep the whole memory plane by default.
 
 ### Step 0.3: Search for additional domain-relevant learnings only if needed
@@ -650,7 +652,7 @@ HIGH-risk components in current phase: [list] -> flagged for validating to spike
 
 ## Context Budget
 
-If context exceeds 65% at any phase transition, write `.pulse/handoffs/planning.json` using the shared envelope in `../pulse:using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path.
+If context exceeds 65% at any phase transition, write `.pulse/handoffs/planning.json` using the shared envelope in `../pulse:using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path. Treat this pause point as a checkpoint trigger boundary as well: if `.pulse/checkpoints/<feature>/...` is in use, capture a checkpoint before leaving the phase.
 
 Planning handoffs use the same companion blocks as every other Pulse owner:
 

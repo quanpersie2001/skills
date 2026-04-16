@@ -48,6 +48,7 @@ Read before starting:
 
 - `history/<feature>/CONTEXT.md` — locked decisions (D1, D2...) and testable deliverables
 - `history/<feature>/approach.md` — planned approach and risk map from planning
+- `history/<feature>/lifecycle-summary.md` when it already exists — durable audit summary from prior review/closeout work
 - `.pulse/STATE.md` — current epic state
 - the git diff or worktree diff
 
@@ -281,6 +282,10 @@ You are the last step before compounding. Close the loop completely.
     -> keep active execution/review evidence under `.pulse/runs/<feature>/verification/` while the feature is still live
     -> copy or move only the final subset worth keeping into `history/<feature>/verification/`
 
+[ ] Write or refresh `history/<feature>/lifecycle-summary.md`
+    -> record approved context/plan links, gate outcomes, promoted verification pointers, key promoted learnings, and unresolved follow-up debt
+    -> do not mirror live runtime state or use this file as a resume artifact
+
 [ ] Clean up worktree (if used)
     -> git worktree remove .worktrees/<feature>
 
@@ -314,6 +319,15 @@ Quick mode still uses review. It only narrows scope:
 - artifact verification still runs
 
 ## Handoff
+
+If review pauses before closeout, write a reviewing-owned handoff using the shared envelope from `../using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path.
+
+Review handoffs use the same companion blocks as the rest of Pulse:
+- `summary` -> short review handoff headline
+- `next_action` + `read_first` -> resume briefing for the next review turn
+- `payload.transfer` -> detailed transfer block for findings status, verification progress, and remaining closeout work
+
+If `.pulse/checkpoints/<feature>/...` is in use, treat the pause as a checkpoint trigger boundary and capture or refresh the feature checkpoint before stopping.
 
 After Phase 4 completes:
 

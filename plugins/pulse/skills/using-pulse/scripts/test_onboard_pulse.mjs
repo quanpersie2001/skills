@@ -286,27 +286,99 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
     );
     fs.writeFileSync(
       path.join(root, ".pulse", "memory", "learnings", "20260401-operator-surface-foundation.md"),
-      "learning\n",
+      [
+        "---",
+        "date: 2026-04-01",
+        "feature: operator-surface-foundation",
+        "categories: [pattern]",
+        "severity: standard",
+        "tags: [operator, surface, planning]",
+        "applies_when: planning operator surfaces for the current feature",
+        "scope: [plugins/pulse/skills/using-pulse/scripts/pulse_state.mjs]",
+        "signals: [planning, operator surface]",
+        "---",
+        "",
+        "# Learning: Operator Surface Foundation",
+        "",
+        "**Category:** pattern",
+        "**Severity:** standard",
+        "**Tags:** [operator, surface]",
+        "**Applicable-when:** planning operator surfaces for the current feature",
+      ].join("\n"),
       "utf8",
     );
     fs.writeFileSync(
       path.join(root, ".pulse", "memory", "learnings", "20260301-operator-surface-foundation.md"),
-      "older learning\n",
+      [
+        "---",
+        "date: 2026-03-01",
+        "feature: operator-surface-foundation",
+        "categories: [pattern]",
+        "severity: standard",
+        "tags: [operator, foundation]",
+        "applies_when: reopening operator foundation work",
+        "scope: [history/operator-surface-foundation/CONTEXT.md]",
+        "signals: [foundation, feature]",
+        "---",
+        "",
+        "# Learning: Older Operator Surface Foundation",
+        "",
+        "**Category:** pattern",
+        "**Severity:** standard",
+        "**Tags:** [operator, foundation]",
+        "**Applicable-when:** reopening operator foundation work",
+      ].join("\n"),
       "utf8",
     );
     fs.writeFileSync(
       path.join(root, ".pulse", "memory", "corrections", "20260402-planning-gate.md"),
-      "correction\n",
+      [
+        "---",
+        "date: 2026-04-02",
+        "feature: operator-surface-foundation",
+        "severity: critical",
+        "tags: [planning, gate]",
+        "applies_when: planning gate reviews are about to start",
+        "scope: [plugins/pulse/skills/planning/SKILL.md]",
+        "signals: [planning, gate]",
+        "---",
+        "",
+        "# Correction: Planning Gate",
+      ].join("\n"),
       "utf8",
     );
     fs.writeFileSync(
       path.join(root, ".pulse", "memory", "corrections", "20260302-planning-gate.md"),
-      "older correction\n",
+      [
+        "---",
+        "date: 2026-03-02",
+        "feature: operator-surface-foundation",
+        "severity: standard",
+        "tags: [planning, gate]",
+        "applies_when: planning gate reviews are about to start",
+        "scope: [plugins/pulse/skills/planning/SKILL.md]",
+        "signals: [planning, gate]",
+        "---",
+        "",
+        "# Correction: Older Planning Gate",
+      ].join("\n"),
       "utf8",
     );
     fs.writeFileSync(
       path.join(root, ".pulse", "memory", "ratchet", "20260403-planning-ratchet.md"),
-      "ratchet\n",
+      [
+        "---",
+        "date: 2026-04-03",
+        "feature: operator-surface-foundation",
+        "severity: critical",
+        "tags: [planning, ratchet]",
+        "applies_when: validating planning changes before execution",
+        "scope: [plugins/pulse/skills/validating/SKILL.md]",
+        "signals: [planning, ratchet]",
+        "---",
+        "",
+        "# Ratchet: Planning Ratchet",
+      ].join("\n"),
       "utf8",
     );
     fs.mkdirSync(path.join(root, ".pulse", "checkpoints", "operator-surface-foundation"), {
@@ -374,6 +446,10 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
             phase: "planning/phase-4",
             next_action: "Create remaining task beads",
             summary: "Discovery and approach are complete",
+            status: "ready_to_resume",
+            paused_at: "2026-04-16T10:06:00.000Z",
+            reason: "context_critical",
+            read_first: [".pulse/STATE.md", "history/operator-surface-foundation/CONTEXT.md"],
           },
           {
             owner_id: "worker-blue-lake",
@@ -384,9 +460,41 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
             phase: "execution/phase-4",
             next_action: "Resume bead implementation",
             summary: "Verification is pending after the code change",
+            status: "ready_to_resume",
+            paused_at: "2026-04-16T10:06:30.000Z",
+            reason: "context_critical",
+            read_first: ["AGENTS.md", ".pulse/STATE.md", "history/operator-surface-foundation/CONTEXT.md"],
           },
         ],
       }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.mkdirSync(path.join(root, "history", "operator-surface-foundation"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "history", "operator-surface-foundation", "lifecycle-summary.md"),
+      [
+        "# Lifecycle Summary",
+        "",
+        "## Approved artifacts",
+        "- Context: history/operator-surface-foundation/CONTEXT.md",
+        "- Approach: history/operator-surface-foundation/approach.md",
+        "- Phase plan: history/operator-surface-foundation/phase-plan.md",
+        "",
+        "## Gate outcomes",
+        "- GATE 1: approved",
+        "- GATE 2: approved",
+      ].join("\n"),
+      "utf8",
+    );
+    fs.writeFileSync(path.join(root, "history", "operator-surface-foundation", "CONTEXT.md"), "# Context\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "operator-surface-foundation", "approach.md"), "# Approach\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "operator-surface-foundation", "phase-plan.md"), "# Phase Plan\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "operator-surface-foundation", "phase-4-contract.md"), "# Contract\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "operator-surface-foundation", "phase-4-story-map.md"), "# Story Map\n", "utf8");
+    fs.mkdirSync(path.join(root, "history", "operator-surface-foundation", "verification"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "history", "operator-surface-foundation", "verification", "final-review.md"),
+      "# Final Review\n",
       "utf8",
     );
 
@@ -434,12 +542,12 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
     );
     assert.equal(payload.memory_recall.critical_patterns, ".pulse/memory/critical-patterns.md");
     assert.deepEqual(payload.memory_recall.learnings, [
-      ".pulse/memory/learnings/20260301-operator-surface-foundation.md",
       ".pulse/memory/learnings/20260401-operator-surface-foundation.md",
+      ".pulse/memory/learnings/20260301-operator-surface-foundation.md",
     ]);
     assert.deepEqual(payload.memory_recall.corrections, [
-      ".pulse/memory/corrections/20260302-planning-gate.md",
       ".pulse/memory/corrections/20260402-planning-gate.md",
+      ".pulse/memory/corrections/20260302-planning-gate.md",
     ]);
     assert.deepEqual(payload.memory_recall.ratchet, [
       ".pulse/memory/ratchet/20260403-planning-ratchet.md",
@@ -452,27 +560,27 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
       },
       {
         kind: "correction",
-        path: ".pulse/memory/corrections/20260302-planning-gate.md",
-        reason: "matched phase:planning",
+        path: ".pulse/memory/corrections/20260402-planning-gate.md",
+        reason: "matched feature:operator, feature:surface, feature:foundation, phase-tag:planning, phase:planning, scope:planning, severity:critical",
       },
       {
         kind: "correction",
-        path: ".pulse/memory/corrections/20260402-planning-gate.md",
-        reason: "matched phase:planning",
+        path: ".pulse/memory/corrections/20260302-planning-gate.md",
+        reason: "matched feature:operator, feature:surface, feature:foundation, phase-tag:planning, phase:planning, scope:planning",
       },
       {
         kind: "ratchet",
         path: ".pulse/memory/ratchet/20260403-planning-ratchet.md",
-        reason: "matched phase:planning",
-      },
-      {
-        kind: "learning",
-        path: ".pulse/memory/learnings/20260301-operator-surface-foundation.md",
-        reason: "matched feature:operator, feature:surface, feature:foundation",
+        reason: "matched feature:operator, feature:surface, feature:foundation, phase-tag:planning, phase:planning, severity:critical",
       },
       {
         kind: "learning",
         path: ".pulse/memory/learnings/20260401-operator-surface-foundation.md",
+        reason: "matched feature:operator, feature:surface, feature:foundation, phase-tag:planning, phase:planning",
+      },
+      {
+        kind: "learning",
+        path: ".pulse/memory/learnings/20260301-operator-surface-foundation.md",
         reason: "matched feature:operator, feature:surface, feature:foundation",
       },
     ]);
@@ -488,6 +596,11 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
     assert.ok(payload.next_reads.includes(".pulse/handoffs/manifest.json"));
     assert.ok(payload.next_reads.includes(".pulse/handoffs/planning.json"));
     assert.ok(payload.next_reads.includes("history/operator-surface-foundation/CONTEXT.md"));
+    assert.ok(payload.next_reads.includes("history/operator-surface-foundation/approach.md"));
+    assert.ok(payload.next_reads.includes("history/operator-surface-foundation/phase-plan.md"));
+    assert.ok(payload.next_reads.includes("history/operator-surface-foundation/phase-4-contract.md"));
+    assert.ok(payload.next_reads.includes("history/operator-surface-foundation/phase-4-story-map.md"));
+    assert.ok(payload.next_reads.includes("history/operator-surface-foundation/lifecycle-summary.md"));
     assert.ok(
       payload.next_reads.includes(
         ".pulse/checkpoints/operator-surface-foundation/2026-04-16T10-07-00Z-planning.json",
@@ -495,7 +608,40 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
     );
     assert.ok(payload.next_reads.includes(".pulse/memory/critical-patterns.md"));
     assert.ok(payload.next_reads.includes(".pulse/memory/corrections/20260302-planning-gate.md"));
+    assert.deepEqual(payload.history_lifecycle, {
+      feature: "operator-surface-foundation",
+      exists: true,
+      lifecycle_summary: "history/operator-surface-foundation/lifecycle-summary.md",
+      approved_artifacts: [
+        "history/operator-surface-foundation/CONTEXT.md",
+        "history/operator-surface-foundation/approach.md",
+        "history/operator-surface-foundation/phase-plan.md",
+      ],
+      verification: ["history/operator-surface-foundation/verification/final-review.md"],
+      memory_promotions: [],
+      lifecycle_signals: [
+        "history/operator-surface-foundation/phase-4-contract.md",
+        "history/operator-surface-foundation/phase-4-story-map.md",
+      ],
+      next_reads: [
+        "history/operator-surface-foundation/lifecycle-summary.md",
+        "history/operator-surface-foundation/CONTEXT.md",
+        "history/operator-surface-foundation/approach.md",
+        "history/operator-surface-foundation/phase-plan.md",
+        "history/operator-surface-foundation/phase-4-contract.md",
+        "history/operator-surface-foundation/phase-4-story-map.md",
+        "history/operator-surface-foundation/verification/final-review.md",
+      ],
+      self_sufficient: true,
+    });
+    assert.deepEqual(payload.memory_recall.schema_summary, {
+      selected_entries: 5,
+      strong_schema_entries: 5,
+      metadata_first_ranking: true,
+      fallback_to_filename_tokens: false,
+    });
     assert.ok(payload.recommended_actions.some((item) => item.includes("targeted recall pack")));
+    assert.ok(payload.recommended_actions.some((item) => item.includes("durable audit pass without reopening live runtime state")));
     assert.ok(payload.recommended_actions.some((item) => item.includes("Memory hygiene warning")));
     assert.match(textStdout, /Feature: operator-surface-foundation/);
     assert.match(textStdout, /Operator surface:/);
@@ -504,10 +650,14 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
     assert.match(textStdout, /active_feature: snapshot-feature/);
     assert.match(textStdout, /Checkpoint root: present/);
     assert.match(textStdout, /checkpoint_count: 1/);
+    assert.match(textStdout, /History lifecycle: present/);
+    assert.match(textStdout, /self_sufficient: yes/);
+    assert.match(textStdout, /approved_artifacts: history\/operator-surface-foundation\/CONTEXT.md, history\/operator-surface-foundation\/approach.md, history\/operator-surface-foundation\/phase-plan.md/);
     assert.match(textStdout, /Memory recall root: present/);
     assert.match(textStdout, /critical_patterns: \.pulse\/memory\/critical-patterns\.md/);
     assert.match(textStdout, /recall_pack:/);
     assert.match(textStdout, /critical-patterns: \.pulse\/memory\/critical-patterns\.md \(global planning baseline\)/);
+    assert.match(textStdout, /schema_summary: 5\/5 strong-schema entries selected; metadata_first=yes; filename_fallback=no/);
     assert.match(textStdout, /hygiene_warnings:/);
     assert.match(textStdout, /Possible duplicate learnings: operator-surface-foundation\./);
     assert.match(textStdout, /Active handoffs: 2/);
@@ -539,6 +689,23 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
       "# Context\n",
       "utf8",
     );
+    fs.writeFileSync(
+      path.join(root, "history", "checkpoint-ops", "lifecycle-summary.md"),
+      [
+        "# Lifecycle Summary",
+        "",
+        "## Approved artifacts",
+        "- Context: history/checkpoint-ops/CONTEXT.md",
+        "- Approach: history/checkpoint-ops/approach.md",
+        "- Phase plan: history/checkpoint-ops/phase-plan.md",
+      ].join("\n"),
+      "utf8",
+    );
+    fs.writeFileSync(path.join(root, "history", "checkpoint-ops", "approach.md"), "# Approach\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "checkpoint-ops", "phase-plan.md"), "# Phase Plan\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "checkpoint-ops", "phase-5-contract.md"), "# Contract\n", "utf8");
+    fs.mkdirSync(path.join(root, "history", "checkpoint-ops", "verification"), { recursive: true });
+    fs.writeFileSync(path.join(root, "history", "checkpoint-ops", "verification", "final-review.md"), "# Final Review\n", "utf8");
     fs.mkdirSync(path.join(root, ".pulse", "runs", "checkpoint-ops", "verification"), { recursive: true });
     fs.writeFileSync(
       path.join(root, ".pulse", "current-feature.json"),
@@ -580,6 +747,10 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
             phase: "planning/phase-5",
             next_action: "Review the current phase contract",
             summary: "Planning is complete and validation is queued",
+            status: "ready_to_resume",
+            paused_at: "2026-04-16T11:01:00.000Z",
+            reason: "context_critical",
+            read_first: [".pulse/STATE.md", "history/checkpoint-ops/CONTEXT.md"],
           },
         ],
       }, null, 2)}\n`,
@@ -687,6 +858,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
     assert.equal(saveOne.checkpoint.links.handoff, ".pulse/handoffs/planning.json");
     assert.equal(saveOne.checkpoint.links.runtime_snapshot, ".pulse/runtime-snapshot.json");
     assert.equal(saveOne.checkpoint.links.verification, ".pulse/runs/checkpoint-ops/verification/");
+    assert.equal(saveOne.checkpoint.links.lifecycle_summary, "history/checkpoint-ops/lifecycle-summary.md");
     assert.equal(saveOne.checkpoint.memory_hooks.critical_patterns, ".pulse/memory/critical-patterns.md");
     assert.deepEqual(saveOne.checkpoint.memory_hooks.learnings, [".pulse/memory/learnings/checkpoint-ops.md"]);
     assert.equal(saveTwo.ok, true);
@@ -700,28 +872,36 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
     assert.equal(diffPayload.diff.fields.next_action.changed, true);
     assert.equal(resumePayload.ok, true);
     assert.equal(resumePayload.resume_brief.checkpoint.checkpoint_id, saveTwo.checkpoint.checkpoint_id);
+    assert.equal(resumePayload.resume_brief.lifecycle_summary, "history/checkpoint-ops/lifecycle-summary.md");
+    assert.match(resumePayload.resume_brief.rendered_handoff_summary, /## Handoff Summary/);
+    assert.match(resumePayload.resume_brief.rendered_resume_briefing, /## Resume Briefing/);
+    assert.match(resumePayload.resume_brief.rendered_transfer_block, /PULSE TRANSFER/);
     assert.ok(resumePayload.resume_brief.next_reads.includes(saveTwo.checkpoint.path));
+    assert.ok(resumePayload.resume_brief.next_reads.includes("history/checkpoint-ops/lifecycle-summary.md"));
     assert.equal(
       resumePayload.resume_brief.note,
-      "Checkpoints are advisory snapshots. Current handoffs and state files remain authoritative.",
+      "Checkpoints are advisory snapshots. Current handoffs and state files remain authoritative; use lifecycle-summary.md as the durable audit trail when present.",
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("checkpoint commands prefer active verification paths but fall back to legacy verification paths", () => {
+test("checkpoint commands use active verification paths first and promoted history verification second", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 
   try {
     applyRepo(root, false);
-    fs.mkdirSync(path.join(root, "history", "legacy-verification"), { recursive: true });
-    fs.writeFileSync(path.join(root, "history", "legacy-verification", "CONTEXT.md"), "# Context\n", "utf8");
-    fs.mkdirSync(path.join(root, ".pulse", "verification", "legacy-verification"), { recursive: true });
+    fs.mkdirSync(path.join(root, "history", "promoted-verification", "verification"), { recursive: true });
+    fs.writeFileSync(path.join(root, "history", "promoted-verification", "CONTEXT.md"), "# Context\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "promoted-verification", "approach.md"), "# Approach\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "promoted-verification", "phase-plan.md"), "# Phase Plan\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "promoted-verification", "phase-1-contract.md"), "# Contract\n", "utf8");
+    fs.writeFileSync(path.join(root, "history", "promoted-verification", "lifecycle-summary.md"), "# Lifecycle Summary\n", "utf8");
     fs.writeFileSync(
       path.join(root, ".pulse", "current-feature.json"),
       `${JSON.stringify({
-        feature_key: "legacy-verification",
+        feature_key: "promoted-verification",
         phase: "reviewing",
         gate: "GATE 4",
         status: "active",
@@ -739,7 +919,8 @@ test("checkpoint commands prefer active verification paths but fall back to lega
     );
 
     assert.equal(savePayload.ok, true);
-    assert.equal(savePayload.checkpoint.links.verification, ".pulse/verification/legacy-verification/");
+    assert.equal(savePayload.checkpoint.links.verification, "history/promoted-verification/verification/");
+    assert.equal(savePayload.checkpoint.links.lifecycle_summary, "history/promoted-verification/lifecycle-summary.md");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

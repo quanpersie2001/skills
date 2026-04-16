@@ -80,7 +80,7 @@ Use this mental model when deciding where to read next:
 
 1. **Control plane — `.pulse/`**: live workflow state, routing, handoffs, and active operator surfaces.
 2. **Memory plane — `.pulse/memory/`**: shared root for reusable cross-feature memory, including critical patterns, learnings, corrections, and ratchet artifacts.
-3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, and durable narrative.
+3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, promoted verification, and durable audit narrative.
 
 ## File Conventions
 
@@ -92,7 +92,7 @@ Use this mental model when deciding where to read next:
 .pulse/handoffs/*.json          ← Per-owner pause/resume state
 .pulse/runs/<feature>/verification/ ← Active execution/review evidence for the current feature
 .pulse/memory/                  ← Shared reusable memory root
-history/<feature>/              ← Per-feature artifacts
+history/<feature>/              ← Per-feature artifacts, including lifecycle-summary.md for promoted audit state
 .beads/                         ← Bead files
 .spikes/                        ← Spike verification results
 ```
@@ -525,7 +525,7 @@ pulse:preflight
 
 1. **Control plane — `.pulse/`**: live workflow state, routing mirrors, handoffs, and operator surfaces.
 2. **Memory plane — `.pulse/memory/`**: shared root for reusable cross-feature memory, including critical patterns, learnings, corrections, and ratchet artifacts.
-3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, and durable narrative.
+3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, promoted verification, and durable audit narrative.
 
 ## Working Files
 

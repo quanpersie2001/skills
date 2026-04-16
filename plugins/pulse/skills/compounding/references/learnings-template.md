@@ -17,6 +17,9 @@ feature: <feature-name>
 categories: [pattern, decision, failure]   # include only categories present
 severity: critical | standard              # use "critical" if ANY entry is critical
 tags: [tag1, tag2, tag3]                   # domains covered (e.g., auth, testing, beads)
+applies_when: <specific technical trigger> # shared trigger for the file when relevant
+scope: [path/or/component, optional-second-scope]
+signals: [symptom1, symptom2]
 ---
 ```
 
@@ -57,6 +60,8 @@ additional context.>
 **Embed-in-bead-when:** <one sentence for future planners>
 **Bead hint:** <1-2 sentence summary safe to copy into a bead body if relevant>
 ```
+
+For reliable targeted recall, keep `feature`, `tags`, `applies_when`, `scope`, and `signals` specific enough that the scout can distinguish a true trigger match from a weak filename similarity.
 
 ---
 

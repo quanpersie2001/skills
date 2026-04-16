@@ -267,7 +267,7 @@ Pulse is getting clearer about three artifact planes:
    - `critical-patterns.md`, `learnings/`, `corrections/`, and `ratchet/` live here
    - this is where Pulse should read and write durable shared memory going forward
 3. **Feature record plane — `history/`**
-   - feature-specific decisions, discovery, plans, contracts, story maps, and durable recordkeeping
+   - feature-specific decisions, discovery, plans, contracts, story maps, promoted verification, and durable audit summaries
 
 ## Artifact Map
 
@@ -296,6 +296,8 @@ history/<feature>/
   phase-plan.md              ← whole-feature phase breakdown
   phase-<n>-contract.md      ← phase entry/exit/demo/pivots
   phase-<n>-story-map.md     ← stories → beads mapping
+  lifecycle-summary.md       ← promoted audit summary of key gates/outcomes/follow-up debt
+                            ← see `plugins/pulse/skills/using-pulse/references/history-lifecycle-contract.md`
 
 .beads/                      ← bead files (br managed)
 .spikes/                     ← spike execution results

@@ -53,6 +53,8 @@ Four human gates control progression:
 history/<feature>/verification/      ← promoted durable verification evidence
 history/<feature>/CONTEXT.md         ← exploring output (source of truth for decisions)
 history/<feature>/approach.md        ← planning synthesis
+history/<feature>/lifecycle-summary.md ← promoted audit summary for gates/outcomes/follow-up debt
+                                       ← contract: using-pulse/references/history-lifecycle-contract.md
 .beads/                              ← bead files (planning creates, executing closes)
 .spikes/                             ← spike verification results
 .pulse/memory/                      ← shared reusable memory output

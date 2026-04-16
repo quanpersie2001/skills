@@ -292,6 +292,7 @@ When a worker requests a file another worker holds:
    - holder releases at a safe checkpoint
    - requester waits
    - requester defers and creates a follow-up bead
+3. Before swarm execution begins from a newly approved phase, capture or refresh a feature checkpoint so resume-brief has a stable freeze-frame for recovery.
 3. Log the resolution in `.pulse/STATE.md` using the existing two-name worker entries
 
 ### Silence Ladder
@@ -324,11 +325,17 @@ Every monitoring cycle, also check:
 After each significant event, estimate your own context budget.
 
 **If context >65% used:**
-1. Write `.pulse/handoffs/coordinator.json` with the standard handoff summary/resume briefing/transfer block contract (see `references/message-templates.md` → **Handoff JSON Template**)
-2. Register it in `.pulse/handoffs/manifest.json` using the same `summary`, `next_action`, and path
-3. Broadcast a pause notification on the epic thread that includes the handoff summary, resume briefing, and transfer block highlights
-4. Report to user that the orchestrator paused safely and how to resume
-5. Do NOT abandon the swarm without writing the handoff
+1. Write `.pulse/handoffs/coordinator.json` using the shared handoff envelope from `../using-pulse/references/handoff-contract.md`.
+2. Register it in `.pulse/handoffs/manifest.json` using the same `summary`, `next_action`, and path.
+3. Broadcast a pause notification on the epic thread that includes the rendered handoff summary, resume briefing, and transfer block highlights sourced from that JSON.
+4. If `.pulse/checkpoints/<feature>/...` is in use, capture or refresh the feature checkpoint before leaving the swarm pause boundary.
+5. Report to user that the orchestrator paused safely and how to resume.
+6. Do NOT abandon the swarm without writing the handoff.
+
+The coordinator handoff must follow the same companion contract as planning/executing/validating:
+- `summary` -> short orchestrator handoff headline
+- `next_action` + `read_first` -> resume briefing for the next swarm turn
+- `payload.transfer` -> detailed transfer block for live worker state, blockers, and restart notes
 
 Do not write the retired global handoff file.
 

@@ -641,6 +641,7 @@ function buildCheckpointRecordSummary(record, relativePath) {
       handoff: typeof links.handoff === "string" ? links.handoff : "",
       runtime_snapshot: typeof links.runtime_snapshot === "string" ? links.runtime_snapshot : "",
       verification: typeof links.verification === "string" ? links.verification : "",
+      lifecycle_summary: typeof links.lifecycle_summary === "string" ? links.lifecycle_summary : "",
     },
     memory_hooks: {
       critical_patterns: typeof memoryHooks.critical_patterns === "string"
@@ -758,6 +759,147 @@ function stripDatedMemoryPrefix(fileName) {
   return fileName.toLowerCase().replace(/^\d{8}-/, "");
 }
 
+function parseInlineMetadataArray(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return [];
+  }
+  if (normalized.startsWith("[") && normalized.endsWith("]")) {
+    return normalized
+      .slice(1, -1)
+      .split(",")
+      .map((item) => item.trim().replace(/^['"]|['"]$/g, ""))
+      .filter(Boolean);
+  }
+  return [normalized.replace(/^['"]|['"]$/g, "")].filter(Boolean);
+}
+
+function parseFrontmatterScalar(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.startsWith("[") && normalized.endsWith("]")) {
+    return parseInlineMetadataArray(normalized);
+  }
+  if (normalized === "true") {
+    return true;
+  }
+  if (normalized === "false") {
+    return false;
+  }
+  return normalized.replace(/^['"]|['"]$/g, "");
+}
+
+function parseMetadataFrontmatter(text) {
+  if (!text.startsWith("---\n")) {
+    return {};
+  }
+
+  const lines = text.split("\n");
+  let endIndex = -1;
+  for (let index = 1; index < lines.length; index += 1) {
+    if (lines[index].trim() === "---") {
+      endIndex = index;
+      break;
+    }
+  }
+  if (endIndex === -1) {
+    return {};
+  }
+
+  const parsed = {};
+  let activeArrayKey = "";
+  for (const line of lines.slice(1, endIndex)) {
+    const listMatch = line.match(/^\s*-\s*(.+)$/);
+    if (activeArrayKey && listMatch) {
+      parsed[activeArrayKey].push(parseFrontmatterScalar(listMatch[1]));
+      continue;
+    }
+
+    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!match) {
+      activeArrayKey = "";
+      continue;
+    }
+
+    const key = match[1].toLowerCase();
+    const rawValue = match[2].trim();
+    if (!rawValue) {
+      parsed[key] = [];
+      activeArrayKey = key;
+      continue;
+    }
+
+    parsed[key] = parseFrontmatterScalar(rawValue);
+    activeArrayKey = Array.isArray(parsed[key]) ? key : "";
+  }
+  return parsed;
+}
+
+function extractApplicableWhen(text) {
+  const exactMatch = text.match(/^\*\*Applicable-when:\*\*\s*(.+)$/im);
+  if (exactMatch) {
+    return exactMatch[1].trim();
+  }
+  const fallbackMatch = text.match(/^applicable-when:\s*(.+)$/im);
+  return fallbackMatch ? fallbackMatch[1].trim() : "";
+}
+
+function toMetadataArray(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  return parseInlineMetadataArray(value || "");
+}
+
+function loadRecallEntryMetadata(repoRoot, relativePath) {
+  const absolutePath = path.join(repoRoot, relativePath);
+  const text = fileTextIfExists(absolutePath);
+  const frontmatter = parseMetadataFrontmatter(text);
+  const appliesWhen = firstNonEmptyString(
+    frontmatter.applies_when,
+    frontmatter["applicable-when"],
+    extractApplicableWhen(text),
+  );
+  const scope = toMetadataArray(frontmatter.scope || frontmatter.files || []);
+  const signals = toMetadataArray(frontmatter.signals || frontmatter.triggers || []);
+  const tags = toMetadataArray(frontmatter.tags || []);
+  const feature = firstNonEmptyString(frontmatter.feature);
+  const severity = firstNonEmptyString(frontmatter.severity);
+  const missingFields = [];
+
+  if (!feature) {
+    missingFields.push("feature");
+  }
+  if (tags.length === 0) {
+    missingFields.push("tags");
+  }
+  if (!severity) {
+    missingFields.push("severity");
+  }
+  if (!appliesWhen) {
+    missingFields.push("applies_when");
+  }
+  if (scope.length === 0) {
+    missingFields.push("scope");
+  }
+  if (signals.length === 0) {
+    missingFields.push("signals");
+  }
+
+  return {
+    feature,
+    tags,
+    severity,
+    applies_when: appliesWhen,
+    scope,
+    signals,
+    missing_fields: missingFields,
+    has_metadata: text.startsWith("---\n"),
+  };
+}
+
 function buildRecallSelectionContext(feature, status) {
   return {
     feature_tokens: [...new Set(tokenizeRecallValue(feature))],
@@ -769,38 +911,104 @@ function buildRecallSelectionContext(feature, status) {
   };
 }
 
-function classifyRecallEntry(relativePath, selectionContext) {
-  const fileName = stripDatedMemoryPrefix(path.basename(relativePath, path.extname(relativePath)));
-  const reasons = [];
+function scoreMetadataTokens(tokens, haystacks, reasonPrefix, reasons, pointsPerMatch) {
+  let score = 0;
+  for (const token of tokens || []) {
+    if (!token) {
+      continue;
+    }
+    if (haystacks.some((value) => value.includes(token))) {
+      reasons.push(`${reasonPrefix}:${token}`);
+      score += pointsPerMatch;
+    }
+  }
+  return score;
+}
 
-  for (const token of selectionContext.feature_tokens || []) {
-    if (token && fileName.includes(token)) {
-      reasons.push(`feature:${token}`);
+function scoreExactFieldMatch(tokens, values, reasonPrefix, reasons, pointsPerMatch) {
+  let score = 0;
+  const normalizedValues = (values || []).map((value) => tokenizeRecallValue(value).join(" ")).filter(Boolean);
+  for (const token of tokens || []) {
+    if (!token) {
+      continue;
+    }
+    if (normalizedValues.some((value) => value === token || value.split(" ").includes(token))) {
+      reasons.push(`${reasonPrefix}:${token}`);
+      score += pointsPerMatch;
     }
   }
-  for (const token of selectionContext.phase_tokens || []) {
-    if (token && fileName.includes(token)) {
-      reasons.push(`phase:${token}`);
-    }
+  return score;
+}
+
+function inferRecallSchemaStrength(metadata) {
+  const requiredFields = ["feature", "tags", "severity", "applies_when", "scope", "signals"];
+  const presentCount = requiredFields.filter((field) => {
+    const value = metadata?.[field];
+    return Array.isArray(value) ? value.length > 0 : Boolean(value);
+  }).length;
+  return {
+    required_fields: requiredFields,
+    present_fields: presentCount,
+    is_strong: presentCount === requiredFields.length,
+  };
+}
+
+function classifyRecallEntry(relativePath, selectionContext, repoRoot) {
+  const fileName = stripDatedMemoryPrefix(path.basename(relativePath, path.extname(relativePath)));
+  const metadata = loadRecallEntryMetadata(repoRoot, relativePath);
+  const metadataHaystacks = [
+    metadata.feature,
+    ...metadata.tags,
+    metadata.applies_when,
+    ...metadata.scope,
+    ...metadata.signals,
+  ].flatMap((value) => tokenizeRecallValue(value));
+  const fileNameTokens = tokenizeRecallValue(fileName);
+  const reasons = [];
+  let score = 0;
+
+  score += scoreExactFieldMatch(selectionContext.feature_tokens, [metadata.feature], "feature", reasons, 8);
+  score += scoreMetadataTokens(selectionContext.feature_tokens, metadataHaystacks, "feature", reasons, 6);
+  score += scoreMetadataTokens(selectionContext.phase_tokens, metadata.tags, "phase-tag", reasons, 6);
+  score += scoreMetadataTokens(selectionContext.phase_tokens, [metadata.applies_when], "phase", reasons, 5);
+  score += scoreMetadataTokens(selectionContext.phase_tokens, metadata.scope, "scope", reasons, 4);
+  score += scoreMetadataTokens(selectionContext.blocker_tokens, metadata.signals, "signal", reasons, 7);
+  score += scoreMetadataTokens(selectionContext.blocker_tokens, [metadata.applies_when], "blocker", reasons, 5);
+  score += scoreMetadataTokens(selectionContext.blocker_tokens, metadata.scope, "scope", reasons, 4);
+
+  if (reasons.length === 0) {
+    score += scoreMetadataTokens(selectionContext.feature_tokens, fileNameTokens, "feature", reasons, 2);
+    score += scoreMetadataTokens(selectionContext.phase_tokens, fileNameTokens, "phase", reasons, 1);
+    score += scoreMetadataTokens(selectionContext.blocker_tokens, fileNameTokens, "blocker", reasons, 1);
   }
-  for (const token of selectionContext.blocker_tokens || []) {
-    if (token && fileName.includes(token)) {
-      reasons.push(`blocker:${token}`);
-    }
+
+  if (metadata.severity === "critical") {
+    score += 2;
+    reasons.push("severity:critical");
+  }
+
+  const schemaStrength = inferRecallSchemaStrength(metadata);
+  if (schemaStrength.is_strong) {
+    score += 2;
   }
 
   return {
     path: relativePath,
     reasons: [...new Set(reasons)],
+    score,
+    metadata: {
+      ...metadata,
+      schema_strength: schemaStrength,
+    },
   };
 }
 
-function pickRelevantRecallEntries(pathsList, selectionContext) {
+function pickRelevantRecallEntries(pathsList, selectionContext, repoRoot) {
   const matched = [];
   const fallback = [];
 
   for (const relativePath of pathsList) {
-    const entry = classifyRecallEntry(relativePath, selectionContext);
+    const entry = classifyRecallEntry(relativePath, selectionContext, repoRoot);
     if (entry.reasons.length > 0) {
       matched.push(entry);
     } else {
@@ -808,7 +1016,14 @@ function pickRelevantRecallEntries(pathsList, selectionContext) {
     }
   }
 
-  return matched.length > 0 ? matched.slice(0, 3) : fallback.slice(0, 3);
+  const sortEntries = (entries) => entries.sort((left, right) => {
+    if (right.score !== left.score) {
+      return right.score - left.score;
+    }
+    return left.path.localeCompare(right.path);
+  });
+
+  return matched.length > 0 ? sortEntries(matched).slice(0, 3) : sortEntries(fallback).slice(0, 3);
 }
 
 function getFileSizeSafe(filePath) {
@@ -857,6 +1072,20 @@ function buildMemoryHygiene(paths, selectedRecall, allRecallPaths) {
   const duplicateCorrections = collectDuplicateMemorySlugs(allRecallPaths.corrections);
   if (duplicateCorrections.length > 0) {
     warnings.push(`Possible duplicate corrections: ${duplicateCorrections.join(", ")}.`);
+  }
+
+  const missingMetadataWarnings = [
+    ...selectedRecall.learnings,
+    ...selectedRecall.corrections,
+    ...selectedRecall.ratchet,
+  ].flatMap((entry) => {
+    const missingFields = Array.isArray(entry.metadata?.missing_fields) ? entry.metadata.missing_fields : [];
+    return missingFields.length > 0
+      ? [`${entry.path} missing metadata: ${missingFields.join(", ")}`]
+      : [];
+  });
+  if (missingMetadataWarnings.length > 0) {
+    warnings.push(`Selected memory entries need stronger metadata: ${missingMetadataWarnings.join("; ")}.`);
   }
 
   const staleEntries = [
@@ -930,16 +1159,24 @@ function buildRecallPack(criticalPatternsPath, selectedRecall) {
 function summarizeMemoryRecall(paths, feature, status) {
   const memoryRootExists = fs.existsSync(paths.memoryRoot);
   const criticalPatternsExists = fs.existsSync(paths.criticalPatterns);
+  const repoRoot = path.dirname(paths.agents);
   const learnings = listDirectoryFiles(paths.memoryLearnings).map((fileName) => path.join(".pulse", "memory", "learnings", fileName));
   const corrections = listDirectoryFiles(paths.memoryCorrections).map((fileName) => path.join(".pulse", "memory", "corrections", fileName));
   const ratchet = listDirectoryFiles(paths.memoryRatchet).map((fileName) => path.join(".pulse", "memory", "ratchet", fileName));
   const selectionContext = buildRecallSelectionContext(feature, status);
   const selectedRecall = {
-    learnings: pickRelevantRecallEntries(learnings, selectionContext),
-    corrections: pickRelevantRecallEntries(corrections, selectionContext),
-    ratchet: pickRelevantRecallEntries(ratchet, selectionContext),
+    learnings: pickRelevantRecallEntries(learnings, selectionContext, repoRoot),
+    corrections: pickRelevantRecallEntries(corrections, selectionContext, repoRoot),
+    ratchet: pickRelevantRecallEntries(ratchet, selectionContext, repoRoot),
   };
   const criticalPatternsPath = criticalPatternsExists ? ".pulse/memory/critical-patterns.md" : "";
+
+  const selectedEntries = [
+    ...selectedRecall.learnings,
+    ...selectedRecall.corrections,
+    ...selectedRecall.ratchet,
+  ];
+  const strongSchemaCount = selectedEntries.filter((entry) => entry.metadata?.schema_strength?.is_strong).length;
 
   return {
     root_exists: memoryRootExists,
@@ -949,6 +1186,12 @@ function summarizeMemoryRecall(paths, feature, status) {
     ratchet: selectedRecall.ratchet.map((entry) => entry.path),
     selection_context: selectionContext,
     recall_pack: buildRecallPack(criticalPatternsPath, selectedRecall),
+    schema_summary: {
+      selected_entries: selectedEntries.length,
+      strong_schema_entries: strongSchemaCount,
+      metadata_first_ranking: true,
+      fallback_to_filename_tokens: selectedEntries.some((entry) => entry.reasons.length === 0),
+    },
     hygiene: buildMemoryHygiene(paths, selectedRecall, { learnings, corrections, ratchet }),
   };
 }
@@ -1011,13 +1254,107 @@ function inferCheckpointNextAction(status) {
   return "Review current state before continuing.";
 }
 
+function listHistoryFeatureFiles(repoRoot, feature) {
+  const historyDir = path.join(repoRoot, "history", feature);
+  if (!fs.existsSync(historyDir)) {
+    return [];
+  }
+
+  const queue = [historyDir];
+  const files = [];
+  while (queue.length > 0) {
+    const currentDir = queue.shift();
+    let entries = [];
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const absolutePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(absolutePath);
+        continue;
+      }
+      const relativePath = path.relative(repoRoot, absolutePath).split(path.sep).join("/");
+      files.push(relativePath);
+    }
+  }
+
+  return files.sort((left, right) => left.localeCompare(right));
+}
+
+function summarizeHistoryLifecycle(repoRoot, feature) {
+  const summary = {
+    feature,
+    exists: false,
+    lifecycle_summary: "",
+    approved_artifacts: [],
+    verification: [],
+    memory_promotions: [],
+    lifecycle_signals: [],
+    next_reads: [],
+    self_sufficient: false,
+  };
+
+  if (!feature) {
+    return summary;
+  }
+
+  const historyFiles = listHistoryFeatureFiles(repoRoot, feature);
+  if (historyFiles.length === 0) {
+    return summary;
+  }
+
+  summary.exists = true;
+  const lifecycleSummaryPath = `history/${feature}/lifecycle-summary.md`;
+  if (historyFiles.includes(lifecycleSummaryPath)) {
+    summary.lifecycle_summary = lifecycleSummaryPath;
+  }
+
+  const approvedArtifacts = [
+    `history/${feature}/CONTEXT.md`,
+    `history/${feature}/approach.md`,
+    `history/${feature}/phase-plan.md`,
+  ].filter((item) => historyFiles.includes(item));
+  summary.approved_artifacts = approvedArtifacts;
+
+  const lifecycleSignals = historyFiles.filter((item) => /phase-\d+-(contract|story-map)\.md$/u.test(item));
+  summary.lifecycle_signals = lifecycleSignals;
+
+  summary.verification = historyFiles.filter((item) => item.startsWith(`history/${feature}/verification/`));
+  summary.memory_promotions = [
+    ...historyFiles.filter((item) => item.startsWith(`history/${feature}/memory/`)),
+    ...historyFiles.filter((item) => item.endsWith("lifecycle-summary.md") && item !== lifecycleSummaryPath),
+  ];
+
+  summary.self_sufficient = Boolean(
+    summary.lifecycle_summary
+    && approvedArtifacts.length >= 3
+    && lifecycleSignals.length > 0
+    && summary.verification.length > 0,
+  );
+
+  summary.next_reads = [...new Set([
+    summary.lifecycle_summary,
+    ...approvedArtifacts,
+    ...lifecycleSignals.slice(0, 4),
+    ...summary.verification.slice(0, 4),
+  ].filter(Boolean))];
+
+  return summary;
+}
+
 function inferCheckpointLinks(paths, status, feature, repoRoot) {
   const links = {
     context: "",
     handoff: "",
     runtime_snapshot: "",
     verification: "",
+    lifecycle_summary: "",
   };
+  const historyLifecycle = summarizeHistoryLifecycle(repoRoot, feature);
 
   if (feature) {
     const contextPath = path.join(repoRoot, "history", feature, "CONTEXT.md");
@@ -1025,13 +1362,17 @@ function inferCheckpointLinks(paths, status, feature, repoRoot) {
       links.context = `history/${feature}/CONTEXT.md`;
     }
 
+    if (historyLifecycle.lifecycle_summary) {
+      links.lifecycle_summary = historyLifecycle.lifecycle_summary;
+    }
+
     const activeVerificationPath = path.join(repoRoot, ".pulse", "runs", feature, "verification");
     if (fs.existsSync(activeVerificationPath)) {
       links.verification = `.pulse/runs/${feature}/verification/`;
     } else {
-      const legacyVerificationPath = path.join(repoRoot, ".pulse", "verification", feature);
-      if (fs.existsSync(legacyVerificationPath)) {
-        links.verification = `.pulse/verification/${feature}/`;
+      const promotedVerificationPath = path.join(repoRoot, "history", feature, "verification");
+      if (fs.existsSync(promotedVerificationPath)) {
+        links.verification = `history/${feature}/verification/`;
       }
     }
   }
@@ -1118,6 +1459,9 @@ function buildCheckpointRecordFromStatus(paths, status, options = {}) {
           ? normalizeSelector(links.runtime_snapshot)
           : "",
         verification: typeof links.verification === "string" ? normalizeSelector(links.verification) : "",
+        lifecycle_summary: typeof links.lifecycle_summary === "string"
+          ? normalizeSelector(links.lifecycle_summary)
+          : "",
       },
       blockers,
       memory_hooks: {
@@ -1163,6 +1507,10 @@ function buildNextReads(status) {
     reads.push(`history/${feature}/CONTEXT.md`);
   }
 
+  for (const item of status.history_lifecycle?.next_reads || []) {
+    reads.push(item);
+  }
+
   if (status.checkpoints?.latest?.path) {
     reads.push(status.checkpoints.latest.path);
   }
@@ -1195,8 +1543,16 @@ function buildRecommendedActions(status) {
     const actions = [
       "Surface the active handoffs to the user before resuming.",
       "Read the chosen handoff path, then reopen the active feature context.",
+      "Use the generated handoff summary, resume briefing, and transfer block instead of ad hoc prose when presenting a resume path.",
     ];
 
+    if (status.history_lifecycle?.exists) {
+      actions.push(
+        status.history_lifecycle.self_sufficient
+          ? "History plane has enough promoted lifecycle evidence for a durable audit pass without reopening live runtime state."
+          : "History plane already exposes a promoted lifecycle trail, but live control state is still authoritative for resume and in-flight work.",
+      );
+    }
     if (status.checkpoints?.latest?.path) {
       actions.push("Use the latest checkpoint as an advisory resume brief, not as a replacement for the active handoff.");
     }
@@ -1229,6 +1585,13 @@ function buildRecommendedActions(status) {
     "If work is resuming, reopen the active feature context before planning or execution.",
   ];
 
+  if (status.history_lifecycle?.exists) {
+    actions.push(
+      status.history_lifecycle.self_sufficient
+        ? "History plane has enough promoted lifecycle evidence for a durable audit pass without reopening live runtime state."
+        : "History plane already exposes a promoted lifecycle trail, but live control state is still authoritative for resume and in-flight work.",
+    );
+  }
   if (status.checkpoints?.latest?.path) {
     actions.push("Use the latest checkpoint for a quick resume brief or diff, but treat current state and handoffs as authoritative.");
   }
@@ -1314,6 +1677,60 @@ function summarizeRuntimeSnapshot(runtimeSnapshot) {
   };
 }
 
+function renderHandoffSummary(entry) {
+  const readFirst = Array.isArray(entry.read_first) ? entry.read_first.filter(Boolean) : [];
+  return [
+    "## Handoff Summary",
+    `- Owner: ${entry.owner_id || "(unknown)"}`,
+    `- Skill: ${entry.skill || "(unknown)"}`,
+    `- Feature: ${entry.feature || "(none)"}`,
+    `- Phase: ${entry.phase || "(none)"}`,
+    `- Status: ${entry.status || "ready_to_resume"}`,
+    `- Paused at: ${entry.paused_at || "(unknown)"}`,
+    `- Reason: ${entry.reason || "(unspecified)"}`,
+    `- Next action: ${entry.next_action || "(none)"}`,
+    "- Read first:",
+    ...(readFirst.length > 0 ? readFirst.map((item) => `  - ${item}`) : ["  - (none)"]),
+    `- Summary: ${entry.summary || "(none)"}`,
+  ].join("\n");
+}
+
+function renderResumeBriefing(entry) {
+  const readFirst = Array.isArray(entry.read_first) ? entry.read_first.filter(Boolean) : [];
+  return [
+    "## Resume Briefing",
+    `- Resuming: ${entry.owner_id || "(unknown)"} via ${entry.skill || "(unknown)"}`,
+    `- Feature: ${entry.feature || "(none)"}`,
+    `- Phase: ${entry.phase || "(none)"}`,
+    `- Current state: ${entry.summary || "(none)"}`,
+    `- Next action: ${entry.next_action || "(none)"}`,
+    "- Required reads:",
+    ...(readFirst.length > 0 ? readFirst.map((item) => `  - ${item}`) : ["  - (none)"]),
+    "- Resume check: wait for explicit user confirmation before continuing.",
+  ].join("\n");
+}
+
+function renderTransferBlock(entry) {
+  const readFirst = Array.isArray(entry.read_first) ? entry.read_first.filter(Boolean).join(" | ") : "";
+  return [
+    "```text",
+    "PULSE TRANSFER",
+    `owner=${entry.owner_id || ""}`,
+    `skill=${entry.skill || ""}`,
+    `feature=${entry.feature || ""}`,
+    `phase=${entry.phase || ""}`,
+    `status=${entry.status || "ready_to_resume"}`,
+    `paused_at=${entry.paused_at || ""}`,
+    `reason=${entry.reason || ""}`,
+    `next_action=${entry.next_action || ""}`,
+    `read_first=${readFirst}`,
+    `summary=${entry.summary || ""}`,
+    `handoff_path=${entry.path || ""}`,
+    "manifest_path=.pulse/handoffs/manifest.json",
+    "```",
+  ].join("\n");
+}
+
 function summarizeActiveHandoffEntry(entry) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
     return null;
@@ -1327,8 +1744,12 @@ function summarizeActiveHandoffEntry(entry) {
   const nextAction = typeof entry.next_action === "string" ? entry.next_action : "";
   const summary = typeof entry.summary === "string" ? entry.summary : "";
   const handoffPath = typeof entry.path === "string" ? entry.path : "";
+  const status = typeof entry.status === "string" ? entry.status : "ready_to_resume";
+  const pausedAt = typeof entry.paused_at === "string" ? entry.paused_at : "";
+  const reason = typeof entry.reason === "string" ? entry.reason : "";
+  const readFirst = Array.isArray(entry.read_first) ? entry.read_first.filter(Boolean) : [];
 
-  return {
+  const normalizedEntry = {
     owner_id: ownerId,
     owner_type: ownerType,
     skill,
@@ -1337,6 +1758,17 @@ function summarizeActiveHandoffEntry(entry) {
     next_action: nextAction,
     summary,
     path: handoffPath,
+    status,
+    paused_at: pausedAt,
+    reason,
+    read_first: readFirst,
+  };
+
+  return {
+    ...normalizedEntry,
+    handoff_summary: renderHandoffSummary(normalizedEntry),
+    resume_briefing: renderResumeBriefing(normalizedEntry),
+    transfer_block: renderTransferBlock(normalizedEntry),
     operator_summary: [
       ownerId || "(unknown owner)",
       skill ? `via ${skill}` : "",
@@ -1392,6 +1824,7 @@ export async function readPulseStatus(repoRoot) {
     state_markdown: stateMarkdownSummary,
   });
   const checkpoints = summarizeCheckpointFeature(paths, derivedFeature);
+  const historyLifecycle = summarizeHistoryLifecycle(repoRoot, derivedFeature);
 
   const status = {
     repo_root: repoRoot,
@@ -1416,6 +1849,7 @@ export async function readPulseStatus(repoRoot) {
     runtime_snapshot: runtimeSnapshotSummary,
     handoff_manifest: handoffManifestSummary,
     checkpoints,
+    history_lifecycle: historyLifecycle,
     critical_patterns_exists: fs.existsSync(paths.criticalPatterns),
     dependency_health: dependencyHealth,
     gkg_readiness: gkgReadiness,
@@ -1615,6 +2049,10 @@ export async function checkpointResumeBrief(repoRoot, options = {}) {
     };
   }
 
+  const authoritativeHandoff = Array.isArray(status.handoff_manifest.active)
+    ? status.handoff_manifest.active.find((entry) => entry.feature === feature) || status.handoff_manifest.active[0] || null
+    : null;
+
   return {
     ok: true,
     operation: "resume-brief",
@@ -1627,11 +2065,16 @@ export async function checkpointResumeBrief(repoRoot, options = {}) {
       current_runtime: status.runtime_snapshot,
       current_feature: status.current_feature,
       memory_recall: status.memory_recall,
+      lifecycle_summary: checkpoint.links?.lifecycle_summary || "",
+      rendered_handoff_summary: authoritativeHandoff?.handoff_summary || "",
+      rendered_resume_briefing: authoritativeHandoff?.resume_briefing || "",
+      rendered_transfer_block: authoritativeHandoff?.transfer_block || "",
       next_reads: [...new Set([
         checkpoint.path,
+        checkpoint.links?.lifecycle_summary || "",
         ...status.next_reads,
-      ])],
-      note: "Checkpoints are advisory snapshots. Current handoffs and state files remain authoritative.",
+      ].filter(Boolean))],
+      note: "Checkpoints are advisory snapshots. Current handoffs and state files remain authoritative; use lifecycle-summary.md as the durable audit trail when present.",
     },
   };
 }
@@ -1761,6 +2204,18 @@ function renderOperatorSurfaceLines(status) {
   const checkpoints = status.checkpoints && typeof status.checkpoints === "object"
     ? status.checkpoints
     : { root_exists: false, count: 0, latest: null };
+  const historyLifecycle = status.history_lifecycle && typeof status.history_lifecycle === "object"
+    ? status.history_lifecycle
+    : {
+        exists: false,
+        lifecycle_summary: "",
+        approved_artifacts: [],
+        verification: [],
+        memory_promotions: [],
+        lifecycle_signals: [],
+        next_reads: [],
+        self_sufficient: false,
+      };
   const memoryRecall = status.memory_recall && typeof status.memory_recall === "object"
     ? status.memory_recall
     : {
@@ -1770,6 +2225,7 @@ function renderOperatorSurfaceLines(status) {
         corrections: [],
         ratchet: [],
         recall_pack: [],
+        schema_summary: null,
         hygiene: { warnings: [] },
       };
 
@@ -1815,6 +2271,21 @@ function renderOperatorSurfaceLines(status) {
     }
   }
 
+  lines.push(`- History lifecycle: ${historyLifecycle.exists ? "present" : "missing"}`);
+  if (historyLifecycle.exists) {
+    lines.push(`  - lifecycle_summary: ${historyLifecycle.lifecycle_summary || "(none)"}`);
+    lines.push(`  - self_sufficient: ${historyLifecycle.self_sufficient ? "yes" : "no"}`);
+    if ((historyLifecycle.approved_artifacts || []).length > 0) {
+      lines.push(`  - approved_artifacts: ${historyLifecycle.approved_artifacts.join(", ")}`);
+    }
+    if ((historyLifecycle.lifecycle_signals || []).length > 0) {
+      lines.push(`  - lifecycle_signals: ${historyLifecycle.lifecycle_signals.join(", ")}`);
+    }
+    if ((historyLifecycle.verification || []).length > 0) {
+      lines.push(`  - promoted_verification: ${historyLifecycle.verification.join(", ")}`);
+    }
+  }
+
   lines.push(`- Memory recall root: ${memoryRecall.root_exists ? "present" : "missing"}`);
   if (memoryRecall.critical_patterns) {
     lines.push(`  - critical_patterns: ${memoryRecall.critical_patterns}`);
@@ -1833,6 +2304,11 @@ function renderOperatorSurfaceLines(status) {
     for (const entry of memoryRecall.recall_pack) {
       lines.push(`    - ${entry.kind}: ${entry.path} (${entry.reason})`);
     }
+  }
+  if (memoryRecall.schema_summary) {
+    lines.push(
+      `  - schema_summary: ${memoryRecall.schema_summary.strong_schema_entries || 0}/${memoryRecall.schema_summary.selected_entries || 0} strong-schema entries selected; metadata_first=${memoryRecall.schema_summary.metadata_first_ranking ? "yes" : "no"}; filename_fallback=${memoryRecall.schema_summary.fallback_to_filename_tokens ? "yes" : "no"}`,
+    );
   }
   if ((memoryRecall.hygiene?.warnings || []).length > 0) {
     lines.push("  - hygiene_warnings:");
