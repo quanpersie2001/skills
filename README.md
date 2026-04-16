@@ -1,14 +1,24 @@
 <div align="center">
 
+<img src="logos/logo-combination.svg" alt="Pulse logo" width="420" />
+
 # Pulse
 
-**A validate-first agentic delivery system for Claude Code and Codex**
+<p><strong>A gated delivery chain system for Claude Code and Codex</strong></p>
 
-[![Version](https://img.shields.io/badge/version-2.6.0-0F766E?style=flat-square)](plugins/pulse/.codex-plugin/plugin.json)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](docs/legal/terms.md)
-[![Skills](https://img.shields.io/badge/skills-20-8B5CF6?style=flat-square)](plugins/pulse/skills)
+<p>
+  <a href="plugins/pulse/.codex-plugin/plugin.json">
+    <img alt="Version" src="https://img.shields.io/badge/version-3.0.0-0F766E?style=flat-square" />
+  </a>
+  <a href="docs/legal/terms.md">
+    <img alt="License" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
+  </a>
+  <a href="plugins/pulse/skills">
+    <img alt="Skills" src="https://img.shields.io/badge/skills-20-8B5CF6?style=flat-square" />
+  </a>
+</p>
 
-*Stop agents from hallucinating requirements, skipping verification, and producing unauditable work.*
+<p><em>Stop agents from hallucinating requirements, skipping verification, and producing unauditable work.</em></p>
 
 </div>
 
