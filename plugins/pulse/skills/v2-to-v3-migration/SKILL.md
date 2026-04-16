@@ -74,7 +74,34 @@ The payload also surfaces:
 2. Read the `legacy_signals` and `actions`.
 3. If `requires_confirmation = true`, explain that Pulse will preserve the existing unmanaged compact prompt unless the user explicitly approves replacement.
 4. Ask before running `--apply`.
-5. After apply, re-run the check or continue via `pulse:using-pulse`.
+5. After apply, inspect `details.onboarding_apply.managed_assets.migration_summary.normalization_queue`.
+6. If the queue contains migrated learning memory or critical patterns, do a second pass in the skill: reread each queued source/destination pair and rewrite the destination into the canonical v3 contract.
+7. If semantic normalization is skipped, invalid, or cannot preserve the source facts, keep the fallback file written by the script instead of failing the migration.
+8. Re-run the check or continue via `pulse:using-pulse`.
+
+## Post-apply normalization contract
+
+The script owns safe file movement, provenance, conflict handling, and deterministic fallback formatting. The skill owns semantic normalization after the script finishes.
+
+Use the queue, not a fresh repo-wide scan:
+- `normalization_queue.learning_memory[]`
+- `normalization_queue.critical_patterns[]`
+
+Each queue entry includes bounded rewrite inputs:
+- `source_path`
+- `destination_path`
+- `source_hash`
+- `target_kind`
+- `destination_contains_fallback`
+
+Normalization rules:
+- preserve the source facts; do not invent incidents, scope, signals, or severity
+- rewrite migrated memory entries into the current v3 templates under `.pulse/memory/learnings/`, `.pulse/memory/corrections/`, and `.pulse/memory/ratchet/`
+- rewrite migrated critical patterns into `.pulse/memory/critical-patterns.md` as clean canonical entries
+- keep provenance markers intact or replace them with an equivalent marker that still records source path, hash, and semantic-normalized status
+- if the rewrite fails validation or loses source meaning, restore or keep the fallback output
+
+Do not hardwire a provider-specific API client into the migration script. This skill-level pass should be done by prompting the model after the script run.
 
 ## Handoff to the rest of Pulse
 

@@ -46,11 +46,9 @@ const LEGACY_LEARNING_ROOTS = [
   ["history", "learnings"],
 ];
 const LEGACY_LEARNING_DIRECTORIES = ["learnings", "learning", "corrections", "ratchet"];
-const LEGACY_VERIFICATION_RUN_ROOTS = [
-  [".pulse", "runs"],
-  [".pulse", "run"],
+const LEGACY_VERIFICATION_ROOTS = [
+  [".pulse", "verification"],
 ];
-const LEGACY_VERIFICATION_DIR_NAMES = ["verification", "verifications"];
 
 export function getNodeRuntimeStatus(version = process.versions.node) {
   const major = Number.parseInt(String(version).split(".")[0] || "0", 10);
@@ -658,6 +656,31 @@ function buildLegacyAppliesWhen(type, feature, title) {
   return `Work overlaps ${feature} or the scenario captured in ${title}.`;
 }
 
+function buildMigrationMarker({ sourceRelativePath, sourceHash, migrationMode = "fallback" }) {
+  return `<!-- pulse-migrated-source: ${sourceRelativePath} sha256:${sourceHash} mode:${migrationMode} -->`;
+}
+
+function buildNormalizationQueueEntry({
+  targetKind,
+  sourceRelativePath,
+  destinationRelativePath,
+  sourceHash,
+  title,
+  feature,
+  migrationMode = "fallback",
+}) {
+  return {
+    target_kind: targetKind,
+    source_path: sourceRelativePath,
+    destination_path: destinationRelativePath,
+    source_hash: sourceHash,
+    title,
+    feature,
+    migration_mode: migrationMode,
+    destination_contains_fallback: migrationMode === "fallback",
+  };
+}
+
 function buildLegacyNormalizedDocument({
   type,
   date,
@@ -671,8 +694,13 @@ function buildLegacyNormalizedDocument({
   sourceRelativePath,
   sourceHash,
   legacyBody,
+  migrationMode = "fallback",
 }) {
-  const migrationMarker = `<!-- pulse-migrated-source: ${sourceRelativePath} sha256:${sourceHash} -->`;
+  const migrationMarker = buildMigrationMarker({
+    sourceRelativePath,
+    sourceHash,
+    migrationMode,
+  });
   const sharedFrontmatter = [
     "---",
     `date: ${date}`,
@@ -682,6 +710,9 @@ function buildLegacyNormalizedDocument({
     `applies_when: ${formatYamlScalar(appliesWhen)}`,
     `scope: ${formatYamlArray(scope)}`,
     `signals: ${formatYamlArray(signals)}`,
+    `migration_mode: ${migrationMode}`,
+    `legacy_source_path: ${formatYamlScalar(sourceRelativePath)}`,
+    `legacy_source_hash: ${sourceHash}`,
   ];
 
   const safeTitle = title || "Legacy Note";
@@ -884,28 +915,25 @@ function findLegacyCriticalPatternsPath(repoRoot) {
 function collectLegacyVerificationArtifacts(repoRoot) {
   const features = [];
 
-  for (const runRootSegments of LEGACY_VERIFICATION_RUN_ROOTS) {
-    const runsRoot = path.join(repoRoot, ...runRootSegments);
-    if (!fs.existsSync(runsRoot)) {
+  for (const rootSegments of LEGACY_VERIFICATION_ROOTS) {
+    const verificationBaseRoot = path.join(repoRoot, ...rootSegments);
+    if (!fs.existsSync(verificationBaseRoot)) {
       continue;
     }
 
-    for (const entry of fs.readdirSync(runsRoot, { withFileTypes: true }).filter((item) => item.isDirectory())) {
+    for (const entry of fs.readdirSync(verificationBaseRoot, { withFileTypes: true }).filter((item) => item.isDirectory())) {
       const featureKey = entry.name;
-      for (const verificationDirName of LEGACY_VERIFICATION_DIR_NAMES) {
-        const verificationRoot = path.join(runsRoot, featureKey, verificationDirName);
-        const files = collectFilesRecursively(verificationRoot);
-        if (files.length === 0) {
-          continue;
-        }
-        features.push({
-          featureKey,
-          verificationRoot,
-          runRoot: runsRoot,
-          verificationDirName,
-          files,
-        });
+      const verificationRoot = path.join(verificationBaseRoot, featureKey);
+      const files = collectFilesRecursively(verificationRoot);
+      if (files.length === 0) {
+        continue;
       }
+      features.push({
+        featureKey,
+        verificationRoot,
+        verificationBaseRoot,
+        files,
+      });
     }
   }
 
@@ -955,6 +983,7 @@ function migrateLegacyLearningMemory(repoRoot) {
     },
     conflicts: [],
     outputs: [],
+    normalization_queue: [],
   };
 
   for (const sourcePath of sources) {
@@ -1008,6 +1037,7 @@ function migrateLegacyLearningMemory(repoRoot) {
       sourceRelativePath,
       sourceHash,
       legacyBody: body,
+      migrationMode: "fallback",
     });
 
     if (existingPath) {
@@ -1032,7 +1062,17 @@ function migrateLegacyLearningMemory(repoRoot) {
     }
     result.migrated_files += 1;
     result.normalized_counts[type] += 1;
-    result.outputs.push(toPosixRelative(repoRoot, targetPath));
+    const outputRelativePath = toPosixRelative(repoRoot, targetPath);
+    result.outputs.push(outputRelativePath);
+    result.normalization_queue.push(buildNormalizationQueueEntry({
+      targetKind: type === "learning" ? "learning_memory" : type,
+      sourceRelativePath,
+      destinationRelativePath: outputRelativePath,
+      sourceHash,
+      title,
+      feature,
+      migrationMode: "fallback",
+    }));
   }
 
   return result;
@@ -1066,13 +1106,16 @@ function mergeLegacyCriticalPatterns(repoRoot) {
     source_exists: Boolean(sourcePath),
     appended_entries: 0,
     skipped_entries: 0,
+    normalization_queue: [],
   };
 
   if (!result.source_exists) {
     return result;
   }
 
-  const sourceEntries = parseCriticalPatternEntries(fs.readFileSync(sourcePath, "utf8"));
+  const sourceText = fs.readFileSync(sourcePath, "utf8");
+  const sourceHash = createHash("sha256").update(sourceText).digest("hex");
+  const sourceEntries = parseCriticalPatternEntries(sourceText);
   const existingText = readTextIfExists(targetPath);
   const existingEntries = parseCriticalPatternEntries(existingText);
   const existingTitles = new Set(existingEntries.map((entry) => entry.title.toLowerCase()));
@@ -1094,9 +1137,15 @@ function mergeLegacyCriticalPatterns(repoRoot) {
     return result;
   }
 
-  const nextText = existingText.trim()
+  const migrationMarker = buildMigrationMarker({
+    sourceRelativePath: toPosixRelative(repoRoot, sourcePath),
+    sourceHash,
+    migrationMode: "fallback",
+  });
+  const nextTextBody = existingText.trim()
     ? `${existingText.replace(/\s*$/, "")}\n\n${additions.join("\n\n")}`
-    : `${additions.join("\n\n")}\n`;
+    : additions.join("\n\n");
+  const nextText = `${migrationMarker}\n\n${nextTextBody}`;
   ensureParent(targetPath);
   fs.writeFileSync(targetPath, `${nextText.replace(/\s*$/, "")}\n`, "utf8");
   fs.rmSync(sourcePath, { force: true });
@@ -1106,6 +1155,15 @@ function mergeLegacyCriticalPatterns(repoRoot) {
     removeEmptyParents(path.dirname(sourcePath), sourceRoot);
   }
   result.appended_entries = additions.length;
+  result.normalization_queue.push(buildNormalizationQueueEntry({
+    targetKind: "critical_patterns",
+    sourceRelativePath: toPosixRelative(repoRoot, sourcePath),
+    destinationRelativePath: toPosixRelative(repoRoot, targetPath),
+    sourceHash,
+    title: sourceEntries[0]?.title || "critical-patterns",
+    feature: sourceEntries[0]?.title || "legacy-critical-patterns",
+    migrationMode: "fallback",
+  }));
   return result;
 }
 
@@ -1145,7 +1203,7 @@ function migrateLegacyVerificationArtifacts(repoRoot) {
       fs.rmSync(sourcePath, { force: true });
     }
 
-    removeEmptyParents(feature.verificationRoot, feature.runRoot);
+    removeEmptyParents(feature.verificationRoot, feature.verificationBaseRoot);
   }
 
   return result;
@@ -1409,6 +1467,13 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
         conflicts_skipped: migrationConflicts,
         outputs: {
           learning_memory: legacyLearningMigration.outputs,
+          critical_patterns: legacyCriticalPatternsMigration.appended_entries > 0
+            ? [path.join(".pulse", "memory", "critical-patterns.md").split(path.sep).join("/")]
+            : [],
+        },
+        normalization_queue: {
+          learning_memory: legacyLearningMigration.normalization_queue,
+          critical_patterns: legacyCriticalPatternsMigration.normalization_queue,
         },
       },
     },

@@ -948,9 +948,9 @@ test("applyRepo migrates legacy verification into canonical history while preser
   try {
     applyRepo(root, false);
 
-    fs.mkdirSync(path.join(root, ".pulse", "runs", "legacy-only", "verification"), { recursive: true });
+    fs.mkdirSync(path.join(root, ".pulse", "verification", "legacy-only"), { recursive: true });
     fs.writeFileSync(
-      path.join(root, ".pulse", "runs", "legacy-only", "verification", "final-review.md"),
+      path.join(root, ".pulse", "verification", "legacy-only", "final-review.md"),
       "# Final Review\nlegacy only\n",
       "utf8",
     );

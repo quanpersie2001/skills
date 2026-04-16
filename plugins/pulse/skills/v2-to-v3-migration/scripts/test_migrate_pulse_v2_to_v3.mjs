@@ -16,7 +16,7 @@ import {
 
 const MIGRATION_SCRIPT_PATH = fileURLToPath(new URL("./migrate_pulse_v2_to_v3.mjs", import.meta.url));
 
-function createLegacyPulseRepo({ usePluralLearningRoot = false, useSingularRunRoot = false, usePluralVerificationDir = false } = {}) {
+function createLegacyPulseRepo({ usePluralLearningRoot = false } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-migrate-"));
   applyRepo(root, false);
 
@@ -116,11 +116,10 @@ function createLegacyPulseRepo({ usePluralLearningRoot = false, useSingularRunRo
     "utf8",
   );
 
-  const runRoot = path.join(root, ".pulse", useSingularRunRoot ? "run" : "runs");
-  const verificationDirName = usePluralVerificationDir ? "verifications" : "verification";
-  fs.mkdirSync(path.join(runRoot, "operator-surface-foundation", verificationDirName), { recursive: true });
+  const verificationRoot = path.join(root, ".pulse", "verification", "operator-surface-foundation");
+  fs.mkdirSync(verificationRoot, { recursive: true });
   fs.writeFileSync(
-    path.join(runRoot, "operator-surface-foundation", verificationDirName, "final-review.md"),
+    path.join(verificationRoot, "final-review.md"),
     "# Final Review\nlegacy verification\n",
     "utf8",
   );
@@ -174,7 +173,7 @@ test("applyMigration upgrades a stale repo while preserving unrelated hooks, AGE
 
     assert.equal(result.status, "up_to_date");
     assert.equal(result.mode, "apply");
-    assert.equal(onboarding.plugin_version, "3.0.1");
+    assert.equal(onboarding.plugin_version, "3.0.2");
     assert.equal(fs.existsSync(path.join(root, ".codex", "hooks", "pulse_session_start.py")), false);
     assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_status.mjs")));
     assert.match(agentsText, /# Existing instructions/);
@@ -209,6 +208,23 @@ test("applyMigration upgrades a stale repo while preserving unrelated hooks, AGE
     assert.equal(result.details.onboarding_apply.managed_assets.migration_summary.migrated_learning_files, 3);
     assert.equal(result.details.onboarding_apply.managed_assets.migration_summary.critical_patterns_appended, 1);
     assert.equal(result.details.onboarding_apply.managed_assets.migration_summary.verification_files_copied, 1);
+    assert.equal(
+      result.details.onboarding_apply.managed_assets.migration_summary.normalization_queue.learning_memory.length,
+      3,
+    );
+    assert.equal(
+      result.details.onboarding_apply.managed_assets.migration_summary.normalization_queue.critical_patterns.length,
+      1,
+    );
+    assert.ok(
+      result.details.onboarding_apply.managed_assets.migration_summary.normalization_queue.learning_memory.every(
+        (entry) => entry.destination_contains_fallback === true,
+      ),
+    );
+    assert.match(
+      fs.readFileSync(path.join(root, ".pulse", "memory", "critical-patterns.md"), "utf8"),
+      /pulse-migrated-source: history\/learning\/critical-patterns\.md sha256:[a-f0-9]{64} mode:fallback/,
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -257,6 +273,13 @@ test("migration CLI is idempotent after apply", () => {
     assert.equal(applyAgainPayload.details.onboarding_apply.managed_assets.migration_summary.migrated_learning_files, 0);
     assert.equal(applyAgainPayload.details.onboarding_apply.managed_assets.migration_summary.critical_patterns_appended, 0);
     assert.equal(applyAgainPayload.details.onboarding_apply.managed_assets.migration_summary.verification_files_copied, 0);
+    assert.deepEqual(
+      applyAgainPayload.details.onboarding_apply.managed_assets.migration_summary.normalization_queue,
+      {
+        learning_memory: [],
+        critical_patterns: [],
+      },
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -297,11 +320,9 @@ test("checkRepo surfaces migrated history verification links after legacy verifi
   }
 });
 
-test("migration detects plural learning roots and alternate verification path aliases", () => {
+test("migration detects plural learning roots and legacy .pulse/verification feature directories", () => {
   const root = createLegacyPulseRepo({
     usePluralLearningRoot: true,
-    useSingularRunRoot: true,
-    usePluralVerificationDir: true,
   });
 
   try {
