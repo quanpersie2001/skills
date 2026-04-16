@@ -1,6 +1,6 @@
 ---
 name: reviewing
-description: Post-execution quality verification for the Pulse ecosystem. Invoke after the final phase swarm completes. Runs 5 parallel specialist review agents, 3-level artifact verification, human UAT, and finishing (PR, cleanup, epic close). Review issues become beads instead of per-finding markdown files; P1 still blocks merge while P2/P3 become non-blocking follow-up beads. Absorbs finishing responsibilities and hands off to compounding.
+description: Post-execution quality verification for the Pulse ecosystem. Invoke after the final phase swarm completes. Runs 4 specialist review agents, then a final learnings synthesizer, plus 3-level artifact verification, human UAT, and finishing (PR, cleanup, epic close). Review issues become beads instead of per-finding markdown files; P1 still blocks merge while P2/P3 become non-blocking follow-up beads. Absorbs finishing responsibilities and hands off to compounding.
 metadata:
   version: '1.2'
   ecosystem: pulse

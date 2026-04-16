@@ -487,7 +487,7 @@ flowchart TD
         SM[STATE.md]
         MF[handoffs/manifest.json]
         HF[handoffs/owner.json]
-        VE[verification/feature/]
+        VE[runs/feature/verification/]
         DN[debug-notes/]
         DP[dream-pending/]
     end
@@ -538,7 +538,7 @@ flowchart TD
     coordinator.json          — swarm coordinator checkpoint
     worker-<agent>.json       — per-worker checkpoint
     single-worker.json        — single-worker checkpoint
-  verification/<feature>/     — per-bead execution evidence
+  runs/<feature>/verification/ — active execution/review evidence
   debug-notes/                — debugging debug notes (input to compounding)
   dream-pending/              — ambiguous dream decisions awaiting approval
 ```
