@@ -84,7 +84,7 @@ No skill crosses these without explicit user approval:
 Validates the environment before any Pulse work begins.
 
 - Checks that `git`, `br`, and `bv` are available and reports versions
-- Runs `node scripts/onboard_pulse.mjs` to verify or apply repo onboarding (AGENTS.md, `.codex/` hooks, `.pulse/onboarding.json`)
+- Runs `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs` to verify or apply repo onboarding (AGENTS.md, `.codex/` hooks, `.pulse/onboarding.json`)
 - Checks coordination runtime health (determines swarm vs single-worker capability)
 - Writes `.pulse/tooling-status.json` with outcome and `recommended_mode`
 - Maintains `.pulse/state.json` as a lightweight machine-readable routing mirror
@@ -583,7 +583,7 @@ history/<feature>/
 | Beads viewer | `bv` | TUI inspection; `bv --robot-priority` for machine-readable priority queue |
 | GKG | `gkg` | Optional codebase intelligence (map, search, refs, definitions) |
 | Agent Mail | — | Swarm coordination runtime (coordinator ↔ workers) |
-| Onboarding | `node scripts/onboard_pulse.mjs` | Installs/updates repo-level Pulse config |
+| Onboarding | `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs` | Installs/updates repo-level Pulse config |
 
 ---
 

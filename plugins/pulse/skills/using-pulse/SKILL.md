@@ -38,7 +38,7 @@ Think of this skill as the router and scout brief for Pulse. It does not replace
 
 Before any normal bootstrap, verify that the current repo is onboarded for the Pulse plugin.
 
-Requires **Node.js 18+**. Run `node scripts/onboard_pulse.mjs --repo-root <repo-root>` from this skill directory and inspect the JSON result.
+Requires **Node.js 18+**. Run `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root>` and inspect the JSON result.
 
 - If `status = "up_to_date"`: proceed immediately.
 - Always inspect `details.dependency_warning` in the JSON output:
@@ -52,7 +52,7 @@ Requires **Node.js 18+**. Run `node scripts/onboard_pulse.mjs --repo-root <repo-
   - summarize what the script wants to create or update
   - if `requires_confirmation = true`, explain that an existing `compact_prompt` was found and Pulse will preserve it unless the user explicitly approves replacement
   - ask before making repo changes
-  - after approval, run `node scripts/onboard_pulse.mjs --repo-root <repo-root> --apply`
+  - after approval, run `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root> --apply`
   - only use `--allow-compact-prompt-replace` when the user explicitly approved replacing the repo's existing compaction prompt
 
 Onboarding installs or updates:

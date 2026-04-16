@@ -80,7 +80,7 @@ Run `node --version` first.
 If Node.js 18+ is available, run from this skill's directory:
 
 ```bash
-node scripts/onboard_pulse.mjs --repo-root <project_root>
+node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <project_root>
 ```
 
 Interpret the result:
@@ -94,7 +94,7 @@ For `NEEDS_SETUP` or `STALE`:
 1. Summarize what the script wants to create or update.
 2. If `requires_confirmation = true`, explain that an existing `compact_prompt` was found and Pulse will preserve it unless the user explicitly approves replacement.
 3. Ask the user before making any repo changes.
-4. After approval, run: `node scripts/onboard_pulse.mjs --repo-root <project_root> --apply`
+4. After approval, run: `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <project_root> --apply`
    - Only pass `--allow-compact-prompt-replace` when the user explicitly approved replacing the existing compaction prompt.
 5. If the apply run succeeds, update `onboarding` to `PASS` and continue.
 6. If the apply run fails, set `onboarding` to `NEEDS_SETUP` and add a blocker entry.

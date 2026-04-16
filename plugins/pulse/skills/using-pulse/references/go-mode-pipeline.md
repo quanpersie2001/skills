@@ -506,8 +506,8 @@ validating (lightweight)
   |
 swarming -> executing (single worker)
   |
-reviewing (optional)
-  -> skip if truly trivial
+reviewing (lightweight for small_change)
+  -> still required before merge, but keep it proportionate to the work
   |
 compounding (only if lesson learned)
 ```

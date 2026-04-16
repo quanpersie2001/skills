@@ -1,6 +1,6 @@
 # Contributing to Pulse
 
-Pulse is a packaged skill plugin for Claude Code and Codex. Skills are defined as `SKILL.md` files — there is no compiled code. The plugin ships ~13 ecosystem skills and ~4 utility skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+Pulse is a packaged skill plugin for Claude Code and Codex. Skills are defined as `SKILL.md` files — there is no compiled code. The plugin currently ships 20 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ---
 
@@ -77,7 +77,7 @@ Pulse skills use **TDD discipline** via `pulse:writing-pulse-skills`. The iron l
 4. Re-run the same scenarios **with** the skill; every scenario must now pass.
 5. If an agent still fails, the skill has a bug — capture the new rationalization, patch the skill, re-test.
 
-There is no automated test suite for the plugin itself. Testing is behavioral: does an agent comply under pressure?
+The plugin does have automated coverage for onboarding/runtime control-plane behavior in `plugins/pulse/skills/using-pulse/scripts/test_onboard_pulse.mjs`, but skill quality is still judged behaviorally: does an agent comply under pressure?
 
 ---
 
@@ -134,7 +134,7 @@ Include the version bump commit in the same PR as the change that caused it.
 The beads CLI binary is **`br`**, not `bd`. Use `br` consistently in examples, docs, and workflow instructions.
 
 ```bash
-br sync          # commit bead changes
+br sync --flush-only      # flush bead changes to disk
 br create ...    # create a work item
 br close <id>    # close a bead
 ```
@@ -146,8 +146,8 @@ br close <id>    # close a bead
 ```bash
 git status
 git add plugins/pulse/skills/<name>/SKILL.md
-br sync
+br sync --flush-only
 git commit -m "feat(pulse): ..."
-br sync
+br sync --flush-only
 git push
 ```

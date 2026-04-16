@@ -68,15 +68,15 @@ Each skill lives at `plugins/pulse/skills/<name>/SKILL.md`. When adding or modif
 
 ## Testing
 
-The main Pulse plugin has no automated test suite. The only test infrastructure is in `references/superpowers/tests/brainstorm-server/` (Node.js, `npm test`), which is reference material and not part of the shipping plugin.
+Pulse has automated coverage for onboarding/runtime control-plane behavior in `plugins/pulse/skills/using-pulse/scripts/test_onboard_pulse.mjs`. The `references/superpowers/tests/brainstorm-server/` suite is separate reference material and not part of the shipping plugin.
 
 ## Session Protocol
 
 ```bash
 git status              # Check what changed
 git add <files>         # Stage code changes
-br sync                 # Commit beads changes
+br sync --flush-only   # Flush bead changes to disk
 git commit -m "..."     # Commit code
-br sync                 # Commit any new beads changes
+br sync --flush-only   # Flush any new bead changes to disk
 git push                # Push to remote
 ```

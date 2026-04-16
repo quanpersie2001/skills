@@ -132,6 +132,8 @@ test("pulse status scout renders json for an onboarded repo", async () => {
 
   try {
     applyRepo(root, false);
+    fs.rmSync(path.join(root, ".pulse", "current-feature.json"), { force: true });
+    fs.rmSync(path.join(root, ".pulse", "runtime-snapshot.json"), { force: true });
 
     const stdout = execFileSync("node", [path.join(root, ".codex", "pulse_status.mjs"), "--json"], {
       cwd: root,
@@ -143,14 +145,16 @@ test("pulse status scout renders json for an onboarded repo", async () => {
     const normalizedPayloadRoot = fs.realpathSync.native(payload.repo_root);
     assert.equal(normalizedPayloadRoot, normalizedRoot);
     assert.equal(payload.state_json.exists, true);
-    assert.equal(payload.current_feature.exists, true);
+    assert.equal(payload.current_feature.exists, false);
     assert.equal(payload.current_feature.feature_key, "");
-    assert.equal(payload.current_feature.phase, "idle");
-    assert.equal(payload.current_feature.status, "idle");
-    assert.equal(payload.runtime_snapshot.exists, true);
+    assert.equal(payload.current_feature.phase, "");
+    assert.equal(payload.current_feature.status, "");
+    assert.equal(payload.runtime_snapshot.exists, false);
     assert.equal(payload.runtime_snapshot.active_feature, "");
-    assert.equal(payload.runtime_snapshot.phase, "idle");
-    assert.equal(payload.runtime_snapshot.active_skill, "pulse:using-pulse");
+    assert.equal(payload.runtime_snapshot.phase, "");
+    assert.equal(payload.runtime_snapshot.active_skill, "");
+    assert.equal(fs.existsSync(path.join(root, ".pulse", "current-feature.json")), false);
+    assert.equal(fs.existsSync(path.join(root, ".pulse", "runtime-snapshot.json")), false);
     assert.equal(fs.existsSync(path.join(root, ".pulse", "checkpoints")), true);
     assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "learnings")), true);
     assert.equal(fs.existsSync(path.join(root, ".pulse", "memory", "corrections")), true);

@@ -129,7 +129,7 @@ function parseCliArgs(argv) {
           "  pulse_status.mjs [--repo-root <path>] [--json] [--sync]",
           "  pulse_status.mjs checkpoint <save|list|show|diff|resume-brief> [options] [--json]",
           "",
-          "Shows a read-only Pulse status snapshot or checkpoint operator aid output.",
+          "Shows a non-mutating Pulse status snapshot or checkpoint operator aid output.",
           "Use --sync to refresh persisted runtime artifacts before rendering status.",
         ].join("\n"),
       );

@@ -1375,12 +1375,6 @@ export async function readPulseStatus(repoRoot) {
   const dependencyHealth = readDependencyHealthSafe(repoRoot);
   const gkgReadiness = await readGkgReadiness(repoRoot);
 
-  if (!currentFeature || !runtimeSnapshot) {
-    const synced = deriveAndPersistRuntimeArtifacts(repoRoot);
-    currentFeature = currentFeature || synced.current_feature;
-    runtimeSnapshot = runtimeSnapshot || synced.runtime_snapshot;
-  }
-
   const stateJsonSummary = {
     exists: Boolean(stateJson),
     ...normalizePulseState(stateJson),
