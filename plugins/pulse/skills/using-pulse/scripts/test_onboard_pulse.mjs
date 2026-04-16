@@ -560,7 +560,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
   }
 });
 
-test("checkpoint commands fail soft for malformed entries and missing selectors", () => {
+test("checkpoint commands fail soft for malformed entries, missing selectors, and invalid save inputs", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 
   try {
@@ -622,11 +622,62 @@ test("checkpoint commands fail soft for malformed entries and missing selectors"
       showStdout = error.stdout;
     }
 
+    let invalidSaveExitCode = 0;
+    let invalidSaveStdout = "";
+    try {
+      invalidSaveStdout = execFileSync(
+        "node",
+        [
+          path.join(root, ".codex", "pulse_status.mjs"),
+          "checkpoint",
+          "save",
+          "--json",
+          "--feature",
+          "../escape-feature",
+          "--checkpoint-id",
+          "../outside",
+        ],
+        { cwd: root, encoding: "utf8" },
+      );
+    } catch (error) {
+      invalidSaveExitCode = error.status;
+      invalidSaveStdout = error.stdout;
+    }
+    const invalidSave = JSON.parse(invalidSaveStdout);
+
+    const missingFeatureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+    let missingFeatureSaveExitCode = 0;
+    let missingFeatureSaveStdout = "";
+    try {
+      applyRepo(missingFeatureRoot, false);
+      try {
+        missingFeatureSaveStdout = execFileSync(
+          "node",
+          [path.join(missingFeatureRoot, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
+          { cwd: missingFeatureRoot, encoding: "utf8" },
+        );
+      } catch (error) {
+        missingFeatureSaveExitCode = error.status;
+        missingFeatureSaveStdout = error.stdout;
+      }
+    } finally {
+      fs.rmSync(missingFeatureRoot, { recursive: true, force: true });
+    }
+    const missingFeatureSave = JSON.parse(missingFeatureSaveStdout);
+
     assert.equal(listPayload.ok, true);
     assert.equal(listPayload.checkpoints.count, 0);
     assert.equal(showExitCode, 1);
     assert.equal(JSON.parse(showStdout).ok, false);
     assert.equal(JSON.parse(showStdout).error, "Checkpoint not found.");
+    assert.equal(invalidSaveExitCode, 1);
+    assert.equal(invalidSave.ok, false);
+    assert.equal(invalidSave.error, "feature must not contain path traversal segments.");
+    assert.equal(fs.existsSync(path.join(root, ".pulse", "outside.json")), false);
+    assert.equal(fs.existsSync(path.join(root, ".pulse", "escape-feature")), false);
+    assert.equal(missingFeatureSaveExitCode, 1);
+    assert.equal(missingFeatureSave.ok, false);
+    assert.equal(missingFeatureSave.error, "Cannot save checkpoint without an active feature.");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

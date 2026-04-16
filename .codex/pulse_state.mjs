@@ -375,6 +375,35 @@ function slugifyCheckpointPart(value, fallback = "checkpoint") {
   return normalized || fallback;
 }
 
+function validateCheckpointPathPart(value, fieldName) {
+  const normalized = normalizeSelector(value);
+  if (!normalized) {
+    return `${fieldName} is required.`;
+  }
+  if (path.isAbsolute(normalized)) {
+    return `${fieldName} must be relative.`;
+  }
+  if (normalized === "." || normalized === "..") {
+    return `${fieldName} must not be '.' or '..'.`;
+  }
+  if (normalized.split("/").some((segment) => !segment || segment === "." || segment === "..")) {
+    return `${fieldName} must not contain path traversal segments.`;
+  }
+  return "";
+}
+
+function validateCheckpointInputs(feature, checkpointId) {
+  const featureError = validateCheckpointPathPart(feature, "feature");
+  if (featureError) {
+    return featureError;
+  }
+  const checkpointError = validateCheckpointPathPart(checkpointId, "checkpoint_id");
+  if (checkpointError) {
+    return checkpointError;
+  }
+  return "";
+}
+
 function ensureCheckpointFeatureDir(paths, feature) {
   const featureDir = path.join(paths.checkpointsRoot, feature);
   fs.mkdirSync(featureDir, { recursive: true });
@@ -653,7 +682,11 @@ function buildCheckpointRecordFromStatus(paths, status, options = {}) {
   const repoRoot = path.dirname(paths.agents);
   const feature = String(options.feature || deriveFeature(status) || "").trim();
   if (!feature) {
-    throw new Error("Cannot save checkpoint without an active feature.");
+    return {
+      ok: false,
+      error: "Cannot save checkpoint without an active feature.",
+      record: null,
+    };
   }
 
   const createdAt = typeof options.created_at === "string" && options.created_at
@@ -672,6 +705,14 @@ function buildCheckpointRecordFromStatus(paths, status, options = {}) {
   const checkpointId = typeof options.checkpoint_id === "string" && options.checkpoint_id.trim()
     ? options.checkpoint_id.trim()
     : `${createdAt.replace(/[:.]/g, "-")}-${slugifyCheckpointPart(captured.phase || captured.gate || "snapshot")}`;
+  const validationError = validateCheckpointInputs(feature, checkpointId);
+  if (validationError) {
+    return {
+      ok: false,
+      error: validationError,
+      record: null,
+    };
+  }
   const blockers = Array.isArray(options.blockers)
     ? options.blockers.filter(Boolean)
     : Array.isArray(status.tooling_status?.blockers)
@@ -687,41 +728,45 @@ function buildCheckpointRecordFromStatus(paths, status, options = {}) {
   };
 
   return {
-    schema_version: CHECKPOINT_SCHEMA_VERSION,
-    checkpoint_id: checkpointId,
-    feature,
-    created_at: createdAt,
-    summary,
-    next_action: nextAction,
-    captured: {
-      phase: typeof captured.phase === "string" ? captured.phase : "",
-      gate: typeof captured.gate === "string" ? captured.gate : "",
-      mode: typeof captured.mode === "string" ? captured.mode : "",
-      story: typeof captured.story === "string" ? captured.story : "",
-      bead: typeof captured.bead === "string" ? captured.bead : "",
-    },
-    links: {
-      context: typeof links.context === "string" ? normalizeSelector(links.context) : "",
-      handoff: typeof links.handoff === "string" ? normalizeSelector(links.handoff) : "",
-      runtime_snapshot: typeof links.runtime_snapshot === "string"
-        ? normalizeSelector(links.runtime_snapshot)
-        : "",
-      verification: typeof links.verification === "string" ? normalizeSelector(links.verification) : "",
-    },
-    blockers,
-    memory_hooks: {
-      critical_patterns: typeof memory_hooks.critical_patterns === "string"
-        ? normalizeSelector(memory_hooks.critical_patterns)
-        : "",
-      learnings: Array.isArray(memory_hooks.learnings)
-        ? memory_hooks.learnings.filter(Boolean).map((item) => normalizeSelector(item))
-        : [],
-      corrections: Array.isArray(memory_hooks.corrections)
-        ? memory_hooks.corrections.filter(Boolean).map((item) => normalizeSelector(item))
-        : [],
-      ratchet: Array.isArray(memory_hooks.ratchet)
-        ? memory_hooks.ratchet.filter(Boolean).map((item) => normalizeSelector(item))
-        : [],
+    ok: true,
+    error: "",
+    record: {
+      schema_version: CHECKPOINT_SCHEMA_VERSION,
+      checkpoint_id: checkpointId,
+      feature,
+      created_at: createdAt,
+      summary,
+      next_action: nextAction,
+      captured: {
+        phase: typeof captured.phase === "string" ? captured.phase : "",
+        gate: typeof captured.gate === "string" ? captured.gate : "",
+        mode: typeof captured.mode === "string" ? captured.mode : "",
+        story: typeof captured.story === "string" ? captured.story : "",
+        bead: typeof captured.bead === "string" ? captured.bead : "",
+      },
+      links: {
+        context: typeof links.context === "string" ? normalizeSelector(links.context) : "",
+        handoff: typeof links.handoff === "string" ? normalizeSelector(links.handoff) : "",
+        runtime_snapshot: typeof links.runtime_snapshot === "string"
+          ? normalizeSelector(links.runtime_snapshot)
+          : "",
+        verification: typeof links.verification === "string" ? normalizeSelector(links.verification) : "",
+      },
+      blockers,
+      memory_hooks: {
+        critical_patterns: typeof memory_hooks.critical_patterns === "string"
+          ? normalizeSelector(memory_hooks.critical_patterns)
+          : "",
+        learnings: Array.isArray(memory_hooks.learnings)
+          ? memory_hooks.learnings.filter(Boolean).map((item) => normalizeSelector(item))
+          : [],
+        corrections: Array.isArray(memory_hooks.corrections)
+          ? memory_hooks.corrections.filter(Boolean).map((item) => normalizeSelector(item))
+          : [],
+        ratchet: Array.isArray(memory_hooks.ratchet)
+          ? memory_hooks.ratchet.filter(Boolean).map((item) => normalizeSelector(item))
+          : [],
+      },
     },
   };
 }
@@ -1070,7 +1115,18 @@ function buildCheckpointDiff(left, right) {
 
 export async function checkpointSave(repoRoot, options = {}) {
   const { status, paths } = await loadStatusAndPaths(repoRoot);
-  const record = buildCheckpointRecordFromStatus(paths, status, options);
+  const built = buildCheckpointRecordFromStatus(paths, status, options);
+  if (!built.ok || !built.record) {
+    return {
+      ok: false,
+      operation: "save",
+      feature: String(options.feature || deriveFeature(status) || "").trim(),
+      checkpoint: null,
+      error: built.error || "Checkpoint save failed.",
+    };
+  }
+
+  const record = built.record;
   const featureDir = ensureCheckpointFeatureDir(paths, record.feature);
   const fileName = `${record.checkpoint_id}.json`;
   const filePath = path.join(featureDir, fileName);
@@ -1100,6 +1156,7 @@ export async function checkpointSave(repoRoot, options = {}) {
     operation: "save",
     feature: record.feature,
     checkpoint: buildCheckpointRecordSummary(record, `.pulse/checkpoints/${record.feature}/${fileName}`),
+    error: "",
   };
 }
 
