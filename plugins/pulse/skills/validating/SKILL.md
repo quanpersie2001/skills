@@ -149,6 +149,10 @@ If `testing_mode` is `tdd-required`, the bead must also include `tdd_steps` with
 
 Do not let the plan-checker guess from prose when the schema is missing.
 
+Additional memory-routing rule:
+- for HIGH-risk beads, `learning_refs` must be meaningfully populated when relevant recall, correction, or ratchet guidance already exists for the same domain, blocker pattern, or file scope
+- if a HIGH-risk bead leaves `learning_refs` empty despite clearly applicable recall guidance, treat that as a structural planning gap and send it back for repair
+
 ---
 
 ## Phase 1: Structural Verification

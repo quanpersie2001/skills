@@ -156,7 +156,7 @@ test("pulse status scout renders json for an onboarded repo", async () => {
   }
 });
 
-test("pulse status scout surfaces current-feature, runtime snapshot, and canonical active handoff summaries", async () => {
+test("pulse status scout surfaces current-feature, runtime snapshot, canonical handoff summaries, and targeted recall guidance", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 
   try {
@@ -193,21 +193,31 @@ test("pulse status scout surfaces current-feature, runtime snapshot, and canonic
     );
     fs.writeFileSync(
       path.join(root, ".pulse", "memory", "critical-patterns.md"),
-      "# Critical patterns\n",
+      `${"# Critical patterns\n"}${"A".repeat(25000)}\n`,
       "utf8",
     );
     fs.writeFileSync(
-      path.join(root, ".pulse", "memory", "learnings", "operator-surface-foundation.md"),
+      path.join(root, ".pulse", "memory", "learnings", "20260401-operator-surface-foundation.md"),
       "learning\n",
       "utf8",
     );
     fs.writeFileSync(
-      path.join(root, ".pulse", "memory", "corrections", "planning-gate.md"),
+      path.join(root, ".pulse", "memory", "learnings", "20260301-operator-surface-foundation.md"),
+      "older learning\n",
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "memory", "corrections", "20260402-planning-gate.md"),
       "correction\n",
       "utf8",
     );
     fs.writeFileSync(
-      path.join(root, ".pulse", "memory", "ratchet", "planning-ratchet.md"),
+      path.join(root, ".pulse", "memory", "corrections", "20260302-planning-gate.md"),
+      "older correction\n",
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "memory", "ratchet", "20260403-planning-ratchet.md"),
       "ratchet\n",
       "utf8",
     );
@@ -336,15 +346,59 @@ test("pulse status scout surfaces current-feature, runtime snapshot, and canonic
     );
     assert.equal(payload.memory_recall.critical_patterns, ".pulse/memory/critical-patterns.md");
     assert.deepEqual(payload.memory_recall.learnings, [
-      ".pulse/memory/learnings/operator-surface-foundation.md",
+      ".pulse/memory/learnings/20260301-operator-surface-foundation.md",
+      ".pulse/memory/learnings/20260401-operator-surface-foundation.md",
     ]);
     assert.deepEqual(payload.memory_recall.corrections, [
-      ".pulse/memory/corrections/planning-gate.md",
+      ".pulse/memory/corrections/20260302-planning-gate.md",
+      ".pulse/memory/corrections/20260402-planning-gate.md",
     ]);
     assert.deepEqual(payload.memory_recall.ratchet, [
-      ".pulse/memory/ratchet/planning-ratchet.md",
+      ".pulse/memory/ratchet/20260403-planning-ratchet.md",
     ]);
+    assert.deepEqual(payload.memory_recall.recall_pack, [
+      {
+        kind: "critical-patterns",
+        path: ".pulse/memory/critical-patterns.md",
+        reason: "global planning baseline",
+      },
+      {
+        kind: "correction",
+        path: ".pulse/memory/corrections/20260302-planning-gate.md",
+        reason: "matched phase:planning",
+      },
+      {
+        kind: "correction",
+        path: ".pulse/memory/corrections/20260402-planning-gate.md",
+        reason: "matched phase:planning",
+      },
+      {
+        kind: "ratchet",
+        path: ".pulse/memory/ratchet/20260403-planning-ratchet.md",
+        reason: "matched phase:planning",
+      },
+      {
+        kind: "learning",
+        path: ".pulse/memory/learnings/20260301-operator-surface-foundation.md",
+        reason: "matched feature:operator, feature:surface, feature:foundation",
+      },
+      {
+        kind: "learning",
+        path: ".pulse/memory/learnings/20260401-operator-surface-foundation.md",
+        reason: "matched feature:operator, feature:surface, feature:foundation",
+      },
+    ]);
+    assert.ok(payload.memory_recall.hygiene.warnings.includes(
+      "critical-patterns.md is getting large; review for compact, globally useful guidance only.",
+    ));
+    assert.ok(payload.memory_recall.hygiene.warnings.includes(
+      "Possible duplicate learnings: operator-surface-foundation.",
+    ));
+    assert.ok(payload.memory_recall.hygiene.warnings.includes(
+      "Possible duplicate corrections: planning-gate.",
+    ));
     assert.ok(payload.next_reads.includes(".pulse/handoffs/manifest.json"));
+    assert.ok(payload.next_reads.includes(".pulse/handoffs/planning.json"));
     assert.ok(payload.next_reads.includes("history/operator-surface-foundation/CONTEXT.md"));
     assert.ok(
       payload.next_reads.includes(
@@ -352,6 +406,9 @@ test("pulse status scout surfaces current-feature, runtime snapshot, and canonic
       ),
     );
     assert.ok(payload.next_reads.includes(".pulse/memory/critical-patterns.md"));
+    assert.ok(payload.next_reads.includes(".pulse/memory/corrections/20260302-planning-gate.md"));
+    assert.ok(payload.recommended_actions.some((item) => item.includes("targeted recall pack")));
+    assert.ok(payload.recommended_actions.some((item) => item.includes("Memory hygiene warning")));
     assert.match(textStdout, /Feature: operator-surface-foundation/);
     assert.match(textStdout, /Operator surface:/);
     assert.match(textStdout, /Current feature snapshot: present/);
@@ -361,6 +418,10 @@ test("pulse status scout surfaces current-feature, runtime snapshot, and canonic
     assert.match(textStdout, /checkpoint_count: 1/);
     assert.match(textStdout, /Memory recall root: present/);
     assert.match(textStdout, /critical_patterns: \.pulse\/memory\/critical-patterns\.md/);
+    assert.match(textStdout, /recall_pack:/);
+    assert.match(textStdout, /critical-patterns: \.pulse\/memory\/critical-patterns\.md \(global planning baseline\)/);
+    assert.match(textStdout, /hygiene_warnings:/);
+    assert.match(textStdout, /Possible duplicate learnings: operator-surface-foundation\./);
     assert.match(textStdout, /Active handoffs: 2/);
     assert.match(
       textStdout,

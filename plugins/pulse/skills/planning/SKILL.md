@@ -181,9 +181,21 @@ Count how many features have completed (reached reviewing/compounding) since tha
 
 This is a warning only. Do not block planning. Continue immediately after surfacing it.
 
-### Step 0.2: Search for domain-relevant learnings
+### Step 0.2: Use targeted recall before broad memory search
 
-Extract 3-5 keywords from the feature name and `CONTEXT.md`, then run focused searches:
+If the scout output is available, read its recall pointers first.
+
+Priority order:
+1. recall-pack corrections that match the current feature, blockers, or file scope
+2. recall-pack ratchet rules that look like non-regression checks for this phase
+3. recall-pack learnings that match the current domain
+4. only then run broader manual searches if the recall pack is too thin
+
+The point is to start from the smallest credible context, not to grep the whole memory plane by default.
+
+### Step 0.3: Search for additional domain-relevant learnings only if needed
+
+Extract 3-5 keywords from the feature name and `CONTEXT.md`, then run focused searches only when the recall pack did not already surface enough context:
 
 ```bash
 grep -r "tags:.*<keyword1>" .pulse/memory/learnings/ -l -i
@@ -191,14 +203,18 @@ grep -r "tags:.*<keyword2>" .pulse/memory/learnings/ -l -i
 grep -r "<ComponentName>" .pulse/memory/learnings/ -l -i
 ```
 
-### Step 0.3: Score and include
+### Step 0.4: Score and include
 
 - Strong match -> read full file, include its insight
 - Weak match -> skip
+- Corrections -> treat as "what must not be repeated", not as general inspiration
+- Ratchet rules -> treat as must-check constraints for current planning and later validation
 
-### Step 0.4: Document what you found
+### Step 0.5: Document what you found
 
 At the top of `history/<feature>/discovery.md`, add an `Institutional Learnings` section. If nothing relevant exists, write: `No prior learnings for this domain.`
+
+When corrections or ratchet rules are relevant, name them explicitly so downstream validating and debugging can see the propagation path.
 
 ---
 

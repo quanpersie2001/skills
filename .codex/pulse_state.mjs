@@ -549,45 +549,209 @@ function summarizeCheckpointFeature(paths, feature) {
   };
 }
 
+function tokenizeRecallValue(value) {
+  return String(value || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function stripDatedMemoryPrefix(fileName) {
+  return fileName.toLowerCase().replace(/^\d{8}-/, "");
+}
+
+function buildRecallSelectionContext(feature, status) {
+  return {
+    feature_tokens: [...new Set(tokenizeRecallValue(feature))],
+    blocker_tokens: [...new Set(
+      (Array.isArray(status.tooling_status?.blockers) ? status.tooling_status.blockers : [])
+        .flatMap((item) => tokenizeRecallValue(item)),
+    )],
+    phase_tokens: [...new Set(tokenizeRecallValue(status.current_feature?.phase || status.state_json?.phase || ""))],
+  };
+}
+
+function classifyRecallEntry(relativePath, selectionContext) {
+  const fileName = stripDatedMemoryPrefix(path.basename(relativePath, path.extname(relativePath)));
+  const reasons = [];
+
+  for (const token of selectionContext.feature_tokens || []) {
+    if (token && fileName.includes(token)) {
+      reasons.push(`feature:${token}`);
+    }
+  }
+  for (const token of selectionContext.phase_tokens || []) {
+    if (token && fileName.includes(token)) {
+      reasons.push(`phase:${token}`);
+    }
+  }
+  for (const token of selectionContext.blocker_tokens || []) {
+    if (token && fileName.includes(token)) {
+      reasons.push(`blocker:${token}`);
+    }
+  }
+
+  return {
+    path: relativePath,
+    reasons: [...new Set(reasons)],
+  };
+}
+
+function pickRelevantRecallEntries(pathsList, selectionContext) {
+  const matched = [];
+  const fallback = [];
+
+  for (const relativePath of pathsList) {
+    const entry = classifyRecallEntry(relativePath, selectionContext);
+    if (entry.reasons.length > 0) {
+      matched.push(entry);
+    } else {
+      fallback.push(entry);
+    }
+  }
+
+  return matched.length > 0 ? matched.slice(0, 3) : fallback.slice(0, 3);
+}
+
+function getFileSizeSafe(filePath) {
+  try {
+    return fs.statSync(filePath).size;
+  } catch {
+    return 0;
+  }
+}
+
+function getFileAgeDaysSafe(filePath) {
+  try {
+    const modifiedAt = fs.statSync(filePath).mtimeMs;
+    const ageMs = Date.now() - modifiedAt;
+    return Math.floor(ageMs / (24 * 60 * 60 * 1000));
+  } catch {
+    return null;
+  }
+}
+
+function collectDuplicateMemorySlugs(relativePaths) {
+  const counts = new Map();
+  for (const relativePath of relativePaths) {
+    const slug = stripDatedMemoryPrefix(path.basename(relativePath, path.extname(relativePath)));
+    counts.set(slug, (counts.get(slug) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([slug]) => slug)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function buildMemoryHygiene(paths, selectedRecall, allRecallPaths) {
+  const warnings = [];
+  const criticalPatternsBytes = fs.existsSync(paths.criticalPatterns) ? getFileSizeSafe(paths.criticalPatterns) : 0;
+
+  if (criticalPatternsBytes > 24 * 1024) {
+    warnings.push("critical-patterns.md is getting large; review for compact, globally useful guidance only.");
+  }
+
+  const duplicateLearnings = collectDuplicateMemorySlugs(allRecallPaths.learnings);
+  if (duplicateLearnings.length > 0) {
+    warnings.push(`Possible duplicate learnings: ${duplicateLearnings.join(", ")}.`);
+  }
+
+  const duplicateCorrections = collectDuplicateMemorySlugs(allRecallPaths.corrections);
+  if (duplicateCorrections.length > 0) {
+    warnings.push(`Possible duplicate corrections: ${duplicateCorrections.join(", ")}.`);
+  }
+
+  const staleEntries = [
+    ...selectedRecall.learnings,
+    ...selectedRecall.corrections,
+    ...selectedRecall.ratchet,
+  ].flatMap((entry) => {
+    const absolutePath = path.join(path.dirname(paths.agents), entry.path);
+    const ageDays = getFileAgeDaysSafe(absolutePath);
+    return ageDays !== null && ageDays > 180 ? [`${entry.path} (${ageDays}d old)`] : [];
+  });
+  if (staleEntries.length > 0) {
+    warnings.push(`Selected memory entries may be stale: ${staleEntries.join(", ")}.`);
+  }
+
+  return {
+    warnings,
+    stats: {
+      critical_patterns_bytes: criticalPatternsBytes,
+      learnings_count: allRecallPaths.learnings.length,
+      corrections_count: allRecallPaths.corrections.length,
+      ratchet_count: allRecallPaths.ratchet.length,
+    },
+  };
+}
+
+function summarizeRecallReason(entry, fallbackReason) {
+  if (!entry || !Array.isArray(entry.reasons) || entry.reasons.length === 0) {
+    return fallbackReason;
+  }
+
+  return `matched ${entry.reasons.join(", ")}`;
+}
+
+function buildRecallPack(criticalPatternsPath, selectedRecall) {
+  const pack = [];
+
+  if (criticalPatternsPath) {
+    pack.push({
+      kind: "critical-patterns",
+      path: criticalPatternsPath,
+      reason: "global planning baseline",
+    });
+  }
+
+  for (const entry of selectedRecall.corrections) {
+    pack.push({
+      kind: "correction",
+      path: entry.path,
+      reason: summarizeRecallReason(entry, "targeted tactical guardrail"),
+    });
+  }
+  for (const entry of selectedRecall.ratchet) {
+    pack.push({
+      kind: "ratchet",
+      path: entry.path,
+      reason: summarizeRecallReason(entry, "targeted non-regression rule"),
+    });
+  }
+  for (const entry of selectedRecall.learnings) {
+    pack.push({
+      kind: "learning",
+      path: entry.path,
+      reason: summarizeRecallReason(entry, "targeted prior lesson"),
+    });
+  }
+
+  return pack;
+}
+
 function summarizeMemoryRecall(paths, feature, status) {
   const memoryRootExists = fs.existsSync(paths.memoryRoot);
   const criticalPatternsExists = fs.existsSync(paths.criticalPatterns);
   const learnings = listDirectoryFiles(paths.memoryLearnings).map((fileName) => path.join(".pulse", "memory", "learnings", fileName));
   const corrections = listDirectoryFiles(paths.memoryCorrections).map((fileName) => path.join(".pulse", "memory", "corrections", fileName));
   const ratchet = listDirectoryFiles(paths.memoryRatchet).map((fileName) => path.join(".pulse", "memory", "ratchet", fileName));
-
-  const tokenize = (value) => String(value || "")
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
-  const featureTokens = new Set(tokenize(feature));
-  const blockerTokens = new Set(
-    (Array.isArray(status.tooling_status?.blockers) ? status.tooling_status.blockers : [])
-      .flatMap((item) => tokenize(item)),
-  );
-  const phaseTokens = new Set(tokenize(status.current_feature?.phase || status.state_json?.phase || ""));
-  const interestingTokens = new Set([...featureTokens, ...blockerTokens, ...phaseTokens]);
-
-  function pickRelevant(pathsList) {
-    const matched = [];
-    const fallback = [];
-    for (const relativePath of pathsList) {
-      const fileName = path.basename(relativePath, path.extname(relativePath)).toLowerCase();
-      if ([...interestingTokens].some((token) => token && fileName.includes(token))) {
-        matched.push(relativePath);
-      } else {
-        fallback.push(relativePath);
-      }
-    }
-    return matched.length > 0 ? matched.slice(0, 3) : fallback.slice(0, 3);
-  }
+  const selectionContext = buildRecallSelectionContext(feature, status);
+  const selectedRecall = {
+    learnings: pickRelevantRecallEntries(learnings, selectionContext),
+    corrections: pickRelevantRecallEntries(corrections, selectionContext),
+    ratchet: pickRelevantRecallEntries(ratchet, selectionContext),
+  };
+  const criticalPatternsPath = criticalPatternsExists ? ".pulse/memory/critical-patterns.md" : "";
 
   return {
     root_exists: memoryRootExists,
-    critical_patterns: criticalPatternsExists ? ".pulse/memory/critical-patterns.md" : "",
-    learnings: pickRelevant(learnings),
-    corrections: pickRelevant(corrections),
-    ratchet: pickRelevant(ratchet),
+    critical_patterns: criticalPatternsPath,
+    learnings: selectedRecall.learnings.map((entry) => entry.path),
+    corrections: selectedRecall.corrections.map((entry) => entry.path),
+    ratchet: selectedRecall.ratchet.map((entry) => entry.path),
+    selection_context: selectionContext,
+    recall_pack: buildRecallPack(criticalPatternsPath, selectedRecall),
+    hygiene: buildMemoryHygiene(paths, selectedRecall, { learnings, corrections, ratchet }),
   };
 }
 
@@ -785,6 +949,11 @@ function buildNextReads(status) {
   if (status.handoff_manifest.exists) {
     reads.push(".pulse/handoffs/manifest.json");
   }
+  for (const handoff of status.handoff_manifest?.active || []) {
+    if (handoff.path) {
+      reads.push(handoff.path);
+    }
+  }
 
   const feature = deriveFeature(status);
   if (feature) {
@@ -795,18 +964,10 @@ function buildNextReads(status) {
     reads.push(status.checkpoints.latest.path);
   }
 
-  if (status.critical_patterns_exists) {
-    reads.push(".pulse/memory/critical-patterns.md");
-  }
-
-  for (const learningPath of status.memory_recall?.learnings || []) {
-    reads.push(learningPath);
-  }
-  for (const correctionPath of status.memory_recall?.corrections || []) {
-    reads.push(correctionPath);
-  }
-  for (const ratchetPath of status.memory_recall?.ratchet || []) {
-    reads.push(ratchetPath);
+  for (const entry of status.memory_recall?.recall_pack || []) {
+    if (entry.path) {
+      reads.push(entry.path);
+    }
   }
 
   return [...new Set(reads)];
@@ -820,6 +981,13 @@ function buildRecommendedActions(status) {
     ];
   }
 
+  const recallPack = Array.isArray(status.memory_recall?.recall_pack)
+    ? status.memory_recall.recall_pack
+    : [];
+  const hygieneWarnings = Array.isArray(status.memory_recall?.hygiene?.warnings)
+    ? status.memory_recall.hygiene.warnings
+    : [];
+
   if (status.handoff_manifest.active_count > 0) {
     const actions = [
       "Surface the active handoffs to the user before resuming.",
@@ -829,6 +997,12 @@ function buildRecommendedActions(status) {
     if (status.checkpoints?.latest?.path) {
       actions.push("Use the latest checkpoint as an advisory resume brief, not as a replacement for the active handoff.");
     }
+    if (recallPack.length > 0) {
+      actions.push("Use the targeted recall pack to reopen only the most relevant critical patterns, corrections, ratchet rules, and learnings.");
+    }
+    if (hygieneWarnings.length > 0) {
+      actions.push(`Memory hygiene warning: ${hygieneWarnings[0]}`);
+    }
 
     return actions;
   }
@@ -837,6 +1011,12 @@ function buildRecommendedActions(status) {
     const actions = [`Next skill suggestion: ${status.tooling_status.next_skill}.`];
     if (status.checkpoints?.latest?.path) {
       actions.push("If you are re-entering an active feature, compare the latest checkpoint against the current runtime snapshot before planning or execution.");
+    }
+    if (recallPack.length > 0) {
+      actions.push("Before planning or debugging, consult the targeted recall pack instead of grepping the whole memory plane.");
+    }
+    if (hygieneWarnings.length > 0) {
+      actions.push(`Memory hygiene warning: ${hygieneWarnings[0]}`);
     }
     return actions;
   }
@@ -848,6 +1028,12 @@ function buildRecommendedActions(status) {
 
   if (status.checkpoints?.latest?.path) {
     actions.push("Use the latest checkpoint for a quick resume brief or diff, but treat current state and handoffs as authoritative.");
+  }
+  if (recallPack.length > 0) {
+    actions.push("Use the targeted recall pack to pull in the smallest relevant memory context before planning, debugging, or review.");
+  }
+  if (hygieneWarnings.length > 0) {
+    actions.push(`Memory hygiene warning: ${hygieneWarnings[0]}`);
   }
 
   return actions;
@@ -1373,7 +1559,15 @@ function renderOperatorSurfaceLines(status) {
     : { root_exists: false, count: 0, latest: null };
   const memoryRecall = status.memory_recall && typeof status.memory_recall === "object"
     ? status.memory_recall
-    : { root_exists: false, critical_patterns: "", learnings: [], corrections: [], ratchet: [] };
+    : {
+        root_exists: false,
+        critical_patterns: "",
+        learnings: [],
+        corrections: [],
+        ratchet: [],
+        recall_pack: [],
+        hygiene: { warnings: [] },
+      };
 
   lines.push(
     `- Current feature snapshot: ${currentFeature.exists ? "present" : "missing"}`,
@@ -1429,6 +1623,18 @@ function renderOperatorSurfaceLines(status) {
   }
   if ((memoryRecall.ratchet || []).length > 0) {
     lines.push(`  - ratchet: ${(memoryRecall.ratchet || []).join(", ")}`);
+  }
+  if ((memoryRecall.recall_pack || []).length > 0) {
+    lines.push("  - recall_pack:");
+    for (const entry of memoryRecall.recall_pack) {
+      lines.push(`    - ${entry.kind}: ${entry.path} (${entry.reason})`);
+    }
+  }
+  if ((memoryRecall.hygiene?.warnings || []).length > 0) {
+    lines.push("  - hygiene_warnings:");
+    for (const warning of memoryRecall.hygiene.warnings) {
+      lines.push(`    - ${warning}`);
+    }
   }
 
   return lines;

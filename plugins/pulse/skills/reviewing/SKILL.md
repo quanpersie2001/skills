@@ -79,7 +79,7 @@ Dispatch agents 1-4 first (parallel or serial per rules above). Agent 5 always r
 | 2 `architecture` | Design patterns, coupling, separation of concerns, API design |
 | 3 `security` | OWASP top 10, injection, auth, secrets, data exposure |
 | 4 `test-coverage` | Missing tests, edge cases, integration gaps |
-| 5 `learnings-synthesizer` | Always last — cross-reference `.pulse/memory/`, flag known patterns, suggest compounding entries |
+| 5 `learnings-synthesizer` | Always last — cross-reference `.pulse/memory/`, flag known patterns, suggest compounding entries, and mark repeated failures that may deserve correction or ratchet promotion |
 
 ### Isolated Context Per Agent — Critical
 
@@ -134,8 +134,12 @@ Calibration rule: Not everything is P1. Severity inflation wastes cycles and tra
 1. Collect the review beads created by agents 1-4
 2. Deduplicate overlapping issues — prefer one surviving review bead per distinct problem; close redundant duplicates with a reason such as `Duplicate of <bead-id>`
 3. Surface `learnings-synthesizer` matches with known-pattern notes on the relevant review bead
-4. Count: N P1, N P2, N P3 review beads
-5. Present a summary table to user with bead IDs by severity
+4. When a failure repeats a prior mistake, mark whether it looks like:
+   - a correction candidate (sharp tactical rule)
+   - a ratchet candidate (must-check / non-regression guardrail)
+   - or only a bead-local learning
+5. Count: N P1, N P2, N P3 review beads
+6. Present a summary table to user with bead IDs by severity
 
 When presenting serious findings to the user, do not stop at terse reviewer shorthand. Translate the finding into:
 

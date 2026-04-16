@@ -175,6 +175,14 @@ Tag every learning with:
 - `global-critical`
   - compact rule worth promoting to `critical-patterns.md`
   - should influence future planning broadly
+- `correction`
+  - a sharp tactical guardrail for a repeated or expensive mistake
+  - belongs under `.pulse/memory/corrections/`
+  - should be read selectively when feature, blocker, or file scope matches
+- `ratchet`
+  - a non-regression or must-check rule earned by repeated failures or repeated corrections
+  - belongs under `.pulse/memory/ratchet/`
+  - should influence planning and validating when the trigger clearly matches
 - `bead-local`
   - relevant to specific implementation work
   - future planners should reference the learning file in bead `learning_refs`
@@ -211,6 +219,12 @@ For every finding tagged `severity: critical`:
 
 Do not promote narrow execution notes that should instead be carried via `learning_refs`.
 
+Do not promote directly to `global-critical` when the right destination is narrower. Use these routing rules first:
+- repeated, sharp, avoidable mistake -> `correction`
+- repeated failure that should become a planning/validation must-check -> `ratchet`
+- implementation-specific context -> `bead-local`
+- broad planner guidance with cross-feature value -> `global-critical`
+
 **If criteria met, append to `.pulse/memory/critical-patterns.md`:**
 
 ```markdown
@@ -245,6 +259,8 @@ Workers do not read this file wholesale by default.
 In the learning file and the compounding summary, state how the learning should flow downstream:
 
 - `global-critical` -> planners read via `critical-patterns.md`
+- `correction` -> targeted lookups via `.pulse/memory/corrections/`; planners attach it in `learning_refs` when clearly relevant
+- `ratchet` -> targeted planning/validating must-check guidance via `.pulse/memory/ratchet/`
 - `bead-local` -> future planners should attach the learning file path in `learning_refs`
 - `planner-only` -> use in discovery, planning, or decomposition, not worker init
 

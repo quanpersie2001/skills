@@ -99,9 +99,17 @@ The scout is read-only. It summarizes:
 - `.pulse/handoffs/manifest.json`
 - `.pulse/checkpoints/<feature>/...` when checkpoints exist for the active feature
 - targeted memory-plane recall hooks from `.pulse/memory/`
+- a small **recall pack** of the most relevant critical patterns, corrections, ratchet rules, and learnings
+- memory hygiene warnings when the memory plane looks noisy or stale
 - recommended next reads/actions
 
 Use it to get the current truth quickly, then open the deeper files it points to. The scout tells you what already exists; it does not grant permission to skip the normal gates or downstream skill contracts.
+
+Recall-pack rules:
+- handoffs and live state remain authoritative
+- checkpoints remain advisory
+- the recall pack is only a focused reading list, not a new workflow state
+- use it to avoid grepping the whole memory plane when only a few files are likely relevant
 
 ### gkg Readiness Is Part of Session Start
 

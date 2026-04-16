@@ -91,7 +91,7 @@ export async function main() {
   }
 
   if (fs.existsSync(criticalPatterns)) {
-    notes.push("If you move into planning or execution, read .pulse/memory/critical-patterns.md.");
+    notes.push("If you move into planning, start with .pulse/memory/critical-patterns.md and then use pulse_status recall pointers for narrower learnings, corrections, and ratchet rules.");
   }
 
   const gkgReadiness = await readGkgReadiness(repoRoot);

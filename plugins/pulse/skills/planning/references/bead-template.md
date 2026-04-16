@@ -66,6 +66,7 @@ These rules are intentionally strict because downstream skills rely on them as s
 7. If `testing_mode` is `tdd-required`, add `tdd_steps` with distinct red and green commands.
 8. `decision_refs` must point to actual decision IDs from `CONTEXT.md` when relevant.
 9. `learning_refs` should only include learnings this bead genuinely needs.
+10. If a correction entry or ratchet rule clearly applies to the bead, include that path in `learning_refs` instead of assuming the worker will rediscover it from global memory.
 
 ## Body Sections
 

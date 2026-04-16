@@ -80,15 +80,23 @@ If one of those learnings directly explains the issue, use it before searching b
 
 ### 2b. Targeted global lookup only if needed
 
-If bead-local learning refs do not explain the issue, search `.pulse/memory/critical-patterns.md` with targeted keywords from the classification:
+If bead-local learning refs do not explain the issue, look for the smallest targeted memory source next:
+
+1. matching correction entries under `.pulse/memory/corrections/`
+2. matching ratchet rules under `.pulse/memory/ratchet/`
+3. then `.pulse/memory/critical-patterns.md`
+
+Use targeted keywords from the classification rather than broad browsing.
 
 ```bash
+grep -r -i "<keyword from classification>" .pulse/memory/corrections/ -l 2>/dev/null
+grep -r -i "<keyword from classification>" .pulse/memory/ratchet/ -l 2>/dev/null
 grep -i "<keyword from classification>" .pulse/memory/critical-patterns.md 2>/dev/null
 ```
 
 If a known pattern matches, jump directly to Step 4 (Fix) using the documented resolution.
 
-Do not read the full global file unless the search result demands it.
+Do not read the full global file unless the targeted search result demands it.
 
 ---
 
