@@ -6,12 +6,13 @@
       "skill": "preflight",
       "skill_path": "plugins/pulse/skills/preflight",
       "prompt": "I'm starting work on a new feature. Run pulse:preflight to check whether my environment is ready for the Pulse workflow.",
-      "expected_output": "Agent checks git, br, bv, and coordination runtime availability; writes .pulse/tooling-status.json with PASS/DEGRADED/FAIL and a recommended_mode; presents a clear status summary.",
+      "expected_output": "Agent checks git, br, bv, and coordination runtime availability; writes .pulse/tooling-status.json with PASS/DEGRADED/FAIL and a recommended_mode; presents a clear status summary; and reports onboarding blockers honestly instead of claiming readiness when onboarding cannot be verified.",
       "files": [],
       "expectations": [
         "Agent attempts to check for git, br, and bv tool availability",
         "Agent writes or describes writing .pulse/tooling-status.json",
-        "Agent reports a recommended_mode (swarm, single-worker, planning-only, or blocked)",
+        "Agent reports both an overall PASS/DEGRADED/FAIL outcome and a recommended_mode",
+        "Agent reports onboarding blockers honestly and does NOT claim the environment is ready when onboarding cannot be verified or applied",
         "Agent does NOT immediately start implementing features or creating beads"
       ]
     },
@@ -89,27 +90,27 @@
       "id": 7,
       "skill": "planning",
       "skill_path": "plugins/pulse/skills/planning",
-      "prompt": "Exploring is complete. CONTEXT.md is at history/auth-oauth/CONTEXT.md. Now run pulse:planning to research the codebase and produce a phase plan for the OAuth feature.",
-      "expected_output": "Agent reads CONTEXT.md and critical-patterns.md, runs discovery, writes approach.md and phase-plan.md, waits for human approval of the phase plan, then writes current-phase contract/story map and beads using `br`.",
+      "prompt": "Exploring is complete, `history/auth-oauth/CONTEXT.md` exists, and `.pulse/tooling-status.json` says GKG is supported and reachable but the project is not indexed yet. Run pulse:planning and determine whether planning can proceed.",
+      "expected_output": "Agent reads CONTEXT.md and critical-patterns.md, checks `.pulse/tooling-status.json`, stops Phase 1 discovery when GKG is supported but not indexed, tells the user to make GKG ready before planning proceeds, and preserves the later approval-before-bead-creation gate.",
       "files": [],
       "expectations": [
-        "Agent reads CONTEXT.md before doing anything else",
+        "Agent checks .pulse/tooling-status.json for GKG readiness before discovery",
+        "Agent stops discovery and says the repo must be indexed or GKG made ready when supported_repo is true but project_indexed is false",
         "Agent checks .pulse/memory/critical-patterns.md for institutional learnings",
-        "Agent produces or describes producing a phase-plan.md and approach.md",
-        "Agent pauses for human approval before creating beads for the current phase"
+        "Agent preserves the approval gate before any bead creation if planning later proceeds"
       ]
     },
     {
       "id": 8,
       "skill": "validating",
       "skill_path": "plugins/pulse/skills/validating",
-      "prompt": "Planning is done. The phase contract and story map are written. Run pulse:validating to verify the current phase is execution-ready.",
-      "expected_output": "Agent enforces the bead schema, runs the plan-checker across 8 dimensions, executes spike beads for HIGH-risk items, polishes beads with bv, asks exit-readiness questions, and requires explicit user approval before saying execution can start.",
+      "prompt": "Planning is done, `phase-plan.md` is APPROVED for Phase 1, and the bead set contains a mix of valid and malformed beads. Run pulse:validating to determine whether the phase is execution-ready.",
+      "expected_output": "Agent performs Phase 0 orientation from `phase-plan.md` and `.pulse/STATE.md`, scans the bead files for the required schema fields, identifies malformed beads, fails fast before any execution-ready verdict when schema violations exist, and does not start implementation.",
       "files": [],
       "expectations": [
-        "Agent checks that required bead fields (files, verify, dependencies) are present",
-        "Agent runs or describes a plan-checker verification across multiple dimensions",
-        "Agent requires explicit user approval before declaring execution-ready",
+        "Agent performs an actual bead schema scan and identifies missing required fields in malformed beads",
+        "Agent fails fast on schema violations instead of proceeding to execution-ready",
+        "Agent reads approval status from phase-plan.md as part of Phase 0 orientation",
         "Agent does NOT start implementing beads itself"
       ]
     },
@@ -251,6 +252,22 @@
         "Agent uses or describes using a bundled Gemini script (gemini_batch_process.py or similar) rather than just reading the file natively",
         "Agent returns structured extracted text/labels from the image",
         "Agent mentions rate limits or format constraints relevant to image processing"
+      ]
+    },
+    {
+      "id": 19,
+      "skill": "v2-to-v3-migration",
+      "skill_path": "plugins/pulse/skills/v2-to-v3-migration",
+      "prompt": "Preflight found stale Pulse onboarding in this repo. The migration changes look routine, but the user is offline. Run pulse:v2-to-v3-migration to assess what needs to change and tell me exactly what you would say back to the user right now.",
+      "expected_output": "Agent runs the migration check command, reports status/actions/legacy_signals, keeps the wrapper read-only by default, explicitly refuses both full apply and partial apply without approval, explains preservation guarantees, and says planning/execution must not continue while migration is still needed unless the user declines.",
+      "files": [],
+      "expectations": [
+        "Agent runs or describes running the v2-to-v3 migration check command against the repo root",
+        "Agent summarizes the migration status using actions and/or legacy_signals",
+        "Agent explicitly says the migration wrapper is read-only by default and refuses both full apply and partial apply without approval",
+        "Agent explains at least two preservation guarantees, including the compact_prompt replacement boundary when confirmation is required",
+        "Agent says planning or execution must not continue while status is needs_migration unless the user declines or approves the migration path",
+        "Agent does NOT apply repo changes without explicit user approval"
       ]
     }
   ]

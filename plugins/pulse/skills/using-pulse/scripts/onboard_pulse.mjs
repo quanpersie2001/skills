@@ -376,15 +376,10 @@ function renderManagedHookEntries() {
   };
 }
 
-function isPulseHookEntry(entry) {
-  for (const hook of entry?.hooks || []) {
-    const command = hook?.command || "";
-    const status = hook?.statusMessage || "";
-    if (command.includes(".codex/hooks/pulse_") || status.startsWith("Pulse:")) {
-      return true;
-    }
-  }
-  return false;
+function isPulseHook(hook) {
+  const command = hook?.command || "";
+  const status = hook?.statusMessage || "";
+  return command.includes(".codex/hooks/pulse_") || status.startsWith("Pulse:");
 }
 
 function parseHooksJson(text) {
@@ -403,8 +398,24 @@ function mergeHooksJson(hooksPath) {
 
   for (const [eventName, entries] of Object.entries(renderManagedHookEntries())) {
     const currentEntries = Array.isArray(mergedHooks[eventName]) ? mergedHooks[eventName] : [];
-    const filtered = currentEntries.filter((entry) => !isPulseHookEntry(entry));
-    const nextEntries = [...filtered, ...entries];
+    const nextEntries = [];
+
+    for (const entry of currentEntries) {
+      const hooksList = Array.isArray(entry?.hooks) ? entry.hooks : [];
+      const preservedHooks = hooksList.filter((hook) => !isPulseHook(hook));
+      if (preservedHooks.length === hooksList.length) {
+        nextEntries.push(entry);
+        continue;
+      }
+      if (preservedHooks.length > 0) {
+        nextEntries.push({
+          ...entry,
+          hooks: preservedHooks,
+        });
+      }
+    }
+
+    nextEntries.push(...entries);
     if (JSON.stringify(currentEntries) !== JSON.stringify(nextEntries)) {
       changes.push(`upsert_${eventName}`);
     }

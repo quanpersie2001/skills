@@ -1,6 +1,6 @@
 ---
 name: using-pulse
-description: Use when bootstrapping or resuming work in a Pulse project after pulse:preflight, or when you need to route a request to the right Pulse skill and execution mode.
+description: Use when bootstrapping or resuming work in a Pulse project after pulse:preflight, or when a request needs Pulse phase selection and mode-aware routing.
 metadata:
   version: '2.2'
   ecosystem: pulse
@@ -34,28 +34,29 @@ Use this 3-plane model to stay oriented:
 
 Think of this skill as the router and scout brief for Pulse. It does not replace the downstream skill instructions; it gets you onto the right path with the right current-state context.
 
-## Plugin Onboarding
+## Plugin Onboarding and Migration
 
-Before any normal bootstrap, verify that the current repo is onboarded for the Pulse plugin.
+Before any normal bootstrap, verify that the current repo is onboarded for the current Pulse plugin layout.
 
-Requires **Node.js 18+**. Run `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root>` and inspect the JSON result.
+Requires **Node.js 18+**. Run `node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <repo-root>` and inspect the JSON result.
 
 - If `status = "up_to_date"`: proceed immediately.
-- Always inspect `details.dependency_warning` in the JSON output:
+- Always inspect `details.dependency_warning` in the JSON output when present:
   - If `status = "warning"`, treat bootstrap as non-blocking but degraded and read the summary message.
   - Confirm which skills are affected plus the explicit split:
     - `Missing commands: ...`
     - `Missing MCP server configuration: ...`
   - Cross-check the same command-vs-MCP wording boundary against the session-start note and scout output.
 - If `status = "missing_runtime"`: Node.js 18+ is not available -- ask the user to install it before continuing.
-- If onboarding is missing or stale:
-  - summarize what the script wants to create or update
+- If `status = "needs_migration"`:
+  - summarize what the script wants to create or update from `actions`
+  - read `legacy_signals` so the user can see whether this is a stale v2 layout, legacy Python hooks, or a partial Pulse install
   - if `requires_confirmation = true`, explain that an existing `compact_prompt` was found and Pulse will preserve it unless the user explicitly approves replacement
   - ask before making repo changes
-  - after approval, run `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root> --apply`
+  - after approval, run `node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <repo-root> --apply`
   - only use `--allow-compact-prompt-replace` when the user explicitly approved replacing the repo's existing compaction prompt
 
-Onboarding installs or updates:
+Onboarding or migration installs or updates:
 
 - root `AGENTS.md` from the plugin's `AGENTS.template.md`
 - repo-local `.codex/config.toml`
@@ -166,6 +167,7 @@ Read this as the Pulse cookbook: one line per skill, then route into the special
 | 10 | `pulse:gkg` | Codebase intelligence support for discovery, pattern search, and symbol tracing | Architecture questions, related-file search, dependency tracing, or planning acceleration when gkg is ready |
 | 11 | `pulse:dream` | Consolidate durable learnings from Codex artifacts into Pulse memory | Bootstrapping or curating learnings manually |
 | 12 | `pulse:writing-pulse-skills` | Improve or create Pulse skills using a skill-TDD loop | Editing Pulse itself |
+| 13 | `pulse:v2-to-v3-migration` | Assess and safely apply the Pulse repo migration wrapper for stale installs | Preflight or bootstrap detects legacy Pulse layout, version drift, or partial onboarding |
 
 ## Routing Logic
 

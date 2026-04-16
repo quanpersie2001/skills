@@ -1,6 +1,6 @@
 ---
 name: preflight
-description: Use when starting any Pulse workflow, resuming a Pulse session, or before planning or execution when tool readiness may block the flow. Validate required tools, choose full or degraded mode, and write the project tooling status before proceeding.
+description: Use when starting any Pulse workflow, resuming a Pulse session, or before planning or execution when tool readiness or onboarding state may block the flow.
 metadata:
   version: '1.1'
   ecosystem: pulse
@@ -80,26 +80,26 @@ Run `node --version` first.
 If Node.js 18+ is available, run from this skill's directory:
 
 ```bash
-node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <project_root>
+node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <project_root>
 ```
 
 Interpret the result:
 
-- `status = "up_to_date"` — onboarding is current. Set `onboarding = PASS`.
-- `.pulse/onboarding.json` is absent (script exits with `status = "missing"`) — set `onboarding = NEEDS_SETUP`.
-- `.pulse/onboarding.json` exists but `plugin_version` inside it does not match the version in the plugin's `plugin.json` — set `onboarding = STALE`.
+- `status = "up_to_date"` — Pulse onboarding/migration is current. Set `onboarding = PASS`.
+- `status = "needs_migration"` — the repo needs Pulse migration or onboarding updates before normal v3 bootstrap can continue. Use `legacy_signals` to explain whether this is a stale v2 layout, legacy Python hooks, or a partial Pulse install.
+- `status = "missing_runtime"` — Node.js 18+ is not available, so migration cannot run. Set `onboarding = NEEDS_SETUP`.
 
-For `NEEDS_SETUP` or `STALE`:
+For `needs_migration`:
 
-1. Summarize what the script wants to create or update.
+1. Summarize what the script wants to create or update from `actions`.
 2. If `requires_confirmation = true`, explain that an existing `compact_prompt` was found and Pulse will preserve it unless the user explicitly approves replacement.
 3. Ask the user before making any repo changes.
-4. After approval, run: `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <project_root> --apply`
+4. After approval, run: `node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <project_root> --apply`
    - Only pass `--allow-compact-prompt-replace` when the user explicitly approved replacing the existing compaction prompt.
 5. If the apply run succeeds, update `onboarding` to `PASS` and continue.
-6. If the apply run fails, set `onboarding` to `NEEDS_SETUP` and add a blocker entry.
+6. If the apply run fails, keep `onboarding` blocked and add a blocker entry.
 
-`NEEDS_SETUP` or an unresolved `STALE` both set preflight result to `FAIL`.
+An unresolved migration or missing runtime sets preflight result to `FAIL`.
 
 ## Phase 3: Validate Core Tooling
 
