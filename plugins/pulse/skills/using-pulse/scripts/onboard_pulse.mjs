@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -40,6 +41,7 @@ const LEGACY_HOOK_FILENAMES = [
   "pulse_pre_tool_use.py",
   "pulse_stop.py",
 ];
+const LEGACY_LEARNING_DIRECTORIES = ["learnings", "learning", "corrections", "ratchet"];
 
 export function getNodeRuntimeStatus(version = process.versions.node) {
   const major = Number.parseInt(String(version).split(".")[0] || "0", 10);
@@ -498,6 +500,605 @@ function writeSupportScripts(repoRoot) {
   return written;
 }
 
+function toPosixRelative(repoRoot, targetPath) {
+  return path.relative(repoRoot, targetPath).split(path.sep).join("/");
+}
+
+function slugifyValue(value, fallback = "entry") {
+  const slug = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug || fallback;
+}
+
+function collectFilesRecursively(rootDir) {
+  if (!fs.existsSync(rootDir)) {
+    return [];
+  }
+
+  const files = [];
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+      } else if (entry.isFile()) {
+        files.push(fullPath);
+      }
+    }
+  }
+
+  files.sort();
+  return files;
+}
+
+function parseSimpleFrontmatter(text) {
+  const match = text.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!match) {
+    return { data: {}, body: text.trim() };
+  }
+
+  const data = {};
+  for (const line of match[1].split("\n")) {
+    const kv = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (!kv) {
+      continue;
+    }
+    const [, key, rawValue] = kv;
+    const value = rawValue.trim();
+    if (value.startsWith("[") && value.endsWith("]")) {
+      data[key] = value
+        .slice(1, -1)
+        .split(",")
+        .map((item) => item.trim().replace(/^['"]|['"]$/g, ""))
+        .filter(Boolean);
+    } else {
+      data[key] = value.replace(/^['"]|['"]$/g, "");
+    }
+  }
+
+  return { data, body: text.slice(match[0].length).trim() };
+}
+
+function formatYamlScalar(value) {
+  return String(value || "").replace(/\n+/g, " ").trim();
+}
+
+function formatYamlArray(values) {
+  const normalized = [...new Set((values || []).map((value) => String(value || "").trim()).filter(Boolean))];
+  return `[${normalized.join(", ")}]`;
+}
+
+function inferLegacyDate(sourcePath, frontmatter) {
+  const raw = typeof frontmatter.date === "string" ? frontmatter.date.trim() : "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+  if (/^\d{8}$/.test(raw)) {
+    return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  }
+
+  const stat = fs.statSync(sourcePath);
+  const iso = new Date(stat.mtimeMs).toISOString().slice(0, 10);
+  return iso;
+}
+
+function inferLegacyFeature(frontmatter, relativePath) {
+  if (typeof frontmatter.feature === "string" && frontmatter.feature.trim()) {
+    return slugifyValue(frontmatter.feature.trim(), "legacy-learning");
+  }
+
+  const parts = relativePath.split("/");
+  const stem = path.basename(relativePath, path.extname(relativePath));
+  const candidate = parts.find((part) => !["history", "learning", "learnings", "corrections", "ratchet"].includes(part));
+  return slugifyValue(candidate || stem, "legacy-learning");
+}
+
+function extractLegacyTitle(body, fallbackStem) {
+  const heading = body.match(/^#\s+(.+)$/m);
+  if (heading) {
+    return heading[1].trim();
+  }
+
+  const firstNonEmpty = body.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+  return firstNonEmpty ? firstNonEmpty.replace(/^[-*]\s*/, "").slice(0, 80) : fallbackStem;
+}
+
+function classifyLegacyMemory(body, relativePath) {
+  const text = `${relativePath}\n${body}`.toLowerCase();
+  if (/\bratchet\b|must-check|required checks?|non-regression|always verify|never merge without/.test(text)) {
+    return "ratchet";
+  }
+  if (/\bcorrection\b|wrong move|correct move|should have|instead,|mistake|fix was/.test(text)) {
+    return "correction";
+  }
+  return "learning";
+}
+
+function inferLegacySeverity(body, frontmatter) {
+  const raw = typeof frontmatter.severity === "string" ? frontmatter.severity.trim().toLowerCase() : "";
+  if (raw === "critical" || raw === "standard") {
+    return raw;
+  }
+  return /critical|sev0|sev1|blocker|must-fix/.test(body.toLowerCase()) ? "critical" : "standard";
+}
+
+function inferLegacyTags(relativePath, body, type) {
+  const seed = new Set([type, "legacy-migration"]);
+  const joined = `${relativePath} ${body}`.toLowerCase();
+  for (const token of ["verification", "testing", "hooks", "memory", "planning", "review", "onboarding", "migration"]) {
+    if (joined.includes(token)) {
+      seed.add(token);
+    }
+  }
+  return [...seed].slice(0, 6);
+}
+
+function buildLegacyAppliesWhen(type, feature, title) {
+  if (type === "ratchet") {
+    return `Work touches ${feature} or the same non-regression surface described in ${title}.`;
+  }
+  if (type === "correction") {
+    return `Work risks repeating the same tactical mistake described in ${title}.`;
+  }
+  return `Work overlaps ${feature} or the scenario captured in ${title}.`;
+}
+
+function buildLegacyNormalizedDocument({
+  type,
+  date,
+  feature,
+  title,
+  tags,
+  severity,
+  appliesWhen,
+  scope,
+  signals,
+  sourceRelativePath,
+  sourceHash,
+  legacyBody,
+}) {
+  const migrationMarker = `<!-- pulse-migrated-source: ${sourceRelativePath} sha256:${sourceHash} -->`;
+  const sharedFrontmatter = [
+    "---",
+    `date: ${date}`,
+    `feature: ${formatYamlScalar(feature)}`,
+    `severity: ${severity}`,
+    `tags: ${formatYamlArray(tags)}`,
+    `applies_when: ${formatYamlScalar(appliesWhen)}`,
+    `scope: ${formatYamlArray(scope)}`,
+    `signals: ${formatYamlArray(signals)}`,
+  ];
+
+  const safeTitle = title || "Legacy Note";
+  const originalNote = legacyBody.trim() || "Legacy source file was empty.";
+
+  if (type === "correction") {
+    return [
+      ...sharedFrontmatter,
+      "---",
+      migrationMarker,
+      "",
+      `# Correction: ${safeTitle}`,
+      "",
+      `**Why this exists:** Preserve a tactical fix migrated from legacy Pulse v2 memory at \`${sourceRelativePath}\`.`,
+      "",
+      "## Wrong move",
+      "",
+      "Treat the original legacy note as optional context or rewrite it without preserving the tactical mistake it was documenting.",
+      "",
+      "## Correct move",
+      "",
+      "Carry the legacy guidance forward into the current correction format, keep the v3 file canonical, and review the original note below before repeating the same mistake.",
+      "",
+      "## Evidence",
+      "",
+      `- Feature: ${feature}`,
+      "- Files / commands / artifacts:",
+      `  - ${sourceRelativePath}`,
+      "",
+      "## Propagation",
+      "",
+      "**Propagation:** correction",
+      "**Planner action:** attach this file in bead `learning_refs` when the trigger clearly matches.",
+      "",
+      "## Legacy Source Note",
+      "",
+      originalNote,
+      "",
+    ].join("\n");
+  }
+
+  if (type === "ratchet") {
+    return [
+      ...sharedFrontmatter,
+      "---",
+      migrationMarker,
+      "",
+      `# Ratchet: ${safeTitle}`,
+      "",
+      `**Rule:** Re-check this legacy non-regression note whenever work overlaps ${feature}.`,
+      "",
+      "## Why this became a ratchet",
+      "",
+      `This guidance was promoted from legacy Pulse v2 memory at \`${sourceRelativePath}\` and likely represents a costly or repeated miss worth preserving.`,
+      "",
+      "## Required checks",
+      "",
+      `- Review the original migrated note before changing ${feature}.`,
+      "- Confirm verification covers the failure mode or guardrail described below.",
+      "",
+      "## Evidence",
+      "",
+      `- Feature: ${feature}`,
+      "- Files / commands / artifacts:",
+      `  - ${sourceRelativePath}`,
+      "",
+      "## Propagation",
+      "",
+      "**Propagation:** ratchet",
+      "**Planner action:** attach this file in bead `learning_refs` when the trigger clearly matches.",
+      "**Validator action:** treat this as a must-check when the trigger clearly matches.",
+      "",
+      "## Legacy Source Note",
+      "",
+      originalNote,
+      "",
+    ].join("\n");
+  }
+
+  return [
+    ...sharedFrontmatter.slice(0, 2),
+    `categories: ${formatYamlArray([bodyToLearningCategory(legacyBody, type)])}`,
+    ...sharedFrontmatter.slice(2),
+    "---",
+    migrationMarker,
+    "",
+    `# Learning: ${safeTitle}`,
+    "",
+    `**Category:** ${bodyToLearningCategory(legacyBody, type)}`,
+    `**Severity:** ${severity}`,
+    `**Tags:** ${formatYamlArray(tags)}`,
+    `**Applicable-when:** ${appliesWhen}`,
+    "",
+    "## What Happened",
+    "",
+    `This note was migrated from legacy Pulse v2 memory at \`${sourceRelativePath}\`. The original content is preserved below so future work can reuse the context without depending on the retired layout.`,
+    "",
+    "## Root Cause / Key Insight",
+    "",
+    "The durable insight mattered enough to keep, but the original file did not match the current v3 learning template. Normalizing it keeps the canonical memory surface consistent while preserving the original details.",
+    "",
+    "## Recommendation for Future Work",
+    "",
+    "Review the migrated legacy note before making similar changes, and treat the original trigger and failure mode as the source of truth when deciding whether this learning applies.",
+    "",
+    "## Propagation Guidance",
+    "",
+    "**Propagation:** bead-local",
+    "**Embed-in-bead-when:** The current work clearly matches the original trigger described in this migrated note.",
+    "**Bead hint:** Review the migrated legacy learning before changing this area.",
+    "",
+    "## Legacy Source Note",
+    "",
+    originalNote,
+    "",
+  ].join("\n");
+}
+
+function bodyToLearningCategory(body, type) {
+  if (type === "correction") {
+    return "failure";
+  }
+  if (/\bdecision\b|chosen|tradeoff|decided/.test(body.toLowerCase())) {
+    return "decision";
+  }
+  if (/\bfailure\b|incident|bug|broke|mistake/.test(body.toLowerCase())) {
+    return "failure";
+  }
+  return "pattern";
+}
+
+function collectLegacyLearningSources(repoRoot) {
+  const historyLearningRoot = path.join(repoRoot, "history", "learning");
+  if (!fs.existsSync(historyLearningRoot)) {
+    return [];
+  }
+
+  const sources = [];
+  for (const directoryName of LEGACY_LEARNING_DIRECTORIES) {
+    const dirPath = path.join(historyLearningRoot, directoryName);
+    for (const filePath of collectFilesRecursively(dirPath)) {
+      if (path.basename(filePath) === "critical-patterns.md") {
+        continue;
+      }
+      if (path.extname(filePath).toLowerCase() !== ".md") {
+        continue;
+      }
+      sources.push(filePath);
+    }
+  }
+
+  for (const filePath of collectFilesRecursively(historyLearningRoot)) {
+    const relative = toPosixRelative(repoRoot, filePath);
+    if (relative === "history/learning/critical-patterns.md") {
+      continue;
+    }
+    if (!relative.startsWith("history/learning/")) {
+      continue;
+    }
+    if (path.extname(filePath).toLowerCase() !== ".md") {
+      continue;
+    }
+    if (!sources.includes(filePath)) {
+      sources.push(filePath);
+    }
+  }
+
+  sources.sort();
+  return sources;
+}
+
+function collectLegacyVerificationArtifacts(repoRoot) {
+  const runsRoot = path.join(repoRoot, ".pulse", "runs");
+  if (!fs.existsSync(runsRoot)) {
+    return [];
+  }
+
+  return fs.readdirSync(runsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const featureKey = entry.name;
+      const verificationRoot = path.join(runsRoot, featureKey, "verification");
+      const files = collectFilesRecursively(verificationRoot);
+      return {
+        featureKey,
+        verificationRoot,
+        files,
+      };
+    })
+    .filter((entry) => entry.files.length > 0);
+}
+
+function ensureDestinationFilePath(targetDirectory, baseName, sourceRelativePath) {
+  const preferred = path.join(targetDirectory, baseName);
+  if (!fs.existsSync(preferred)) {
+    return preferred;
+  }
+
+  const sourceHash = createHash("sha256").update(sourceRelativePath).digest("hex").slice(0, 8);
+  const parsed = path.parse(baseName);
+  return path.join(targetDirectory, `${parsed.name}-${sourceHash}${parsed.ext}`);
+}
+
+function removeEmptyParents(startDir, stopDir) {
+  let current = startDir;
+  const stopPath = path.resolve(stopDir);
+  while (path.resolve(current).startsWith(stopPath)) {
+    if (!fs.existsSync(current)) {
+      current = path.dirname(current);
+      continue;
+    }
+    if (fs.readdirSync(current).length > 0) {
+      break;
+    }
+    fs.rmdirSync(current);
+    if (path.resolve(current) === stopPath) {
+      break;
+    }
+    current = path.dirname(current);
+  }
+}
+
+function migrateLegacyLearningMemory(repoRoot) {
+  const sources = collectLegacyLearningSources(repoRoot);
+  const memoryRoot = path.join(repoRoot, ".pulse", "memory");
+  const historyLearningRoot = path.join(repoRoot, "history", "learning");
+  const result = {
+    sources_found: sources.length,
+    migrated_files: 0,
+    normalized_counts: {
+      learning: 0,
+      correction: 0,
+      ratchet: 0,
+    },
+    conflicts: [],
+    outputs: [],
+  };
+
+  for (const sourcePath of sources) {
+    const sourceRelativePath = toPosixRelative(repoRoot, sourcePath);
+    const sourceText = fs.readFileSync(sourcePath, "utf8");
+    const sourceHash = createHash("sha256").update(sourceText).digest("hex");
+    const { data: frontmatter, body } = parseSimpleFrontmatter(sourceText);
+    const type = classifyLegacyMemory(body, sourceRelativePath);
+    const date = inferLegacyDate(sourcePath, frontmatter);
+    const dateSlug = date.replace(/-/g, "");
+    const feature = inferLegacyFeature(frontmatter, sourceRelativePath);
+    const title = extractLegacyTitle(body, slugifyValue(path.basename(sourcePath, path.extname(sourcePath)), "legacy-note"));
+    const tags = inferLegacyTags(sourceRelativePath, body, type);
+    const severity = inferLegacySeverity(body, frontmatter);
+    const appliesWhen = buildLegacyAppliesWhen(type, feature, title);
+    const scope = [sourceRelativePath];
+    const signals = [slugifyValue(title, "legacy-note")];
+    const targetDirectory = path.join(memoryRoot, type === "learning" ? "learnings" : `${type}s`.replace("ratchets", "ratchet"));
+    fs.mkdirSync(targetDirectory, { recursive: true });
+
+    const baseName = `${dateSlug}-${slugifyValue(title, slugifyValue(feature, "legacy-note"))}.md`;
+    let targetPath = ensureDestinationFilePath(targetDirectory, baseName, sourceRelativePath);
+    const candidatePaths = [targetPath];
+    if (targetPath !== path.join(targetDirectory, baseName)) {
+      candidatePaths.unshift(path.join(targetDirectory, baseName));
+    }
+
+    let existingPath = null;
+    for (const candidatePath of candidatePaths) {
+      if (!fs.existsSync(candidatePath)) {
+        continue;
+      }
+      const existingText = fs.readFileSync(candidatePath, "utf8");
+      if (existingText.includes(`pulse-migrated-source: ${sourceRelativePath} `)) {
+        existingPath = candidatePath;
+        targetPath = candidatePath;
+        break;
+      }
+    }
+
+    const normalized = buildLegacyNormalizedDocument({
+      type,
+      date,
+      feature,
+      title,
+      tags,
+      severity,
+      appliesWhen,
+      scope,
+      signals,
+      sourceRelativePath,
+      sourceHash,
+      legacyBody: body,
+    });
+
+    if (existingPath) {
+      const existingText = fs.readFileSync(existingPath, "utf8");
+      if (existingText !== normalized) {
+        result.conflicts.push(`${toPosixRelative(repoRoot, existingPath)} preserved over ${sourceRelativePath}`);
+      }
+      continue;
+    }
+
+    if (fs.existsSync(targetPath)) {
+      result.conflicts.push(`${toPosixRelative(repoRoot, targetPath)} preserved over ${sourceRelativePath}`);
+      continue;
+    }
+
+    fs.writeFileSync(targetPath, `${normalized.replace(/\s*$/, "")}\n`, "utf8");
+    fs.rmSync(sourcePath, { force: true });
+    removeEmptyParents(path.dirname(sourcePath), historyLearningRoot);
+    result.migrated_files += 1;
+    result.normalized_counts[type] += 1;
+    result.outputs.push(toPosixRelative(repoRoot, targetPath));
+  }
+
+  return result;
+}
+
+function parseCriticalPatternEntries(text) {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const entries = [];
+  const matches = [...trimmed.matchAll(/^##\s+(.+)$/gm)];
+  if (matches.length === 0) {
+    return [{ title: trimmed.slice(0, 80), body: trimmed }];
+  }
+
+  for (let index = 0; index < matches.length; index += 1) {
+    const start = matches[index].index;
+    const end = index + 1 < matches.length ? matches[index + 1].index : trimmed.length;
+    const block = trimmed.slice(start, end).trim();
+    entries.push({ title: matches[index][1].trim(), body: block });
+  }
+  return entries;
+}
+
+function mergeLegacyCriticalPatterns(repoRoot) {
+  const historyLearningRoot = path.join(repoRoot, "history", "learning");
+  const sourcePath = path.join(historyLearningRoot, "critical-patterns.md");
+  const targetPath = path.join(repoRoot, ".pulse", "memory", "critical-patterns.md");
+  const result = {
+    source_exists: fs.existsSync(sourcePath),
+    appended_entries: 0,
+    skipped_entries: 0,
+  };
+
+  if (!result.source_exists) {
+    return result;
+  }
+
+  const sourceEntries = parseCriticalPatternEntries(fs.readFileSync(sourcePath, "utf8"));
+  const existingText = readTextIfExists(targetPath);
+  const existingEntries = parseCriticalPatternEntries(existingText);
+  const existingTitles = new Set(existingEntries.map((entry) => entry.title.toLowerCase()));
+  const existingBodies = new Set(existingEntries.map((entry) => entry.body.replace(/\s+/g, " ").trim().toLowerCase()));
+  const additions = [];
+
+  for (const entry of sourceEntries) {
+    const normalizedBody = entry.body.replace(/\s+/g, " ").trim().toLowerCase();
+    if (existingTitles.has(entry.title.toLowerCase()) || existingBodies.has(normalizedBody)) {
+      result.skipped_entries += 1;
+      continue;
+    }
+    additions.push(entry.body);
+    existingTitles.add(entry.title.toLowerCase());
+    existingBodies.add(normalizedBody);
+  }
+
+  if (additions.length === 0) {
+    return result;
+  }
+
+  const nextText = existingText.trim()
+    ? `${existingText.replace(/\s*$/, "")}\n\n${additions.join("\n\n")}`
+    : `${additions.join("\n\n")}\n`;
+  ensureParent(targetPath);
+  fs.writeFileSync(targetPath, `${nextText.replace(/\s*$/, "")}\n`, "utf8");
+  fs.rmSync(sourcePath, { force: true });
+  removeEmptyParents(path.dirname(sourcePath), historyLearningRoot);
+  result.appended_entries = additions.length;
+  return result;
+}
+
+function migrateLegacyVerificationArtifacts(repoRoot) {
+  const features = collectLegacyVerificationArtifacts(repoRoot);
+  const runsRoot = path.join(repoRoot, ".pulse", "runs");
+  const result = {
+    features_found: features.length,
+    copied_files: 0,
+    conflicts: [],
+  };
+
+  for (const feature of features) {
+    const historyVerificationRoot = path.join(repoRoot, "history", feature.featureKey, "verification");
+    fs.mkdirSync(historyVerificationRoot, { recursive: true });
+
+    for (const sourcePath of feature.files) {
+      const relativeInsideVerification = path.relative(feature.verificationRoot, sourcePath);
+      const destinationPath = path.join(historyVerificationRoot, relativeInsideVerification);
+      ensureParent(destinationPath);
+
+      if (!fs.existsSync(destinationPath)) {
+        fs.copyFileSync(sourcePath, destinationPath);
+        fs.rmSync(sourcePath, { force: true });
+        result.copied_files += 1;
+        continue;
+      }
+
+      const sourceText = fs.readFileSync(sourcePath);
+      const destinationText = fs.readFileSync(destinationPath);
+      if (Buffer.compare(sourceText, destinationText) !== 0) {
+        result.conflicts.push(
+          `${toPosixRelative(repoRoot, destinationPath)} preserved over ${toPosixRelative(repoRoot, sourcePath)}`,
+        );
+        continue;
+      }
+
+      fs.rmSync(sourcePath, { force: true });
+    }
+
+    removeEmptyParents(feature.verificationRoot, runsRoot);
+  }
+
+  return result;
+}
+
 function buildRuntimeBlockedPayload(repoRoot, action) {
   const runtime = getNodeRuntimeStatus();
   return {
@@ -547,6 +1148,10 @@ export function checkRepo(repoRoot) {
 
   const compactPromptManaged = hasManagedCompactPrompt(configText);
   const compactPromptConflict = hasCompactPrompt(configText) && !compactPromptManaged;
+
+  const legacyLearningSources = collectLegacyLearningSources(repoRoot);
+  const legacyCriticalPatternsPath = path.join(repoRoot, "history", "learning", "critical-patterns.md");
+  const legacyVerificationArtifacts = collectLegacyVerificationArtifacts(repoRoot);
 
   const actions = [];
   if (!agentsExists) {
@@ -608,6 +1213,18 @@ export function checkRepo(repoRoot) {
     actions.push("write_.pulse/onboarding.json");
   }
 
+  if (legacyLearningSources.length > 0) {
+    actions.push("migrate_legacy_learning_memory");
+  }
+
+  if (fs.existsSync(legacyCriticalPatternsPath)) {
+    actions.push("migrate_legacy_critical_patterns");
+  }
+
+  if (legacyVerificationArtifacts.length > 0) {
+    actions.push("migrate_legacy_verification_artifacts");
+  }
+
   return {
     repo_root: repoRoot,
     status: actions.length === 0 ? "up_to_date" : "needs_onboarding",
@@ -625,6 +1242,15 @@ export function checkRepo(repoRoot) {
       runtime,
       dependency_health: dependencyHealth,
       dependency_warning: dependencyWarning,
+      legacy_learning_sources: legacyLearningSources.map((sourcePath) => toPosixRelative(repoRoot, sourcePath)),
+      legacy_critical_patterns: fs.existsSync(legacyCriticalPatternsPath)
+        ? toPosixRelative(repoRoot, legacyCriticalPatternsPath)
+        : "",
+      legacy_verification_features: legacyVerificationArtifacts.map((entry) => ({
+        feature: entry.featureKey,
+        verification_root: toPosixRelative(repoRoot, entry.verificationRoot),
+        files: entry.files.map((filePath) => toPosixRelative(repoRoot, filePath)),
+      })),
     },
   };
 }
@@ -688,6 +1314,19 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
     );
   }
 
+  const legacyLearningMigration = migrateLegacyLearningMemory(repoRoot);
+  const legacyCriticalPatternsMigration = mergeLegacyCriticalPatterns(repoRoot);
+  const legacyVerificationMigration = migrateLegacyVerificationArtifacts(repoRoot);
+  const migrationConflicts = [
+    ...legacyLearningMigration.conflicts,
+    ...legacyVerificationMigration.conflicts,
+  ];
+  if (migrationConflicts.length > 0) {
+    onboardingNotes.push(
+      `Legacy migration preserved canonical v3 destinations for ${migrationConflicts.length} conflicting path(s).`,
+    );
+  }
+
   const onboardingPayload = {
     schema_version: ONBOARDING_SCHEMA_VERSION,
     plugin: "pulse",
@@ -708,6 +1347,18 @@ export function applyRepo(repoRoot, allowCompactPromptReplace) {
         path.relative(repoRoot, memoryCorrectionsPath),
         path.relative(repoRoot, memoryRatchetPath),
       ],
+      migration_summary: {
+        legacy_learning_sources: legacyLearningMigration.sources_found,
+        migrated_learning_files: legacyLearningMigration.migrated_files,
+        normalized_counts: legacyLearningMigration.normalized_counts,
+        critical_patterns_appended: legacyCriticalPatternsMigration.appended_entries,
+        legacy_verification_features: legacyVerificationMigration.features_found,
+        verification_files_copied: legacyVerificationMigration.copied_files,
+        conflicts_skipped: migrationConflicts,
+        outputs: {
+          learning_memory: legacyLearningMigration.outputs,
+        },
+      },
     },
     notes: onboardingNotes,
   };

@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 
-import { applyRepo } from "../../using-pulse/scripts/onboard_pulse.mjs";
+import { applyRepo, checkRepo } from "../../using-pulse/scripts/onboard_pulse.mjs";
 import {
   checkMigration,
   applyMigration,
@@ -67,6 +67,61 @@ function createLegacyPulseRepo() {
   const memoryFile = path.join(root, ".pulse", "memory", "learnings", "keep.md");
   fs.writeFileSync(memoryFile, "keep this memory\n", "utf8");
 
+  fs.mkdirSync(path.join(root, "history", "learning", "learnings"), { recursive: true });
+  fs.mkdirSync(path.join(root, "history", "learning", "corrections"), { recursive: true });
+  fs.mkdirSync(path.join(root, "history", "learning", "ratchet"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, "history", "learning", "learnings", "operator-foundation.md"),
+    [
+      "# Learning: Operator Surface Foundation",
+      "",
+      "Keep operator-facing status output consistent across runtime and history surfaces.",
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(
+    path.join(root, "history", "learning", "corrections", "planning-gate.md"),
+    [
+      "# Correction: Planning Gate",
+      "",
+      "Wrong move: skip the explicit planning gate approval.",
+      "",
+      "Correct move: stop after the plan and wait for approval before editing.",
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(
+    path.join(root, "history", "learning", "ratchet", "verification-ratchet.md"),
+    [
+      "# Ratchet: Verification Artifacts",
+      "",
+      "Rule: verification evidence must remain present and reviewable after execution.",
+      "",
+      "Required checks:",
+      "- verify canonical history evidence exists",
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(
+    path.join(root, "history", "learning", "critical-patterns.md"),
+    [
+      "## [20260417] Preserve canonical history verification",
+      "**Category:** pattern",
+      "**Feature:** operator-surface-foundation",
+      "**Tags:** [verification, migration]",
+      "",
+      "Prefer history verification paths over legacy runtime evidence when both exist.",
+    ].join("\n"),
+    "utf8",
+  );
+
+  fs.mkdirSync(path.join(root, ".pulse", "runs", "operator-surface-foundation", "verification"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, ".pulse", "runs", "operator-surface-foundation", "verification", "final-review.md"),
+    "# Final Review\nlegacy verification\n",
+    "utf8",
+  );
+
   return root;
 }
 
@@ -86,6 +141,9 @@ test("checkMigration reports needs_migration for a stale v2-style repo without m
     assert.equal(result.preservation_guarantees.pulse_data_not_wiped, true);
     assert.ok(result.actions.includes("sync_pulse_hook_scripts"));
     assert.ok(result.actions.includes("sync_pulse_support_scripts"));
+    assert.ok(result.actions.includes("migrate_legacy_learning_memory"));
+    assert.ok(result.actions.includes("migrate_legacy_critical_patterns"));
+    assert.ok(result.actions.includes("migrate_legacy_verification_artifacts"));
     assert.deepEqual(
       result.legacy_signals.map((signal) => signal.id).sort(),
       ["legacy_python_hook_entries", "legacy_python_hook_file", "missing_v3_support_files", "stale_plugin_version"],
@@ -124,6 +182,30 @@ test("applyMigration upgrades a stale repo while preserving unrelated hooks, AGE
       fs.readFileSync(path.join(root, ".pulse", "memory", "learnings", "keep.md"), "utf8"),
       "keep this memory\n",
     );
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "critical-patterns.md")));
+    assert.match(
+      fs.readFileSync(path.join(root, ".pulse", "memory", "critical-patterns.md"), "utf8"),
+      /Preserve canonical history verification/,
+    );
+    assert.ok(
+      fs.readdirSync(path.join(root, ".pulse", "memory", "learnings")).some((name) => /operator-surface-foundation/.test(name)),
+    );
+    assert.ok(
+      fs.readdirSync(path.join(root, ".pulse", "memory", "corrections")).some((name) => /planning-gate/.test(name)),
+    );
+    assert.ok(
+      fs.readdirSync(path.join(root, ".pulse", "memory", "ratchet")).some((name) => /verification-artifacts/.test(name)),
+    );
+    assert.equal(
+      fs.readFileSync(
+        path.join(root, "history", "operator-surface-foundation", "verification", "final-review.md"),
+        "utf8",
+      ),
+      "# Final Review\nlegacy verification\n",
+    );
+    assert.equal(result.details.onboarding_apply.managed_assets.migration_summary.migrated_learning_files, 3);
+    assert.equal(result.details.onboarding_apply.managed_assets.migration_summary.critical_patterns_appended, 1);
+    assert.equal(result.details.onboarding_apply.managed_assets.migration_summary.verification_files_copied, 1);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -155,15 +237,23 @@ test("migration CLI is idempotent after apply", () => {
       encoding: "utf8",
     });
     const applyPayload = JSON.parse(applyStdout);
+    const applyAgainStdout = execFileSync("node", [MIGRATION_SCRIPT_PATH, "--repo-root", root, "--apply"], {
+      encoding: "utf8",
+    });
+    const applyAgainPayload = JSON.parse(applyAgainStdout);
     const checkStdout = execFileSync("node", [MIGRATION_SCRIPT_PATH, "--repo-root", root], {
       encoding: "utf8",
     });
     const checkPayload = JSON.parse(checkStdout);
 
     assert.equal(applyPayload.status, "up_to_date");
+    assert.equal(applyAgainPayload.status, "up_to_date");
     assert.equal(checkPayload.status, "up_to_date");
     assert.equal(checkPayload.mode, "check");
     assert.deepEqual(checkPayload.legacy_signals, []);
+    assert.equal(applyAgainPayload.details.onboarding_apply.managed_assets.migration_summary.migrated_learning_files, 0);
+    assert.equal(applyAgainPayload.details.onboarding_apply.managed_assets.migration_summary.critical_patterns_appended, 0);
+    assert.equal(applyAgainPayload.details.onboarding_apply.managed_assets.migration_summary.verification_files_copied, 0);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -179,6 +269,26 @@ test("checkMigration reports missing_runtime for unsupported Node versions", () 
     assert.equal(result.mode, "check");
     assert.equal(result.runtime.supported, false);
     assert.ok(result.actions.includes("install_supported_node_runtime"));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("checkRepo surfaces migrated history verification links after legacy verification migration", () => {
+  const root = createLegacyPulseRepo();
+
+  try {
+    applyMigration(root);
+
+    const result = checkRepo(root);
+    assert.equal(result.status, "up_to_date");
+    assert.equal(
+      fs.readFileSync(
+        path.join(root, "history", "operator-surface-foundation", "verification", "final-review.md"),
+        "utf8",
+      ),
+      "# Final Review\nlegacy verification\n",
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

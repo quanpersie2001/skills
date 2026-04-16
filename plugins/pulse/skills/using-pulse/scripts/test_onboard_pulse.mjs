@@ -942,6 +942,87 @@ test("checkpoint commands prefer canonical history verification paths and fall b
   }
 });
 
+test("applyRepo migrates legacy verification into canonical history while preserving legacy fallback for unmigrated repos", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+
+    fs.mkdirSync(path.join(root, ".pulse", "runs", "legacy-only", "verification"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, ".pulse", "runs", "legacy-only", "verification", "final-review.md"),
+      "# Final Review\nlegacy only\n",
+      "utf8",
+    );
+    fs.mkdirSync(path.join(root, "history", "learning", "learnings"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "history", "learning", "learnings", "legacy-note.md"),
+      "# Learning: Legacy Note\n\nKeep this migrated.\n",
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "current-feature.json"),
+      `${JSON.stringify({
+        feature_key: "legacy-only",
+        phase: "reviewing",
+        gate: "GATE 4",
+        status: "active",
+        updated_at: "2026-04-16T12:00:00.000Z",
+      }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const migrated = applyRepo(root, false);
+    assert.equal(migrated.status, "up_to_date");
+    assert.equal(
+      fs.readFileSync(path.join(root, "history", "legacy-only", "verification", "final-review.md"), "utf8"),
+      "# Final Review\nlegacy only\n",
+    );
+
+    const saveCanonical = JSON.parse(
+      execFileSync(
+        "node",
+        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+    assert.equal(saveCanonical.checkpoint.links.verification, "history/legacy-only/verification/");
+
+    const fallbackRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+    applyRepo(fallbackRoot, false);
+    fs.mkdirSync(path.join(fallbackRoot, ".pulse", "runs", "legacy-fallback", "verification"), { recursive: true });
+    fs.writeFileSync(
+      path.join(fallbackRoot, ".pulse", "runs", "legacy-fallback", "verification", "final-review.md"),
+      "# Final Review\nlegacy fallback\n",
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(fallbackRoot, ".pulse", "current-feature.json"),
+      `${JSON.stringify({
+        feature_key: "legacy-fallback",
+        phase: "reviewing",
+        gate: "GATE 4",
+        status: "active",
+        updated_at: "2026-04-16T12:00:00.000Z",
+      }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const saveLegacy = JSON.parse(
+      execFileSync(
+        "node",
+        [path.join(fallbackRoot, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
+        { cwd: fallbackRoot, encoding: "utf8" },
+      ),
+    );
+    assert.equal(saveLegacy.checkpoint.links.verification, ".pulse/runs/legacy-fallback/verification/");
+
+    fs.rmSync(fallbackRoot, { recursive: true, force: true });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("checkpoint commands fail soft for malformed entries, missing selectors, and invalid save inputs", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 

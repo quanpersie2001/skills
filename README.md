@@ -8,7 +8,7 @@
 
 <p>
   <a href="plugins/pulse/.codex-plugin/plugin.json">
-    <img alt="Version" src="https://img.shields.io/badge/version-3.0.0-0F766E?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-3.0.1-0F766E?style=flat-square" />
   </a>
   <a href="docs/legal/terms.md">
     <img alt="License" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
