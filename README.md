@@ -209,7 +209,7 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 | `pulse:debugging` | Root-cause blocked work; architecture suspicion gate escalates unfixable issues back to planning |
 | `pulse:systematic-debug-fix` | Multi-bug tracker discipline: investigate before fixing, verify each fix, regression tests for all |
 | `pulse:gkg` | Codebase intelligence via gkg MCP tools or `rg` fallback; saves findings to `discovery.md` |
-| `pulse:dream` | Consolidates Codex history into durable Pulse learnings with provenance tracking |
+| `pulse:dream` | Consolidates Claude Code or Codex runtime artifacts into Pulse memory with provenance tracking |
 | `pulse:ai-multimodal` | Gemini-powered image/audio/video/document processing with bundled scripts |
 | `pulse:simplify-code` | 4-lens code review (reuse, quality, efficiency, clarity) with optional safe fixes |
 | `pulse:prompt-leverage` | Upgrades raw prompts into structured execution-ready prompts |
@@ -291,7 +291,7 @@ Pulse is getting clearer about three artifact planes:
   handoffs/manifest.json     ← resume index
   handoffs/<owner>.json      ← per-actor checkpoints
   debug-notes/               ← debugging notes → compounding
-  dream-pending/             ← ambiguous learnings awaiting approval
+  memory/dream-pending/      ← queued ambiguous dream items for explicitly non-blocking runs
   memory/                    ← shared reusable memory root
     critical-patterns.md     ← globally promoted patterns for planning/debugging lookups
     learnings/               ← durable cross-feature learning entries

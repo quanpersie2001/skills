@@ -406,12 +406,13 @@ Codebase intelligence via scout-first gkg MCP discovery (or `rg` fallback).
 ---
 
 ### `pulse:dream`
-Manual consolidation of durable learnings from Codex artifacts into Pulse memory.
+Manual consolidation of durable learnings from Claude Code or Codex runtime artifacts into Pulse memory.
 
 - Detects **bootstrap mode** (first run — no provenance markers) vs **recurring mode**
-- Reads Codex history (`~/.codex/history.jsonl`) and applies the consolidation rubric
-- Classifies each candidate: `match` (updates existing learning), `ambiguous` (stored in `dream-pending/` for user approval), `no-match` (creates new learning file), `no durable signal` (discarded)
-- Writes provenance markers to all files it touches
+- Detects the runtime (`claude`, `codex`, or `mixed`) and applies the runtime source policy
+- Routes each candidate via the consolidation rubric into a learning, correction, ratchet, pending item, critical-promotion proposal, or skip
+- Uses `.pulse/memory/...` as the single write root, including `.pulse/memory/dream-pending/` for explicitly queued ambiguous items
+- Writes run provenance to `.pulse/memory/dream-run-provenance.md`
 - **Hard rule:** Never edits `critical-patterns.md` without explicit user approval
 
 ---
@@ -489,7 +490,6 @@ flowchart TD
         HF[handoffs/owner.json]
         VE[runs/feature/verification/]
         DN[debug-notes/]
-        DP[dream-pending/]
     end
 
     subgraph history[history/feature/]
@@ -501,9 +501,13 @@ flowchart TD
         PSM[phase-n-story-map.md]
     end
 
-    subgraph learnings[.pulse/memory/]
+    subgraph memory[.pulse/memory/]
         CP[critical-patterns.md]
         LF[learnings/YYYYMMDD-slug.md]
+        CF[corrections/YYYYMMDD-slug.md]
+        RF[ratchet/YYYYMMDD-slug.md]
+        DP[dream-pending/candidate.md]
+        PR[dream-run-provenance.md]
     end
 
     subgraph work[work items]
@@ -522,7 +526,10 @@ flowchart TD
     compounding --> LF
     compounding -->|global only| CP
     dream --> LF
+    dream --> CF
+    dream --> RF
     dream --> DP
+    dream --> PR
 ```
 
 ### Shared state files
@@ -539,7 +546,6 @@ flowchart TD
     worker-<agent>.json       — per-worker checkpoint
     single-worker.json        — single-worker checkpoint
   debug-notes/                — debugging debug notes (input to compounding)
-  dream-pending/              — ambiguous dream decisions awaiting approval
 ```
 
 ### Feature history
@@ -560,10 +566,15 @@ history/<feature>/
 ```
 .pulse/memory/
   critical-patterns.md        — globally applicable learnings (promoted conservatively)
+  dream-run-provenance.md     — last dream run metadata: mode, runtime, and source window
   learnings/
     YYYYMMDD-<slug>.md        — individual learning entries with domain/severity/propagation
   corrections/
+    YYYYMMDD-<slug>.md        — tactical guardrails when the key lesson is that a prior move was wrong
   ratchet/
+    YYYYMMDD-<slug>.md        — earned must-check or non-regression rules
+  dream-pending/
+    <candidate-slug>.md       — queued ambiguous dream candidates for explicitly non-blocking runs
 ```
 
 ### Work items

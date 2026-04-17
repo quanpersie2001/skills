@@ -231,12 +231,13 @@
       "skill": "dream",
       "skill_path": "plugins/pulse/skills/dream",
       "prompt": "Run pulse:dream to consolidate learnings from recent Pulse work into the knowledge base.",
-      "expected_output": "Agent detects bootstrap vs recurring mode, selects Codex sources, extracts durable candidates, classifies each (match/ambiguous/no-match), updates learning files with provenance, stores ambiguous items in dream-pending/, and never auto-edits critical-patterns.md without approval.",
+      "expected_output": "Agent detects bootstrap vs recurring mode, selects runtime-aware sources for Claude, Codex, or mixed runs, extracts durable candidates, routes each into learning/correction/ratchet/pending/skip outcomes, updates memory files with provenance, queues ambiguous items only in explicitly non-blocking mode under .pulse/memory/dream-pending/, and never auto-edits critical-patterns.md without approval.",
       "files": [],
       "expectations": [
         "Agent detects whether this is a bootstrap-first or recurring consolidation run",
-        "Agent extracts learning candidates and classifies them (match/ambiguous/no-match)",
-        "Agent writes provenance markers when updating learning files",
+        "Agent selects runtime-aware evidence sources for Claude, Codex, or mixed runs",
+        "Agent extracts durable candidates and routes them into learning, correction, ratchet, pending, or skip outcomes",
+        "Agent writes provenance markers when updating memory files",
         "Agent does NOT auto-edit critical-patterns.md — requires explicit approval for promotions"
       ]
     },

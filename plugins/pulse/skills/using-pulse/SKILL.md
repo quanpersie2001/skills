@@ -167,7 +167,7 @@ Read this as the Pulse cookbook: one line per skill, then route into the special
 | 8 | `pulse:compounding` | Capture durable learnings into `.pulse/memory/learnings/` | Feature shipped or a cycle completed |
 | 9 | `pulse:debugging` | Root-cause blocked work, test failures, and runtime breakage; escalates architectural doubt back to planning when needed | A worker, review, or UAT path is stuck |
 | 10 | `pulse:gkg` | Codebase intelligence support for discovery, pattern search, and symbol tracing | Architecture questions, related-file search, dependency tracing, or planning acceleration when gkg is ready |
-| 11 | `pulse:dream` | Consolidate durable learnings from Codex artifacts into Pulse memory | Bootstrapping or curating learnings manually |
+| 11 | `pulse:dream` | Consolidate durable learnings from Claude Code or Codex runtime artifacts into Pulse memory | Bootstrapping or curating learnings manually |
 | 12 | `pulse:writing-pulse-skills` | Improve or create Pulse skills using a skill-TDD loop | Editing Pulse itself |
 | 13 | `pulse:v2-to-v3-migration` | Assess and safely apply the Pulse repo migration wrapper for stale installs | Preflight or bootstrap detects legacy Pulse layout, version drift, or partial onboarding |
 
@@ -523,7 +523,7 @@ This is the scout-plane map of the shared Pulse working set.
   config.json                  <- feature toggles
   tooling-status.json          <- preflight output
   debug-notes/                 <- debugging debug notes for compounding
-  dream-pending/               <- ambiguous dream decisions awaiting approval
+  memory/dream-pending/        <- queued ambiguous dream items for explicitly non-blocking runs
   memory/                      <- shared reusable memory subtree for recall hooks and durable learnings
   checkpoints/                 <- advisory feature-scoped checkpoints for list/show/diff/resume-brief
     <feature>/

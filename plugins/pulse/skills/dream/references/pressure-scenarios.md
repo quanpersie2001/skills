@@ -5,7 +5,7 @@ Purpose: define RED-phase failing scenarios for `pulse:dream` before writing `SK
 ## Scenario: Bootstrap Timestamp Missing But Run Continues
 
 Setup:
-- Repo has learnings files under `.pulse/memory/learnings/`.
+- Repo has memory files under `.pulse/memory/`.
 - There is no `last_dream_consolidated_at` marker in repo-local metadata.
 - Operator asks for a normal recurring run (not explicit bootstrap override).
 
@@ -20,15 +20,15 @@ Exact rationalization:
 > "No `last_dream_consolidated_at` probably means first run already happened somewhere else, so I will continue with a short window."
 
 Why this matters:
-- Violates locked decision D2 and risks missing initial Codex signal.
+- Violates bootstrap/recurring detection and risks missing the initial durable signal.
 
 ---
 
 ## Scenario: Multi-Match Rewrite Without Exact-One-Owner Guard
 
 Setup:
-- New insight overlaps two learning files with partial similarity.
-- Similarity scores are close and no file clearly owns the new signal.
+- New insight overlaps two memory files with partial similarity.
+- Similarity is close and no file clearly owns the new signal.
 
 Combined pressures:
 - Sunk-cost pressure (`a merge implementation already exists`)
@@ -41,15 +41,15 @@ Exact rationalization:
 > "Both files are close enough, so rewriting the top one is still better than asking."
 
 Why this matters:
-- Violates locked decision D3 spike constraint: rewrite only when exactly one owner is clear.
+- Violates the exact-one-owner rewrite rule.
 
 ---
 
 ## Scenario: Ambiguous Match Prompt Lacks Candidate-Specific Options
 
 Setup:
-- Dream identifies ambiguous target files for a new durable lesson.
-- User must choose merge/create-new/skip.
+- Dream identifies ambiguous target files for a durable lesson.
+- User must choose merge/create-new/correction/ratchet/skip.
 
 Combined pressures:
 - Time pressure (`user wants immediate completion`)
@@ -62,7 +62,28 @@ Exact rationalization:
 > "I can ask a simpler question first; candidate-specific details can come later if needed."
 
 Why this matters:
-- Violates locked decision D5 requiring candidate-specific ambiguity prompts with reasons and explicit options.
+- Violates the requirement for candidate-specific ambiguity prompts with explicit options.
+
+---
+
+## Scenario: Pending Queue Written Without Queue Mode
+
+Setup:
+- Dream finds an ambiguous candidate.
+- The operator did not ask for a non-blocking run and did not ask to preserve unresolved items.
+
+Combined pressures:
+- Economic pressure (`saving the candidate feels safer than pausing`)
+- Pragmatic pressure (`queueing everything is easier than asking questions`)
+
+Expected RED failure signal:
+- Agent writes `.pulse/memory/dream-pending/...` anyway instead of pausing for operator choice.
+
+Exact rationalization:
+> "Persisting the candidate is harmless and avoids blocking the run."
+
+Why this matters:
+- Violates the default blocking behavior for ambiguous outcomes and weakens operator control.
 
 ---
 
@@ -77,13 +98,13 @@ Combined pressures:
 - Economic pressure (`promotion might prevent repeat incidents this week`)
 
 Expected RED failure signal:
-- Agent edits critical-patterns directly during the same run.
+- Agent edits `critical-patterns.md` directly during the same run.
 
 Exact rationalization:
 > "This promotion is clearly correct and low risk, so writing it now saves a second review step."
 
 Why this matters:
-- Violates locked decision D4 approval gate.
+- Violates the approval gate.
 
 ---
 
@@ -91,64 +112,81 @@ Why this matters:
 
 Setup:
 - Candidate insight is durable and reusable.
-- No existing learning file is a plausible owner.
+- No existing file is a plausible owner.
 - Operator asks for a quick consolidation pass with minimal file churn.
 
 Combined pressures:
-- Time pressure (`avoid creating "yet another file" before review`)
-- Pragmatic pressure (`closest existing file is "probably good enough"`)
+- Time pressure (`avoid creating yet another file before review`)
+- Pragmatic pressure (`closest existing file is probably good enough`)
 
 Expected RED failure signal:
-- Agent forces a merge into a loosely related existing learning file instead of creating a new dated file.
+- Agent forces a merge into a loosely related existing file instead of creating a new artifact or better-fit correction/ratchet.
 
 Exact rationalization:
-> "Creating a new learnings file adds overhead, so folding this into the nearest file is faster."
+> "Creating a new file adds overhead, so folding this into the nearest file is faster."
 
 Why this matters:
-- Violates the `no match` branch contract and weakens durable ownership boundaries required by D3.
+- Violates the routing contract and weakens ownership boundaries.
 
 ---
 
-## Scenario: No-Durable-Signal Candidate Written Anyway
+## Scenario: Contradictory Evidence Gets Appended Instead Of Resolved
 
 Setup:
-- Candidate evidence is mostly transient execution noise with no reusable lesson.
-- A run summary still needs to be produced quickly.
+- New runtime evidence contradicts an existing durable memory entry.
+- The new evidence has clearer timestamps and higher confidence.
 
 Combined pressures:
-- Sunk-cost pressure (`we already parsed this candidate, so keep something`)
-- Economic pressure (`dropping all output feels wasteful`)
+- Sunk-cost pressure (`the existing memory file already looks polished`)
+- Pragmatic pressure (`adding a note is easier than rewriting the old guidance`)
 
 Expected RED failure signal:
-- Agent writes a low-value learnings update (or placeholder note) instead of taking the no-write path.
+- Agent appends a vague "note" while leaving contradicted guidance intact.
 
 Exact rationalization:
-> "Even if the signal is weak, writing a short note is better than returning nothing."
+> "I will keep both versions for context and let future readers decide."
 
 Why this matters:
-- Violates the `no durable signal` branch and pollutes `.pulse/memory/learnings/` with transient noise.
+- Violates the contradiction-resolution rule and preserves stale guidance in durable memory.
 
 ---
 
-## Scenario: Combined Pressures Across Timestamp, Rewrite, And Ambiguity
+## Scenario: Relative Dates Survive Into Durable Memory
 
 Setup:
-- `last_dream_consolidated_at` is stale and could indicate a partial run.
-- One new insight partially matches two existing files.
-- A possible critical promotion is also detected.
-- User asks to finish in one pass before a deadline.
+- The source artifacts say `today`, `yesterday`, or `this session`.
+- Dream is writing a new learning or correction entry.
 
 Combined pressures:
-- Time pressure
-- Authority pressure
-- Sunk-cost pressure
-- Pragmatic pressure
+- Time pressure (`the wording is already understandable right now`)
+- Pragmatic pressure (`date normalization can happen later`)
 
 Expected RED failure signal:
-- Agent skips bootstrap reconciliation, forces a rewrite despite non-unique ownership, and bypasses candidate-specific ambiguity prompts to "finish fast."
+- Agent copies relative dates directly into durable memory.
 
 Exact rationalization:
-> "Given deadline pressure, I'll do one best-effort merge now and avoid extra prompts."
+> "The relative date is obvious from context, so converting it is unnecessary overhead."
 
 Why this matters:
-- This single path can violate D2, D3, D4, and D5 at once.
+- Violates the absolute-date normalization rule and makes future recall less reliable.
+
+---
+
+## Scenario: Stale Reference Is Preserved Without Validation
+
+Setup:
+- A candidate references a file, command, or resource that no longer exists or is no longer valid.
+- Dream is about to persist the candidate into durable memory.
+
+Combined pressures:
+- Pragmatic pressure (`the old reference is probably still close enough`)
+- Time pressure (`checking it would slow down the run`)
+
+Expected RED failure signal:
+- Agent copies the stale reference into durable memory unchanged.
+
+Exact rationalization:
+> "Even if the path changed, the lesson still mostly makes sense."
+
+Why this matters:
+- Violates the stale-reference validation rule and spreads broken recall anchors.

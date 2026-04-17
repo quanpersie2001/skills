@@ -51,7 +51,7 @@ Pulse is not:
 |-------|---------|
 | `pulse:debugging` | Systematic debugging when workers hit blockers |
 | `pulse:gkg` | Codebase intelligence via gkg tool |
-| `pulse:dream` | Manual dream consolidation over Codex artifacts |
+| `pulse:dream` | Manual dream consolidation over Claude Code or Codex runtime artifacts |
 
 ## The Chain
 
