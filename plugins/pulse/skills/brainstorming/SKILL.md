@@ -1,12 +1,13 @@
 ---
 name: brainstorming
 description: >-
-  Use before any creative or product work — designing features, planning architecture,
-  scoping changes, or evaluating approaches. Turns vague intent into a documented,
-  approved spec before any planning or implementation begins.
-  Trigger phrases: design, brainstorm, think through, figure out, what should we build,
-  how should we approach, explore options, evaluate, what's the best way to, help me think,
-  let's plan, I want to build.
+  Use before feature work only when the design is still unclear — for shaping vague
+  product intent, comparing possible feature shapes, and turning fuzzy requests into a
+  documented, approved spec before exploring or planning begins. Do not use this when
+  the feature intent is already clear and the remaining work is to lock implementation
+  decisions; that belongs to pulse:exploring. Trigger phrases: design, brainstorm,
+  think through, what should we build, help me think, explore options, compare directions,
+  unclear feature shape, vague product request.
 metadata:
   version: '1.2'
   ecosystem: pulse
@@ -35,9 +36,9 @@ exist and be approved.
 
 ## Anti-Pattern: "This is too simple to need a design"
 
-Every feature goes through this process. A config flag, a single function, a UI tweak —
-all of them. "Simple" projects are where unexamined assumptions cause the most wasted
-planning work. The spec can be a paragraph. But you MUST present it and get approval.
+Every new feature with unclear design goes through this process. A new config capability, a new function that expands behavior, a new UI path — if the shape is still fuzzy, this is where you turn it into an approved spec. "Simple" feature work is where unexamined assumptions cause the most wasted planning work. The spec can be a paragraph. But you MUST present it and get approval.
+
+This is not the path for trivial non-feature corrections already covered by `small_change` or `Micro Mode`. If the request is only a wording fix, local correction, or similarly bounded non-feature adjustment, follow the lighter route defined by `pulse:using-pulse` instead of forcing a brainstorming spec.
 
 ---
 
@@ -246,6 +247,9 @@ Once the direction is clear, present the design:
 
 - Break the system into units each with one clear purpose and well-defined interfaces
 - For each unit: what does it do, how do you use it, what does it depend on?
+- For new feature work, define module ownership from the start so each unit can evolve and optimize independently.
+- A narrow first phase is acceptable only when the ownership model and final boundaries are already correct.
+- Do not collapse multiple future concerns into one temporary implementation just to ship an MVP-shaped first version.
 - Can someone understand a unit without reading its internals? Can you change the internals
   without breaking consumers? If not, the boundaries need work.
 

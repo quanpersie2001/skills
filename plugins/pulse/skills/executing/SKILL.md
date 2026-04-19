@@ -163,7 +163,7 @@ file_reservation_paths(
 )
 ```
 
-In standalone mode, there is no cross-worker race, but still treat the bead's `files` list as a hard scope boundary. Do not blend multiple beads into one ad hoc change.
+In standalone mode, there is no cross-worker race, but still treat the bead's `files` list as a hard scope boundary. Do not blend multiple beads into one ad hoc change, and do not sneak in temporary cross-module structure that was not planned.
 
 ### If reservation fails in worker mode:
 
@@ -205,6 +205,8 @@ Before writing any code, scan your bead's description for decision IDs (D1, D2, 
 ### Follow existing patterns
 
 Match naming conventions, error handling patterns, import styles, and test structures found in the codebase.
+
+For new feature beads, do not invent temporary architecture just to get a first phase over the line. Preserve the planned module ownership, interfaces, and cross-module contracts from `CONTEXT.md`, `approach.md`, and the phase artifacts.
 
 ### No pseudo-implementations
 

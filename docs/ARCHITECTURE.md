@@ -22,11 +22,19 @@ Pulse keeps these invariants:
 
 Pulse presents three user-facing modes over the same core workflow:
 
-- `small_change` — bounded, low-risk work with lightweight planning and validating
-- `standard_feature` — the default full Pulse workflow
-- `high_risk_feature` — the full workflow plus deeper planning scrutiny and stronger spike discipline
+- `small_change` — bounded, low-risk fixes, local refactors, and non-feature adjustments with lightweight planning and validating
+- `standard_feature` — the default full Pulse workflow for all new features and normal refactors
+- `high_risk_feature` — the full workflow plus deeper planning scrutiny and stronger spike discipline for cross-cutting or architecture-sensitive features
 
 Modes change the amount of ceremony, not the core contract. `validating` still gates execution in every mode.
+
+`Micro Mode` is not a separate working mode in this model. It is a tightly scoped shortcut exception defined by `pulse:using-pulse` for genuinely trivial non-feature work that does not justify even `small_change`.
+
+## Foundation-first feature design
+
+Pulse does not frame new features as MVPs, prototype subsets, or temporary architecture. For feature work, the system shape comes first: enduring foundations, module ownership, interfaces, and boundaries that let each module evolve and optimize independently.
+
+Feature delivery may still happen in phases, but the narrowness belongs to execution scope, not to product ambition or architectural thinking. A first phase can be small; the architecture may not be disposable.
 
 ---
 
@@ -625,7 +633,6 @@ flowchart LR
     user{task size?}
     user -->|≤3 files, no HIGH risk| quick[small_change mode\nlightweight depth]
     user -->|cross-cutting, high risk| hr[high_risk_feature mode\ndeeper planning + spikes]
-    user -->|single file, trivial| micro[Micro mode\nexploring → executing\nskip planning/validating/\nswarming/reviewing/compounding]
     user -->|multi-phase feature| full
 ```
 
@@ -636,9 +643,10 @@ flowchart LR
 | **Single-worker** | `recommended_mode=single-worker` | `pulse:swarming` skipped; `pulse:executing` runs directly |
 | **Small change (`small_change`)** | ≤3 files, no new API surface, no HIGH risk | Planning/validating/reviewing use lightweight depth |
 | **High risk (`high_risk_feature`)** | Cross-cutting or architecture-sensitive work | Deeper planning, stronger spike discipline |
-| **Micro** | Single file, 1-2 beads, no decisions | Skips planning, validating, swarming, reviewing, compounding; user must confirm |
 | **Planning-only** | `recommended_mode=planning-only` | Execution cannot start |
 | **Blocked** | `recommended_mode=blocked` | Everything halted until blockers cleared |
+
+`Micro Mode` is a shortcut exception handled by `pulse:using-pulse`, not a pipeline mode here. Use it only for single-file, genuinely trivial non-feature work where the user explicitly approves the bypass.
 
 ---
 

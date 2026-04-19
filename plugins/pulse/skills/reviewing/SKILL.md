@@ -32,7 +32,7 @@ Reviewing is where terse technical shorthand is most dangerous. The default tone
 - explain the bug in plain language first
 - then show the evidence
 - then give one concrete failure scenario
-- then give the smallest credible fix direction
+- then give the smallest credible fix direction without normalizing temporary architecture, muddy ownership, or broken module boundaries
 
 If a finding makes sense only to someone who already read the diff carefully, it is not written well enough yet.
 
@@ -311,11 +311,12 @@ If P3 review beads exist: Add them to the PR body under "Future Work." Do not bl
 
 ## Quick Mode
 
-Quick mode still uses review. It only narrows scope:
+Quick mode still uses review. It only narrows scope for non-feature or tightly bounded work:
 
 - agents 1-4 may run against a smaller diff window
 - UAT may be minimal if the change is non-interactive
 - artifact verification still runs
+- if review reveals new capability, temporary architecture, or ownership-boundary drift, leave quick mode and review against the full feature intent
 
 ## Handoff
 
@@ -344,7 +345,7 @@ FLAGGED_LEARNINGS: <count>
 
 ## Red Flags
 
-- review skipped because the change looks small
+- review skipped because the change looks small, even though it was not routed through an approved lightweight path like `small_change` or Quick Mode
 - agent 5 runs before agents 1-4 finish
 - specialist reviewers are asked to inspect artifacts they were not given
 - P1 findings exist but merge continues

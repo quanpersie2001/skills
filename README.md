@@ -39,12 +39,14 @@ Pulse is:
 - a validate-first, docs-first workflow for Claude Code and Codex
 - a skill ecosystem that routes work through explicit gates and artifacts
 - a way to turn vague requests into reviewed, auditable delivery slices
+- a foundation-first feature workflow that defines architecture, ownership, and boundaries before phase slicing begins
 
 Pulse is not:
 
 - a default autonomous runtime that should silently execute work end-to-end
 - a replacement for human approval at Gates 1-4
 - a compiled CLI product or full Mission Control-style orchestration system
+- a system that frames new features as MVPs, prototype subsets, or temporary architecture to be cleaned up later
 
 ## One-Line Glossary
 
@@ -93,25 +95,31 @@ Use Pulse when:
 - the work spans multiple files, systems, or agents
 - the cost of getting the plan wrong is meaningful
 - you want a reviewed and auditable path from request to shipped work
+- the request is a new feature and you need architecture, ownership, and interfaces locked before implementation phases begin
 
 Do not reach for the full chain when:
 
 - the task is a one-line fix with no ambiguity
 - the work is obviously local and low-risk
 - you do not need beads, coordination, or formal review gates
+- the work is a true non-feature correction rather than a new capability
+
+Pulse phases feature delivery, but it does not frame features as MVPs. A first phase may be narrow, but new feature work still starts from the whole-feature architecture: enduring foundations, clear module ownership, stable interfaces, and boundaries that let modules evolve independently.
 
 ## Working Modes
 
 Pulse keeps one core workflow but presents it in three user-facing modes:
 
-- `small_change` — lightweight planning and validating for bounded low-risk work
-- `standard_feature` — the default full Pulse workflow
-- `high_risk_feature` — the full workflow plus deeper planning scrutiny and stronger spike discipline
+- `small_change` — lightweight planning and validating for bounded low-risk fixes, local refactors, and non-feature adjustments
+- `standard_feature` — the default full Pulse workflow for all new features and normal refactors
+- `high_risk_feature` — the full workflow plus deeper planning scrutiny and stronger spike discipline for cross-cutting or architecture-sensitive features
 
 The core contract does not change across modes:
 - `CONTEXT.md` is still the source of truth
 - `validating` still gates execution
 - beads + `bv` + Agent Mail still drive coordination
+
+`Micro Mode` is not a fourth working mode. It is a user-approved shortcut exception for genuinely trivial, non-feature work, defined in `pulse:using-pulse`. Use it only for the narrow single-file cases that do not warrant even `small_change`.
 
 ---
 
@@ -256,8 +264,9 @@ Any long-running skill writes a handoff and stops at **65% context**. The next s
 | **Single-worker** | Multi-phase feature, no swarm |
 | **Small change (`small_change`)** | ≤3 files, no HIGH risk, no new API surface |
 | **High risk (`high_risk_feature`)** | Cross-cutting or architecture-sensitive work |
-| **Micro** | Single file, trivial — skips planning/validating/reviewing |
 | **Planning-only** | No execution tools available |
+
+`Micro Mode` is a separate shortcut exception for genuinely trivial non-feature work. It is not a pipeline mode in this table because it is an explicit bypass path, not a standard delivery shape.
 
 ---
 

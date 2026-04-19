@@ -30,13 +30,13 @@ If `.pulse/onboarding.json` is missing or stale for the current repo, stop and i
 
 The most expensive failure in agentic delivery is not a buggy bead. It is launching execution against a phase that was never clear enough to deserve execution.
 
-Pulse now treats a phase as a **small closed loop**:
+Pulse now treats a phase as a **bounded, architecture-preserving loop**:
 
 - clear entry state
 - clear exit state
-- simple demo story
+- a credible demo story
 - stories that explain why the internal order makes sense
-- beads that implement those stories
+- beads that implement those stories without breaking module ownership or final boundaries
 
 This skill verifies all of that. It is not enough for the bead graph to look tidy. The validator must be able to answer:
 
@@ -56,7 +56,7 @@ When reporting a failing dimension, spike result, or approval summary:
 - state what the current phase is trying to make true
 - describe what is wrong in the current plan or bead set
 - explain why that would fail in a real scenario
-- name the smallest credible repair
+- name the smallest credible repair without weakening the architecture, ownership model, or phase boundaries
 
 Do not stop at labels like "dependency issue", "story order problem", or "risk alignment problem" without translating them into plain language.
 
@@ -359,6 +359,7 @@ Ask these questions explicitly:
 2. If all beads close successfully, will all stories actually be done?
 3. Is the phase demo story now credible?
 4. Does this phase still make sense in the larger whole plan?
+5. Does this phase preserve the planned ownership boundaries and module interfaces, or is it sneaking in MVP-style temporary structure?
 
 If any answer is "no" or "not sure", do not approve execution. Route back:
 

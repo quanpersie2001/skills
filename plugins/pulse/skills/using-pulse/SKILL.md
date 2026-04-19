@@ -179,9 +179,11 @@ Start in the operator plane: decide the work shape first, then load the cookbook
 
 | Mode | Use when... | Notes |
 |---|---|---|
-| `small_change` | ≤3 files, no new API/data model, LOW risk, no gray areas | Lightweight planning and validating, but still no skipping validating |
-| `standard_feature` | Normal feature or refactor with clear value but moderate scope | Default mode for most Pulse work |
-| `high_risk_feature` | Cross-cutting, high-blast-radius, or architecture-sensitive work | Use deeper planning review and explicit spikes for risky items |
+| `small_change` | Bug fix, wording/docs/config tweak, or local refactor with LOW risk, no gray areas, and no new capability, API, data model, or ownership boundary | Lightweight planning and validating, but still no skipping validating |
+| `standard_feature` | Any new feature or refactor with clear value and moderate scope | Default mode for all new feature work |
+| `high_risk_feature` | Cross-cutting, high-blast-radius, or architecture-sensitive feature/refactor work | Use deeper planning review and explicit spikes for risky items |
+
+If the request introduces a new user-visible capability, workflow, subsystem, API surface, durable data model change, or ownership boundary, it is feature work. Do not route it into `small_change` or `Micro Mode`, even if the first implementation phase looks small.
 
 ### First-Skill Routing
 
@@ -190,9 +192,9 @@ Given a user request, determine which skill to invoke first:
 | Request type | First skill | Notes |
 |---|---|---|
 | Unformed idea / design unclear | `pulse:brainstorming` | Use when what to build isn't clear yet; produces spec before exploring |
-| Vague or new feature (what is clear, how is not) | `pulse:exploring` | Start here if intent is clear but implementation decisions are fuzzy |
-| Clear implementation request | `pulse:planning` | Skip exploring only if decisions are already locked |
-| Small, low-risk fix | `pulse:planning` | Route in `small_change` mode |
+| Vague or new feature (what is clear, how is not) | `pulse:exploring` | Start here if intent is clear but implementation decisions are fuzzy; lock architecture and ownership before planning |
+| Clear implementation request | `pulse:planning` | Skip exploring only if decisions are already locked and the feature shape is already defined |
+| Small, low-risk fix | `pulse:planning` | Route in `small_change` mode only when no new capability or ownership boundary is introduced |
 | "Review my code" | `pulse:reviewing` | Load directly |
 | "What did we learn?" | `pulse:compounding` | Load directly |
 | "Improve Pulse itself" | `pulse:writing-pulse-skills` | Load directly |
@@ -434,9 +436,13 @@ Additional expectations:
 
 ### Micro Mode
 
-One-line concept: a user-approved shortcut for genuinely trivial work, not a stealth way to bypass normal Pulse discipline.
+One-line concept: a user-approved shortcut for genuinely trivial non-feature work, not a stealth way to bypass normal Pulse discipline.
 
 Micro mode is for genuinely trivial tasks that do not warrant the full Pulse pipeline or even `small_change` mode.
+
+<HARD-GATE>
+Never use Micro Mode for new feature work. If the request introduces a new capability, workflow, contract, subsystem, data model change, or ownership boundary, leave Micro Mode immediately and route to `standard_feature` or `high_risk_feature`.
+</HARD-GATE>
 
 ### When micro mode applies
 
@@ -447,6 +453,7 @@ All of the following must be true:
 - estimated 1-2 beads maximum
 - no architectural decisions required
 - no gray areas or unresolved intent
+- no new capability, workflow, contract, or ownership boundary introduced
 
 If any condition is false, fall back to `small_change` mode or the full pipeline.
 

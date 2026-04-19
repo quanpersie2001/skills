@@ -1,13 +1,14 @@
 ---
 name: exploring
 description: >-
-  Use before any feature work, refactor, or behavior modification. Extracts locked
-  decisions from the user through Socratic dialogue BEFORE research or planning begins.
+  Use before feature work, refactor, or behavior modification when the user intent is
+  already clear but implementation decisions are still fuzzy. Extracts locked decisions
+  from the user through Socratic dialogue BEFORE research or planning begins.
   Implements GSD discuss-phase + Superpowers brainstorming + CE scope-tiering.
-  Trigger phrases: build, add, change, implement, design, figure out what we need,
-  brainstorm, exploring, investigate, scope out, what would it take to, evaluate
-  feasibility, assess impact, research approach. Output is history/<feature>/CONTEXT.md
-  — the single source of truth for all downstream agents (planning, validating, swarming).
+  Trigger phrases: add, change, implement, investigate implementation impact, lock
+  decisions, clarify implementation choices, scope implementation work, resolve gray
+  areas before planning. Output is history/<feature>/CONTEXT.md — the single
+  source of truth for all downstream agents (planning, validating, swarming).
 metadata:
   version: '1.0'
   ecosystem: pulse

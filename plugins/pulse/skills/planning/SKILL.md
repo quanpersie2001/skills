@@ -83,6 +83,8 @@ Whole Feature
 - **Story** means: "what has to happen first, next, and last inside this phase so the result is believable?"
 - **Bead** means: "what one worker can pick up and finish without guessing?"
 
+For new feature work, define the whole-feature architecture before you define phases. Name the enduring foundations, module ownership, interfaces, and cross-module contracts first, then slice execution into phases that preserve those boundaries. Do not treat a phase as an MVP version of the feature.
+
 If a phase sounds like a bucket of chores, or a story sounds like an implementation layer, revise it before moving on.
 
 ## Worked Example
@@ -157,7 +159,7 @@ If `CONTEXT.md` does not exist, stop. Tell the user: "Run the pulse:exploring sk
 
 If `.pulse/tooling-status.json` says `blocked`, stop and clear preflight blockers before planning further.
 
-If a larger roadmap or whole-feature document exists, read it too. The phase plan should show how the feature unfolds from first usable slice to finished capability.
+If a larger roadmap or whole-feature document exists, read it too. The phase plan should show how the feature unfolds from a foundation-first, production-worthy opening phase to finished capability. Plan the whole-feature architecture before you slice execution into phases.
 
 ---
 
@@ -193,7 +195,7 @@ Priority order:
 
 Treat the recall pack as metadata-ranked guidance, not just filename heuristics. When a correction or ratchet clearly applies, carry that exact path into bead `learning_refs` instead of assuming a later worker will rediscover it.
 
-The point is to start from the smallest credible context, not to grep the whole memory plane by default.
+The point is to start from the smallest credible planning input set, not to grep the whole memory plane by default. This is a research-efficiency rule, not permission to minimize the feature shape or defer architectural thinking.
 
 ### Step 0.3: Search for additional domain-relevant learnings only if needed
 
@@ -457,6 +459,8 @@ Prompt the reviewer to look for:
 3. Do the stories make sense in this order?
 4. Which story is too large, vague, or poorly ordered?
 5. What would make an executor regret this phase design later?
+6. Did the plan define enduring foundations, ownership boundaries, interfaces, and contracts before slicing execution?
+7. Is this sequencing a whole-feature architecture, or accidentally reframing the feature as an MVP?
 
 Iterate 1-2 rounds. Stop when changes become incremental.
 
