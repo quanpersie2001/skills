@@ -145,6 +145,32 @@ Flag this immediately:
 Then brainstorm the first sub-system through the full flow. Each sub-system gets its own
 spec → exploring → planning → execution cycle.
 
+### Step-back move — use selectively
+
+Before detailed questioning, decide whether the request needs one brief step-back pass.
+This is not a new phase and not a replacement for sequential questioning. It is a short
+framing move to help you ask better questions.
+
+Use it only when one of these is true:
+- the request names a solution but not the problem it should solve
+- multiple feature shapes could satisfy the request
+- the user is jumping quickly into screens, components, or flows before the core outcome is clear
+- you notice yourself optimizing a local detail before the product goal is concrete
+
+If you use the move, do it once, briefly, before Phase 3:
+1. name the core outcome in plain language
+2. name 2–4 decision axes that matter most
+3. identify what should not be optimized yet
+4. turn that framing into the next single question
+
+Keep the output internal unless a short external framing statement will help the user align.
+Do not turn the step-back move into a mini-plan, a multi-question bundle, or an excuse to skip the structured question flow.
+
+Example internal frame:
+- Outcome: "Help a first-time user complete X confidently."
+- Decision axes: primary user, success event, scope boundary, failure tolerance
+- Not yet: exact layout, polish details, implementation mechanics
+
 ---
 
 ## Visual Decision Point
@@ -202,6 +228,7 @@ latent requirements than batched approaches.
 - Use structured question tools in this order when available: `AskUserQuestion` → `AskMeTool` → another equivalent harness-native question tool
 - Multiple-choice preferred over open-ended when possible
 - Start broad (what, why, for whom) then narrow (constraints, edge cases, success criteria)
+- If the request is still shapeless after context review, use one brief step-back move before the next question so the question targets the real decision instead of a local detail
 - 3–4 questions per topic area, then checkpoint with the structured question tool when available: "More questions about [area], or move on?"
 - Do not mix plain-text questions and tool-based questions arbitrarily inside the same session
 

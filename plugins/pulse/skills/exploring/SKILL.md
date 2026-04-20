@@ -7,7 +7,7 @@ description: >-
   Implements GSD discuss-phase + Superpowers brainstorming + CE scope-tiering.
   Trigger phrases: add, change, implement, investigate implementation impact, lock
   decisions, clarify implementation choices, scope implementation work, resolve gray
-  areas before planning. Output is history/<feature>/CONTEXT.md — the single
+  areas before planning. Output is history/{feature}/CONTEXT.md — the single
   source of truth for all downstream agents (planning, validating, swarming).
 metadata:
   version: '1.0'
@@ -74,6 +74,32 @@ Does the request describe multiple independent subsystems? If yes:
 > "This covers [A], [B], and [C] — three independent systems. Each needs its own exploring
 > session. Let's start with [most foundational]. I'll note the others for later."
 
+**Step 0.4 — Step-back move for decision framing**
+
+Before domain classification, decide whether the request needs one brief step-back pass.
+This is not a new phase and not a substitute for Socratic questioning. It is a short framing
+move to make sure you are locking the right decisions.
+
+Use it only when one of these is true:
+- the request is clear about the desired change but unclear about the decision surface
+- several gray areas look similar and you need to separate outcome decisions from implementation details
+- the conversation is drifting toward components, libraries, or architecture before the user-facing or system-facing behavior is framed
+- you are about to ask a question whose answer would not materially change planning assumptions
+
+If you use the move, do it once and keep it short:
+1. restate the practical outcome the feature must make true
+2. name 2–4 decision axes that will shape planning
+3. name what does not belong in exploring yet
+4. turn that frame into the next single question
+
+Keep the result internal unless a short external framing statement will help the user confirm the direction.
+Do not let the move become a mini-plan, a deep architecture discussion, or a bundled set of questions.
+
+Example internal frame:
+- Outcome: "A caller can do X reliably."
+- Decision axes: actor, success path, boundary conditions, out-of-scope behaviors
+- Not yet: library choice, internal module layout, optimization work
+
 ---
 
 ### Phase 1: Domain Classification
@@ -136,7 +162,8 @@ identifies significantly more latent needs than batched approaches.
 1. One question per message — never bundled
 2. Single-select multiple choice preferred over open-ended
 3. Start broad (what/why/for whom) then narrow (constraints, edge cases)
-4. 3–4 questions per gray area, then checkpoint:
+4. If a gray area still feels muddy, use one brief step-back move before the next question so you ask about the decision that changes planning, not a local implementation detail
+5. 3–4 questions per gray area, then checkpoint:
    > "More questions about [area], or move to next? (Remaining: [unvisited areas])"
 
 **Scope creep response** — when the user suggests something outside scope:

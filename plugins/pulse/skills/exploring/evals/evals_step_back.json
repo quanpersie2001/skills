@@ -1,0 +1,27 @@
+{
+  "skill_name": "exploring",
+  "evals": [
+    {
+      "id": 201,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. A user says: 'Add approval routing to our outbound email flow. I know we probably need a new queue and a few status fields, but I am not sure which decisions really matter before planning.' You are using the exploring skill. Give the next user-facing message exactly as you would in the real session.",
+      "expected_output": "The response should use a brief step-back framing move so the next question targets planning-relevant decisions rather than implementation details.",
+      "files": [],
+      "expectations": [
+        "Frames the outcome or decision surface before asking about queue/status-field implementation details",
+        "Asks exactly one question in the user-facing message",
+        "Does not drift into architecture, libraries, or a mini-plan"
+      ]
+    },
+    {
+      "id": 202,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. A user says: 'We need better workspace permissions. I am thinking role tables, feature flags, and maybe per-project overrides, but I do not know which behavior decisions you need from me first.' You are using the exploring skill. Give the next user-facing message exactly as you would in the real session.",
+      "expected_output": "The response should separate user/system behavior decisions from implementation mechanics, then ask one planning-relevant question.",
+      "files": [],
+      "expectations": [
+        "Separates behavior/decision framing from role-table or feature-flag implementation talk",
+        "Asks exactly one question",
+        "Targets a decision that would materially change planning assumptions"
+      ]
+    }
+  ]
+}

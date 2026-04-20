@@ -1,0 +1,38 @@
+{
+  "skill_name": "brainstorming",
+  "evals": [
+    {
+      "id": 121,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. We are in Claude Code and the harness definitely provides AskUserQuestion. A user says: 'After signup, users stall. I keep thinking checklist vs assistant vs empty-state tips, but I do not trust those ideas yet. Ask the first question that helps us aim at the right problem.' You are using the brainstorming skill. Give the next user-facing move exactly as you would in the real session.",
+      "expected_output": "The first structured question should target the product outcome or success criterion, not the UI pattern candidates.",
+      "files": [],
+      "expectations": [
+        "The AskUserQuestion question text targets the desired outcome, success event, user behavior, or goal rather than checklist/assistant/tips",
+        "The AskUserQuestion options are framed around outcomes or priorities, not around choosing UI patterns",
+        "The response does not offer visuals or a design proposal before clarifying the outcome"
+      ]
+    },
+    {
+      "id": 122,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. We are in Claude Code and the harness definitely provides AskUserQuestion. A user says: 'Our first-run experience feels weak. Maybe a wizard, maybe templates, maybe a guided tour. The real problem might be speed, confidence, or comprehension, but I am not sure. Ask me the first thing you need.' You are using the brainstorming skill. Give the next user-facing move exactly as you would in the real session.",
+      "expected_output": "The first structured question should explicitly focus on the real product tradeoff instead of selecting a wizard/template/tour direction.",
+      "files": [],
+      "expectations": [
+        "The AskUserQuestion question text asks about the priority tradeoff such as speed, confidence, comprehension, activation, or value",
+        "The AskUserQuestion options do not ask the user to pick wizard vs template vs guided tour",
+        "Exactly one structured question is asked"
+      ]
+    },
+    {
+      "id": 123,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. We are in Claude Code and the harness definitely provides AskUserQuestion. A user says: 'I am torn between a modal, inline hints, and a side panel for onboarding. But honestly I still do not know whether the main issue is trust, clarity, or getting people to first value faster. Ask the smartest first question.' You are using the brainstorming skill. Give the next user-facing move exactly as you would in the real session.",
+      "expected_output": "The first structured question should surface the underlying problem dimension and avoid defaulting to modal/inline/side-panel comparisons.",
+      "files": [],
+      "expectations": [
+        "The AskUserQuestion question text focuses on trust, clarity, first value, or another underlying outcome dimension",
+        "The AskUserQuestion options do not ask the user to choose modal vs inline hints vs side panel",
+        "The response avoids visual-support branching because the immediate decision is conceptual, not visual"
+      ]
+    }
+  ]
+}

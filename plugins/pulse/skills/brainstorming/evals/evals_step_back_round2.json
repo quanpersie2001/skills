@@ -1,0 +1,38 @@
+{
+  "skill_name": "brainstorming",
+  "evals": [
+    {
+      "id": 111,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. We are in Claude Code and the harness definitely provides AskUserQuestion. Do not offer visual support unless the skill truly requires it. A user says: 'We need to improve how new users get started after signup. I keep thinking checklist vs assistant vs template gallery, but I am not actually sure what outcome we should optimize for first. Please ask me the first thing you need.' You are using the brainstorming skill. Give the next user-facing message exactly as you would in the real session.",
+      "expected_output": "The response performs a brief step-back framing move that redirects from solution candidates to the outcome/decision surface, then asks exactly one question.",
+      "files": [],
+      "expectations": [
+        "Explicitly reframes away from checklist/assistant/template-gallery solution talk toward the underlying outcome or success event",
+        "Asks exactly one question in the user-facing message",
+        "Does not offer visual support or propose a design before clarifying the outcome"
+      ]
+    },
+    {
+      "id": 112,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. We are in Claude Code and the harness definitely provides AskUserQuestion. Do not offer visual support unless the skill truly requires it. A user says: 'I want to rethink our onboarding flow. Maybe it should feel faster, maybe it should teach more, maybe it should push activation harder. I do not want a full design yet — just ask the first thing that will help us aim at the right problem.' You are using the brainstorming skill. Give the next user-facing message exactly as you would in the real session.",
+      "expected_output": "The response should briefly step back to identify the real product tradeoff, then ask one targeted question instead of jumping into flows or components.",
+      "files": [],
+      "expectations": [
+        "Briefly names the real tradeoff or product goal before the question",
+        "Asks exactly one targeted question",
+        "Does not jump into flows, screens, components, or a mini-plan"
+      ]
+    },
+    {
+      "id": 113,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. We are in Claude Code and the harness definitely provides AskUserQuestion. Do not offer visual support unless the skill truly requires it. A user says: 'For our first-run experience, I keep bouncing between a modal, a side panel, and inline hints. Honestly I am not even sure whether the real issue is comprehension, confidence, or speed. Ask me the best first question.' You are using the brainstorming skill. Give the next user-facing message exactly as you would in the real session.",
+      "expected_output": "The response should use step-back framing to surface the underlying problem before asking one question, without defaulting to UI-shape debate.",
+      "files": [],
+      "expectations": [
+        "Surfaces the underlying problem space such as comprehension, confidence, or speed before the question",
+        "Asks exactly one question",
+        "Does not default to comparing modal, side panel, and inline hints immediately"
+      ]
+    }
+  ]
+}

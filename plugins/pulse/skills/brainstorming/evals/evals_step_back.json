@@ -1,0 +1,27 @@
+{
+  "skill_name": "brainstorming",
+  "evals": [
+    {
+      "id": 101,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. We are in Claude Code and the harness definitely provides AskUserQuestion. A user says: 'We need a new inbox triage experience. I keep thinking tabs, filters, cards, and maybe AI labels, but I am not sure what the actual feature should be yet. Help me think through it.' You are using the brainstorming skill. Give the next user-facing message exactly as you would in the real session.",
+      "expected_output": "The first response performs a brief step-back framing move before narrowing into a single clarifying question or a visual-support offer.",
+      "files": [],
+      "expectations": [
+        "Briefly reframes the problem around the outcome or decision surface instead of jumping straight into tabs/cards/filters",
+        "Does not propose a full design or mini-plan",
+        "Ends with exactly one next-step question or the required standalone visual-support offer"
+      ]
+    },
+    {
+      "id": 102,
+      "prompt": "IMPORTANT: This is a real scenario. You must choose and act. We are in Claude Code and the harness definitely provides AskUserQuestion. A user says: 'I want to redesign onboarding. Maybe a checklist, maybe a chatbot, maybe a wizard. I mostly just want it to feel fast. Ask me the first thing you need.' You are using the brainstorming skill. Give the next user-facing message exactly as you would in the real session.",
+      "expected_output": "The response should use step-back framing to target the real outcome, then ask exactly one clarifying question through a structured question tool.",
+      "files": [],
+      "expectations": [
+        "Targets the underlying goal or success event rather than debating checklist/chatbot/wizard immediately",
+        "Asks exactly one clarifying question",
+        "Does not bundle multiple follow-up questions"
+      ]
+    }
+  ]
+}
