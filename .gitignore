@@ -25,3 +25,4 @@ references/**
 pulse-eval-workspace/iteration-*/
 pulse-eval-workspace/*.html
 pulse-eval-workspace/benchmark*.json
+.gitnexus
