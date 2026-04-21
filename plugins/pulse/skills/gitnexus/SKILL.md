@@ -58,16 +58,29 @@ Strong, normal-path tools in this repo:
 - `route_map`
 - `shape_check`
 - `detect_changes`
+- `cypher` as an escalation tool only after the standard path is exhausted
 
-The practical rule is simple: use `query` plus `context` plus `impact` first, then fall back to direct file reads whenever graph results are thin, ambiguous, or too broad for the decision you need to make.
+Important supporting resources:
+
+- `gitnexus://repo/{name}/context`
+- `gitnexus://repo/{name}/process/{processName}`
+- `gitnexus://repo/{name}/schema`
+
+The practical rule is simple: use repo context plus `query` plus `context` plus `impact` first, then fall back to direct file reads whenever graph results are thin, ambiguous, or too broad for the decision you need to make. Only escalate to `cypher` after the standard path is exhausted and only after reading the schema resource first.
 
 ## Primary Discovery Path
 
 Use this path by default during Pulse planning and other codebase discovery work.
 
+### 0. Repo sanity check
+
+If multiple indexed repos may be visible, use `list_repos` as a light sanity check, then read `gitnexus://repo/{name}/context` before relying on graph-backed discovery.
+
+If the repo context says the index is stale and you need reliable graph-backed discovery, run `npx gitnexus analyze` before continuing.
+
 ### 1. `query`
 
-Use first for unfamiliar areas. It is the best starting point for a compact architecture snapshot and execution-flow search.
+Use first for unfamiliar areas after the repo sanity check. It is the best starting point for a compact architecture snapshot and execution-flow search.
 
 Use it to answer:
 
@@ -86,6 +99,8 @@ Good uses:
 - confirm callers and callees for a known function or class
 - inspect inbound/outbound references before changing a shared symbol
 - verify whether a returned process or symbol is actually relevant before relying on it
+
+If `query` returns a process that matters to your discovery write-up, read the strongest `gitnexus://repo/{name}/process/{processName}` resource before summarizing the flow, then confirm the implementation in source files.
 
 ### 3. `impact`
 
@@ -148,6 +163,14 @@ Use these as targeted tools for route handlers and response contracts. They are 
 Use once there is a meaningful diff or changed-symbol set to inspect.
 
 It is best for review, regression awareness, and pre-commit understanding — not for first-pass architecture mapping.
+
+### `cypher`
+
+Use only as an escalation tool when `query`, `context`, `impact`, and the relevant process resource still leave a graph question unresolved.
+
+Before using it, read `gitnexus://repo/{name}/schema` first.
+
+Do not jump to `cypher` as the first move just because it is more expressive.
 
 ## Pulse Workflow Fit
 
