@@ -66,6 +66,11 @@ Exact rationalization (verbatim): "[quote]"
 Write SKILL.md addressing the **specific rationalizations documented in RED only.**
 Do not add content for hypothetical cases you didn't observe — hypothetical content bloats the skill and gets skipped.
 
+Treat skill edits like production edits:
+- make the smallest wording change that blocks the observed failure
+- do not broaden the skill with adjacent cleanup, extra theory, or future-proofing
+- if three lines fix the problem, do not rewrite thirty
+
 **SKILL.md checklist:**
 - [ ] YAML frontmatter starts on line 1 (`---`)
 - [ ] `name`: bare hyphen-case, matches the directory name exactly
@@ -105,7 +110,11 @@ If agent still fails → skill is unclear or incomplete. Revise and re-test. Do 
 
 ## PHASE 3 — REFACTOR: Close Loopholes
 
-When an agent violates a rule despite having the skill, that is a test regression — the skill has a bug. Fix it:
+When an agent violates a rule despite having the skill, that is a test regression — the skill has a bug. Fix it.
+
+Refactor means closing the observed loophole with the smallest durable change. It does not mean redesigning the skill, rewriting adjacent sections, or expanding scope beyond the failure that was actually observed.
+
+Fix it:
 
 1. Capture the new rationalization verbatim
 2. Add explicit negation in the rule
@@ -177,6 +186,7 @@ If the edited skill owns a repo-local test script, run that too.
 - "Academic questions passed, that's sufficient testing"
 - Description contains workflow steps or process summary
 - Skill addresses hypothetical scenarios not observed in baseline
+- Refactor turns into a broader rewrite instead of the smallest change that closes the observed loophole
 - Deploying without running scenarios WITH skill (no green verification)
 - "The skill was good last month, edits don't need testing"
 

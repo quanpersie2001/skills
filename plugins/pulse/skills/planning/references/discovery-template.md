@@ -26,7 +26,7 @@ _If no prior learnings found: "No prior learnings for this domain."_
 
 ## Agent A: Architecture Snapshot
 
-> Source: gkg repo_map, file tree analysis
+> Source: GitNexus query + direct file reads
 
 ### Relevant Packages / Modules
 
@@ -52,7 +52,7 @@ _If no prior learnings found: "No prior learnings for this domain."_
 
 ## Agent B: Pattern Search
 
-> Source: grep, semantic search, gkg get_references
+> Source: GitNexus context/impact/route analysis + grep
 
 ### Similar Existing Implementations
 

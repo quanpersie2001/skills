@@ -223,6 +223,7 @@ function collectMcpSources({ repoRoot, skillsRoot, globalCodexConfigPath }) {
   const sources = [];
   const repoCodexConfigPath = path.join(repoRoot, ".codex", "config.toml");
   const globalConfigPath = globalCodexConfigPath || path.join(os.homedir(), ".codex", "config.toml");
+  const pluginManifestPath = path.join(repoRoot, "plugins", "pulse", ".mcp.json");
 
   sources.push({
     key: "repo_codex_config",
@@ -236,6 +237,13 @@ function collectMcpSources({ repoRoot, skillsRoot, globalCodexConfigPath }) {
     type: "toml",
     path: globalConfigPath,
     server_names: parseMcpServerNamesFromToml(globalConfigPath),
+  });
+
+  sources.push({
+    key: "plugin_mcp_manifest",
+    type: "json",
+    path: pluginManifestPath,
+    server_names: parseMcpServerNamesFromJson(pluginManifestPath),
   });
 
   if (!fs.existsSync(skillsRoot)) {

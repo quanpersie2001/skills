@@ -21,12 +21,12 @@ metadata:
       command: bv
       missing_effect: degraded
       reason: Planning uses bv to verify bead graph structure.
-    - id: gkg
+    - id: gitnexus
       kind: mcp_server
-      server_names: [gkg]
-      config_sources: [plugin_mcp_manifest]
+      server_names: [gitnexus]
+      config_sources: [repo_codex_config, global_codex_config, plugin_mcp_manifest]
       missing_effect: degraded
-      reason: Planning uses gkg MCP tools for codebase discovery when available.
+      reason: Planning uses GitNexus MCP tools for codebase discovery when available.
 ---
 
 # Planning
@@ -245,13 +245,13 @@ Explore if relevant:
 - **Pure refactor**: 1-2 agents focused on existing patterns and constraints
 - **Architecture change**: go deep on topology and replacement risk
 
-If the scout reports a supported gkg repo, treat `pulse:gkg` as the default discovery path:
+If the scout reports GitNexus configured, treat `pulse:gitnexus` as the preferred discovery path.
 
-- `server_reachable = false` or `project_indexed = false` means stop and make gkg ready before Phase 1 discovery.
-- `supported_repo = false` means document the fallback and continue with `rg` and file inspection instead of stalling.
+- `gitnexus_readiness.configured = true` means use GitNexus first for architecture snapshot, pattern search, symbol context, and blast-radius evidence.
+- `gitnexus_readiness.configured = false` means document the fallback and continue with `rg` and file inspection instead of stalling.
 
-For supported repos with green readiness, use gkg MCP tools for the architecture snapshot, pattern search, and definition-reading portions of discovery before falling back to ad hoc grep.
-If gkg is unavailable for this repo/session, say that explicitly in `discovery.md` before the fallback findings.
+When GitNexus is configured, use its MCP tools for discovery before falling back to ad hoc grep.
+If GitNexus is unavailable for this repo/session, say that explicitly in `discovery.md` before the fallback findings.
 
 ### Output
 
@@ -390,6 +390,8 @@ The current phase contract must answer, in plain language:
 5. What this phase unlocks next
 6. What is explicitly out of scope
 7. What signals would force a pivot
+8. Which assumptions are locked already vs which ambiguity still requires clarification before execution
+9. What concrete success criteria would let a validator or executor prove the phase is done without guessing
 
 ### Rules for a good current-phase contract
 
@@ -397,6 +399,9 @@ The current phase contract must answer, in plain language:
 - The phase must close a meaningful small loop by itself
 - The demo walkthrough must prove the phase is real
 - If the phase fails, the team should know whether to debug locally or rethink the larger plan
+- Hidden assumptions should be surfaced explicitly instead of left for workers to infer under pressure
+- Non-goals should be concrete enough to block opportunistic cleanup and speculative architecture during execution
+- Success criteria should be specific enough that validating can reject the phase if execution would otherwise require guessing
 
 If you cannot explain the phase in 3-5 simple sentences, revise the phase plan or approach before moving on.
 
@@ -473,7 +478,7 @@ Only now convert the current phase story map into executable beads using `br cre
 When asking a model to perform the bead-creation pass, use this prompt:
 
 ```text
-OK so please take ALL of that and elaborate on it more and then create a comprehensive and granular set of beads for all this with tasks, subtasks, and dependency structure overlaid, with detailed comments so that the whole thing is totally self-contained and self-documenting (including relevant background, reasoning/justification, considerations, etc.-- anything we'd want our "future self" to know about the goals and intentions and thought process and how it serves the over-arching goals of the project.) Use the `br` tool repeatedly to create the actual beads. Use /effort max.
+Take the approved phase artifacts and create the smallest complete set of execution-ready beads for this phase. Keep each bead scoped to one clear outcome, one tight file boundary, and one concrete verification path. Include only the planning context an executor needs to act without guessing. Do not add speculative abstractions, unrelated cleanup, or "future self" commentary that does not change execution quality. Use the `br` tool repeatedly to create the actual beads. Use /effort max.
 ```
 
 ### Non-negotiable rule
@@ -527,6 +532,8 @@ br dep add br-<id2> br-<id1>
 - If a story breaks into many beads, confirm the decomposition still reflects one coherent story and each bead has a distinct purpose
 - The story order should still be visible after decomposition
 - Do not create beads for later phases yet
+- Prefer the smallest executable slice that can be implemented and verified without dragging adjacent cleanup into scope
+- If a bead exists mainly to future-proof the codebase or introduce flexibility that the current phase does not need, reshape it before creation
 
 ### Embed phase and story context in each bead
 
@@ -594,6 +601,9 @@ If any field is missing, that is an incomplete planning artifact, not a valid be
 - Story closure matters more than layer purity
 - Any relevant learnings from Phase 0 must be embedded directly into the bead
 - Any referenced locked decisions from `CONTEXT.md` must be carried into the bead
+- A worker should be able to say what success looks like before writing code; if not, the bead is under-specified
+- Multi-step beads should carry a brief step plan tied to their verification path; single-step beads should stay lean
+- Do not use bead text to justify unrelated refactors, broad cleanup, or speculative abstractions outside the current phase need
 
 ### What belongs in the bead body
 

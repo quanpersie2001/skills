@@ -10,7 +10,7 @@ Use this matrix during `pulse:preflight` to decide whether the run should `PASS`
 | `br` | Every Pulse run that uses bead-backed planning/execution | `br --help` | `FAIL` |
 | `bv` | Every Pulse run that prioritizes or validates bead graphs | `bv --help` | `FAIL` |
 | Coordination runtime (Agent Mail or equivalent) | Swarm execution | smallest real health check available | `DEGRADED` to `single-worker`, or `FAIL` if user explicitly requires swarm |
-| `gkg` | Accelerated discovery only | `command -v gkg` or equivalent | continue with fallback |
+| `gitnexus` | Accelerated graph-backed discovery only | verify configured MCP server in the scout/dependency report | continue with fallback |
 | `gh` | PR automation only | `gh --version` | continue without PR automation |
 | docs / web MCP | External research acceleration | runtime-specific health check | continue with local/manual research |
 
@@ -45,7 +45,7 @@ Use `DEGRADED` when all are true:
 Common degraded examples:
 
 - coordination runtime unavailable -> use `single-worker`
-- `gkg` unavailable -> use grep/find/manual discovery
+- `gitnexus` unavailable -> use grep/find/manual discovery
 - `gh` unavailable -> skip PR automation
 
 ### FAIL
@@ -66,7 +66,7 @@ If coordination runtime is unavailable:
 - recommend `single-worker`
 - surface the downgrade before continuing
 
-### No `gkg`
+### No `gitnexus`
 
 Use local fallback:
 

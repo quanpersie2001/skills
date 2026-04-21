@@ -158,14 +158,14 @@ Decision rules:
 
 Check optional helpers if relevant:
 
-- `gkg`
+- `gitnexus`
 - PR tooling such as `gh`
 - docs or web research MCPs
 
 Optional tools never fail preflight on their own.
 Record impact instead:
 
-- `gkg` missing -> discovery falls back to grep/find/manual reads
+- `gitnexus` missing -> discovery falls back to grep/find/manual reads
 - `gh` missing -> no automated PR creation
 - docs or web MCP missing -> research becomes manual or local-only
 

@@ -1,15 +1,17 @@
 {
-  "gkg": {
-    "type": "sse",
-    "url": "http://localhost:27495/mcp/sse",
+  "gitnexus": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "gitnexus@latest", "mcp"],
     "includeTools": [
-      "list_projects",
-      "index_project",
-      "repo_map",
-      "search_codebase_definitions",
-      "get_references",
-      "get_definition",
-      "read_definitions"
+      "list_repos",
+      "query",
+      "context",
+      "impact",
+      "api_impact",
+      "route_map",
+      "shape_check",
+      "detect_changes"
     ]
   },
   "MCP_DOCKER": {

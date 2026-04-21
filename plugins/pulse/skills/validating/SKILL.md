@@ -144,10 +144,13 @@ What to do:
 1. scan every bead file for the required fields
 2. if a field is missing, fail fast
 3. normalize the bead immediately or return it to planning for repair
+4. read the `verify` field and confirm it names a concrete proof path, not just a vague action like "run tests"
+5. inspect `files` scope for obvious overbreadth; if the bead spans many files without a tight reason, treat that as a planning defect rather than something execution should sort out ad hoc
 
 If `testing_mode` is `tdd-required`, the bead must also include `tdd_steps` with distinct red and green commands.
 
 Do not let the plan-checker guess from prose when the schema is missing.
+Do not let execution guess what counts as success, which interpretation to implement, or how broad the change is allowed to become.
 
 Additional memory-routing rule:
 - for HIGH-risk beads, `learning_refs` must be meaningfully populated when relevant recall, correction, or ratchet guidance already exists for the same domain, blocker pattern, or file scope
@@ -335,7 +338,7 @@ Fix all CRITICAL flags before moving on. MINOR flags are judgment calls but shou
 When asking a model to perform the bead-refinement pass, use this prompt:
 
 ```text
-Check over each bead super carefully-- are you sure it makes sense? Is it optimal? Could we change anything to make the system work better for users? If so, revise the beads. It's a lot easier and faster to operate in "plan space" before we start implementing these things! Use /effort max.
+Check each bead super carefully from an executor's point of view. Revise only when the fix is clear, local, and makes the bead easier to execute without guessing. Focus on missing proof criteria, hidden assumptions, scope overreach, and ambiguous implementation paths. Do not redesign the plan or broaden the bead set for hypothetical future improvement. Use /effort max.
 ```
 
 ### Story-to-bead coherence check
@@ -360,6 +363,8 @@ Ask these questions explicitly:
 3. Is the phase demo story now credible?
 4. Does this phase still make sense in the larger whole plan?
 5. Does this phase preserve the planned ownership boundaries and module interfaces, or is it sneaking in MVP-style temporary structure?
+6. Can an executor implement every bead without making hidden design choices on the fly?
+7. Are the beads scoped tightly enough to support surgical implementation rather than opportunistic cleanup or future-proof refactors?
 
 If any answer is "no" or "not sure", do not approve execution. Route back:
 
@@ -410,6 +415,7 @@ Exit-State Readiness:
 
 Unresolved concerns:
 - <none | list>
+- <note any remaining ambiguity, scope inflation, speculative abstraction, or weak proof criteria explicitly>
 ```
 
 If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it for this approval gate with focused options such as:

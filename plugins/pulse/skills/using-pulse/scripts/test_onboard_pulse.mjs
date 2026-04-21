@@ -1406,15 +1406,17 @@ test("packaged Pulse inventory has full dependency coverage", () => {
   assert.match(skillText, /kind: mcp_server/);
   assert.match(skillText, /metadata\.dependencies: \[\]/);
   assert.match(skillText, /bash scripts\/sync-skills\.sh --dry-run/);
-  assert.equal(pluginMcp.gkg.type, "sse");
-  assert.equal(pluginMcp.gkg.url, "http://localhost:27495/mcp/sse");
-  assert.deepEqual(pluginMcp.gkg.includeTools, [
-    "list_projects",
-    "index_project",
-    "repo_map",
-    "search_codebase_definitions",
-    "get_references",
-    "get_definition",
-    "read_definitions",
+  assert.equal(pluginMcp.gitnexus.type, "stdio");
+  assert.equal(pluginMcp.gitnexus.command, "npx");
+  assert.deepEqual(pluginMcp.gitnexus.args, ["-y", "gitnexus@latest", "mcp"]);
+  assert.deepEqual(pluginMcp.gitnexus.includeTools, [
+    "list_repos",
+    "query",
+    "context",
+    "impact",
+    "api_impact",
+    "route_map",
+    "shape_check",
+    "detect_changes",
   ]);
 });

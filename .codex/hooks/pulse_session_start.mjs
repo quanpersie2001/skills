@@ -8,7 +8,7 @@ import {
   normalizeDependencyTarget,
   uniqueSorted,
 } from "../pulse_dependencies.mjs";
-import { readGkgReadiness, syncPulseRuntimeArtifacts } from "../pulse_state.mjs";
+import { readGitNexusReadiness, syncPulseRuntimeArtifacts } from "../pulse_state.mjs";
 
 function findRepoRoot(start) {
   let candidate = path.resolve(start || ".");
@@ -95,12 +95,12 @@ export async function main() {
     notes.push("If you move into planning, start with .pulse/memory/critical-patterns.md and then use pulse_status recall pointers for narrower learnings, corrections, and ratchet rules.");
   }
 
-  const gkgReadiness = await readGkgReadiness(repoRoot);
-  if (gkgReadiness.supported_repo && (!gkgReadiness.server_reachable || !gkgReadiness.project_indexed)) {
-    notes.push(`gkg readiness: ${gkgReadiness.recommended_action}`);
-  } else if (!gkgReadiness.supported_repo) {
+  const gitNexusReadiness = await readGitNexusReadiness(repoRoot);
+  if (gitNexusReadiness.configured) {
+    notes.push(`gitnexus readiness: ${gitNexusReadiness.recommended_action}`);
+  } else {
     notes.push(
-      "This repo is outside gkg's supported language set, so architecture discovery should use grep/file inspection fallback.",
+      "GitNexus is not configured for this repo/session, so architecture discovery should use grep/file inspection fallback unless the MCP server is added.",
     );
   }
 

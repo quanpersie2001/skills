@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 20 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 23 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ## Repository Layout
 
@@ -24,7 +24,7 @@ Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation
 | Beads viewer | `bv` | TUI and graph inspection |
 | Git | `git` | Version control |
 | Agent Mail | — | Worker orchestration (swarm mode only) |
-| GKG | `gkg` | Optional codebase intelligence |
+| GitNexus | `gitnexus` | Optional graph-backed codebase intelligence |
 
 **Important:** The beads CLI binary is `br`. Use `br` in Pulse workflows and examples.
 

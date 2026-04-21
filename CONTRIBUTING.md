@@ -38,7 +38,7 @@ plugins/pulse/skills/
 ├── reviewing/                 references/
 ├── compounding/               references/
 ├── debugging/
-├── gkg/
+├── gitnexus/
 ├── dream/                     references/
 ├── writing-pulse-skills/      references/
 ├── ai-multimodal/             references/ scripts/
@@ -163,7 +163,7 @@ The delivery chain is:
 pulse:exploring -> pulse:planning -> pulse:validating -> pulse:swarming -> pulse:executing -> pulse:reviewing -> pulse:compounding
 ```
 
-Support routing may also invoke `pulse:debugging`, `pulse:gkg`, or `pulse:dream`.
+Support routing may also invoke `pulse:debugging`, `pulse:gitnexus`, or `pulse:dream`.
 
 ### Hard Contract Rules
 

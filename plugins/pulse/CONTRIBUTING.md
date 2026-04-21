@@ -1,6 +1,6 @@
 # Contributing to Pulse
 
-Pulse is a packaged skill plugin for Claude Code and Codex. Skills are defined as `SKILL.md` files — there is no compiled code. The plugin currently ships 20 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+Pulse is a packaged skill plugin for Claude Code and Codex. Skills are defined as `SKILL.md` files — there is no compiled code. The plugin currently ships 23 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ---
 

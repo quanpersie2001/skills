@@ -8,13 +8,13 @@
 
 <p>
   <a href="plugins/pulse/.codex-plugin/plugin.json">
-    <img alt="Version" src="https://img.shields.io/badge/version-3.1.0-0F766E?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-3.3.0-0F766E?style=flat-square" />
   </a>
   <a href="docs/legal/terms.md">
     <img alt="License" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
   </a>
   <a href="plugins/pulse/skills">
-    <img alt="Skills" src="https://img.shields.io/badge/skills-20-8B5CF6?style=flat-square" />
+    <img alt="Skills" src="https://img.shields.io/badge/skills-23-8B5CF6?style=flat-square" />
   </a>
 </p>
 
@@ -30,7 +30,7 @@ Pulse wraps AI agents in a **gated delivery chain**. Every decision is locked be
 
 Without this structure, agents skip steps. With it, they can't.
 
-Pulse ships as **20 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled app to build. No separate orchestration product to adopt. It is a docs-first skill plugin that uses the tools you already have.
+Pulse ships as **23 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled app to build. No separate orchestration product to adopt. It is a docs-first skill plugin that uses the tools you already have.
 
 ## What Pulse Is / Is Not
 
@@ -216,11 +216,13 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 |-------|------|
 | `pulse:debugging` | Root-cause blocked work; architecture suspicion gate escalates unfixable issues back to planning |
 | `pulse:systematic-debug-fix` | Multi-bug tracker discipline: investigate before fixing, verify each fix, regression tests for all |
-| `pulse:gkg` | Codebase intelligence via gkg MCP tools or `rg` fallback; saves findings to `discovery.md` |
+| `pulse:gitnexus` | Codebase intelligence via GitNexus MCP tools or `rg` fallback; saves findings to `discovery.md` |
 | `pulse:dream` | Consolidates Claude Code or Codex runtime artifacts into Pulse memory with provenance tracking |
 | `pulse:ai-multimodal` | Gemini-powered image/audio/video/document processing with bundled scripts |
 | `pulse:simplify-code` | 4-lens code review (reuse, quality, efficiency, clarity) with optional safe fixes |
 | `pulse:prompt-leverage` | Upgrades raw prompts into structured execution-ready prompts |
+| `pulse:dev-note` | Captures one structured developer learning from the current coding-with-AI session into a raw daily note |
+| `pulse:dev-note-distil` | Distills pending raw dev notes into stable topic knowledge and rebuilds the global topic index |
 | `pulse:writing-pulse-skills` | TDD workshop for creating and improving Pulse skills (RED → GREEN → REFACTOR) |
 | `bootstrap-project-context` | Standalone repo-onboarding utility that forces a docs-first, source-grounded architecture pass before implementation |
 | `refresh-project-docs` | Standalone docs-sync utility that rewrites README and related docs to match the current repo state in evergreen language |
@@ -333,7 +335,7 @@ history/<feature>/
 | `bv` | Yes | Beads viewer — TUI + `bv --robot-priority` for worker bead selection |
 | Node.js 18+ | Yes | Pulse onboarding script |
 | Agent Mail | Swarm only | Worker coordination runtime |
-| `gkg` | Optional | Faster codebase intelligence |
+| `gitnexus` | Optional | Stronger graph-backed codebase intelligence |
 
 Run `pulse:preflight` to check your environment before starting.
 
@@ -364,7 +366,7 @@ Or install individual skills:
 
 1. Clone this repo
 2. Register `.agents/plugins/marketplace.json` as a local marketplace in Codex
-3. Install the `pulse` plugin — all 20 skills are discovered automatically
+3. Install the `pulse` plugin — all 23 skills are discovered automatically
 
 ---
 

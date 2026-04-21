@@ -202,11 +202,31 @@ Before writing any code, scan your bead's description for decision IDs (D1, D2, 
 1. Read the corresponding entry in `history/<feature>/CONTEXT.md`
 2. Implement exactly as locked — do not reinterpret, do not "improve" a locked decision
 
+### State assumptions before coding
+
+Before you change a file, say what you believe is true:
+- which existing path or component you are extending
+- what the bead is explicitly asking you to preserve or change
+- what will prove success once verification runs
+
+If two plausible interpretations remain, stop. Surface the ambiguity explicitly and get the bead repaired or clarified instead of guessing in code.
+
 ### Follow existing patterns
 
 Match naming conventions, error handling patterns, import styles, and test structures found in the codebase.
 
 For new feature beads, do not invent temporary architecture just to get a first phase over the line. Preserve the planned module ownership, interfaces, and cross-module contracts from `CONTEXT.md`, `approach.md`, and the phase artifacts.
+
+### Keep the change surgical
+
+Prefer the smallest change that satisfies the bead.
+
+Do not:
+- introduce abstractions that only help hypothetical future work
+- broaden scope into adjacent cleanup or refactors just because you noticed them
+- add handling for scenarios the current system boundary cannot actually produce
+
+If the bead genuinely requires multiple implementation steps, write a short step plan tied to the declared verification path before you start editing. If it is a one-step change, keep the plan in your head and the code lean.
 
 ### No pseudo-implementations
 
@@ -235,6 +255,8 @@ If production code was written before the red check, discard or rewrite that por
 ## Step 5: Verify
 
 Run the bead's `verify` steps exactly as written. Do not substitute easier checks.
+
+Before you run them, be able to say what success looks like in one or two lines. If you cannot, the bead is still under-specified and should be clarified instead of hand-waved through execution.
 
 Verification is not complete until you have fresh evidence from this execution pass.
 
@@ -266,10 +288,13 @@ If `testing_mode=tdd-required`, also record:
 If verification fails:
 
 1. debug the root cause
-2. retry up to 2 times
-3. if still blocked:
+2. compare the failure against the success criteria you named before verification
+3. retry up to 2 times
+4. if still blocked:
    - worker mode -> notify the coordinator via coordination runtime; keep polling `fetch_inbox(...)` while blocked
    - standalone mode -> invoke `pulse:debugging` or surface the blocker to the user
+
+Do not quietly redefine success after a failing verify run. Either make the bead pass as written or escalate that the bead itself needs repair.
 
 Do not close the bead without a passing verification result and a fresh evidence record.
 
@@ -511,6 +536,7 @@ Stop and reassess if you notice any of these:
 - **Continuing after compaction without re-reading** — you have amnesia; fix it before proceeding
 - **Implementing stubs, TODOs, or empty handlers** — these are not implementations; they are deferred failures
 - **Ignoring a locked decision from CONTEXT.md**
+- **Guessing through ambiguity instead of surfacing it** — hidden design choices belong back in planning/validation, not in worker code
 - **Bundling multiple beads into one commit** — atomic commits per bead are the audit trail; don't corrupt it
 - **Claiming a bead without checking reservations** — self-routing still depends on file coordination
 - **Closing or blocking a bead without reporting via the coordination runtime** — off-thread progress is invisible progress; it breaks the swarm

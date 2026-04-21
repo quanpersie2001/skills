@@ -74,14 +74,14 @@
     },
     {
       "id": 6,
-      "skill": "gkg",
-      "skill_path": "plugins/pulse/skills/gkg",
-      "prompt": "Use pulse:gkg to find all files related to authentication in the current codebase and give me an architecture snapshot.",
-      "expected_output": "Agent checks .pulse/tooling-status.json for gkg readiness, uses gkg primitives (or rg fallback), summarizes architecture findings, and notes where results are saved (discovery.md).",
+      "skill": "gitnexus",
+      "skill_path": "plugins/pulse/skills/gitnexus",
+      "prompt": "Use pulse:gitnexus to find all files related to authentication in the current codebase and give me an architecture snapshot.",
+      "expected_output": "Agent checks the scout or dependency report for GitNexus readiness, uses GitNexus tools when configured (or rg fallback otherwise), summarizes architecture findings, and notes where results are saved (discovery.md).",
       "files": [],
       "expectations": [
-        "Agent checks for gkg availability before running commands",
-        "Agent uses gkg primitives (map, search, refs) or falls back to rg if unavailable",
+        "Agent checks for GitNexus availability before running discovery commands",
+        "Agent uses GitNexus tools (query, context, impact, route analysis) or falls back to rg if unavailable",
         "Agent produces an architecture summary or discovery notes",
         "Agent saves or describes saving findings to history/<feature>/discovery.md"
       ]
@@ -90,12 +90,12 @@
       "id": 7,
       "skill": "planning",
       "skill_path": "plugins/pulse/skills/planning",
-      "prompt": "Exploring is complete, `history/auth-oauth/CONTEXT.md` exists, and `.pulse/tooling-status.json` says GKG is supported and reachable but the project is not indexed yet. Run pulse:planning and determine whether planning can proceed.",
-      "expected_output": "Agent reads CONTEXT.md and critical-patterns.md, checks `.pulse/tooling-status.json`, stops Phase 1 discovery when GKG is supported but not indexed, tells the user to make GKG ready before planning proceeds, and preserves the later approval-before-bead-creation gate.",
+      "prompt": "Exploring is complete, `history/auth-oauth/CONTEXT.md` exists, and the scout says GitNexus is not configured for this repo/session. Run pulse:planning and determine whether planning can proceed.",
+      "expected_output": "Agent reads CONTEXT.md and critical-patterns.md, checks the scout or dependency report, continues Phase 1 discovery with explicit rg/file-inspection fallback when GitNexus is unavailable, and preserves the later approval-before-bead-creation gate.",
       "files": [],
       "expectations": [
-        "Agent checks .pulse/tooling-status.json for GKG readiness before discovery",
-        "Agent stops discovery and says the repo must be indexed or GKG made ready when supported_repo is true but project_indexed is false",
+        "Agent checks the scout or dependency report for GitNexus readiness before discovery",
+        "Agent does not stop planning solely because GitNexus is unavailable; it documents the fallback and continues with local inspection",
         "Agent checks .pulse/memory/critical-patterns.md for institutional learnings",
         "Agent preserves the approval gate before any bead creation if planning later proceeds"
       ]
@@ -257,6 +257,34 @@
     },
     {
       "id": 19,
+      "skill": "dev-note",
+      "skill_path": "plugins/pulse/skills/dev-note",
+      "prompt": "We just figured out that the checkout bug was really a stale-closure issue, not a bad API response. Use pulse:dev-note to save that learning into our dev notes.",
+      "expected_output": "Agent loads the raw note templates, captures one concrete reusable learning into the daily raw note file, avoids transcript dumping, and asks a short clarification question only if the intended learning is ambiguous.",
+      "files": [],
+      "expectations": [
+        "Agent reads or references the hard raw-note templates before writing markdown",
+        "Agent captures a reusable learning rather than a broad transcript or task log",
+        "Agent writes or describes writing to dev-notes/raws/YYYYMMDD.md only",
+        "Agent asks a short clarification question if the desired learning is ambiguous instead of guessing"
+      ]
+    },
+    {
+      "id": 20,
+      "skill": "dev-note-distil",
+      "skill_path": "plugins/pulse/skills/dev-note-distil",
+      "prompt": "We have a pile of pending raw dev notes now. Use pulse:dev-note-distil to turn them into stable topic knowledge and refresh the topic index.",
+      "expected_output": "Agent loads the topic and TOC templates, distills pending raw notes into stable topic files, merges into existing topics when the core idea overlaps, rebuilds TOPICS.md, and avoids inventing conclusions beyond the raw-note evidence.",
+      "files": [],
+      "expectations": [
+        "Agent reads or references the hard topic and topics-index templates before writing markdown",
+        "Agent merges into existing topics when the core lesson overlaps instead of fragmenting the taxonomy",
+        "Agent rebuilds or describes rebuilding dev-notes/distil/TOPICS.md after topic updates",
+        "Agent keeps the distilled conclusions grounded in the underlying raw notes"
+      ]
+    },
+    {
+      "id": 21,
       "skill": "v2-to-v3-migration",
       "skill_path": "plugins/pulse/skills/v2-to-v3-migration",
       "prompt": "Preflight found stale Pulse onboarding in this repo. The migration changes look routine, but the user is offline. Run pulse:v2-to-v3-migration to assess what needs to change and tell me exactly what you would say back to the user right now.",

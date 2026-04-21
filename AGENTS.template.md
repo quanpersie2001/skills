@@ -26,7 +26,7 @@ A multi-skill ecosystem for agentic software development, built on the Flywheel 
 | Skill | Purpose |
 |-------|---------|
 | `pulse:debugging` | Systematic debugging when workers hit blockers |
-| `pulse:gkg` | Codebase intelligence via gkg tool |
+| `pulse:gitnexus` | Codebase intelligence via GitNexus graph tools or local fallback |
 | `pulse:dream` | Manual dream consolidation over Claude Code or Codex runtime artifacts |
 
 ## The Chain
@@ -47,7 +47,7 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 - `br` — beads CLI (create/update/close work items)
 - `bv` — beads viewer (graph analytics, priority routing)
 - Agent Mail — inter-agent messaging, file reservations
-- `gkg` — codebase intelligence (optional)
+- `gitnexus` — graph-backed codebase intelligence (optional)
 - CASS/CM — session search, cognitive memory (optional)
 
 ## File Conventions

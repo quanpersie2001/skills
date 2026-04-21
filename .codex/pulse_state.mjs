@@ -33,202 +33,42 @@ function readJsonIfExists(filePath) {
   }
 }
 
-const SUPPORTED_GKG_LANGUAGE_EXTENSIONS = {
-  TypeScript: [".ts", ".tsx"],
-  JavaScript: [".js", ".jsx", ".mjs", ".cjs"],
-  Ruby: [".rb"],
-  Java: [".java"],
-  Kotlin: [".kt", ".kts"],
-  Python: [".py"],
-};
-
-const SUPPORTED_GKG_BASENAMES = new Set(["Gemfile", "Rakefile", "Vagrantfile"]);
-
-const OTHER_SOURCE_EXTENSIONS = new Set([
-  ".go", ".rs", ".c", ".h", ".cpp", ".hpp", ".cc", ".cs",
-  ".swift", ".m", ".mm", ".lua", ".r", ".R", ".scala",
-  ".clj", ".ex", ".exs", ".hs", ".erl", ".dart", ".php",
-]);
-
-const WALK_SKIP_DIRS = new Set([
-  "node_modules", ".git", "dist", "build", "vendor", ".bundle",
-  "__pycache__", ".venv", "venv", ".tox", "target", ".gradle",
-  ".codex", ".pulse", ".beads", ".spikes", ".worktrees",
-]);
-
-const MANIFEST_LANGUAGE_HINTS = {
-  "package.json": "JavaScript",
-  "tsconfig.json": "TypeScript",
-  "Gemfile": "Ruby",
-  "Rakefile": "Ruby",
-  "build.gradle": "Java",
-  "build.gradle.kts": "Kotlin",
-  "pom.xml": "Java",
-  "setup.py": "Python",
-  "pyproject.toml": "Python",
-  "requirements.txt": "Python",
-  "Pipfile": "Python",
-};
-
-const MAX_WALK_DEPTH = 3;
-
-function collectRepoLanguageSignals(repoRoot) {
-  const counts = { supported: 0, unsupported_code: 0, ignored: 0 };
-  const supportedLanguages = new Set();
-  const flatExtensions = new Map();
-
-  for (const [lang, exts] of Object.entries(SUPPORTED_GKG_LANGUAGE_EXTENSIONS)) {
-    for (const ext of exts) {
-      flatExtensions.set(ext, lang);
-    }
+function summarizeConfiguredGitNexusSources(mcpSources) {
+  if (!Array.isArray(mcpSources)) {
+    return [];
   }
 
-  for (const entry of fs.readdirSync(repoRoot, { withFileTypes: true })) {
-    if (!entry.isFile()) continue;
-    const hint = MANIFEST_LANGUAGE_HINTS[entry.name];
-    if (hint) supportedLanguages.add(hint);
+  return [...new Set(
+    mcpSources
+      .filter((source) =>
+        source &&
+        Array.isArray(source.server_names) &&
+        source.server_names.includes("gitnexus") &&
+        source.exists !== false,
+      )
+      .map((source) => source.key),
+  )].sort((left, right) => left.localeCompare(right));
+}
+
+function buildGitNexusRecommendedAction(configured, matchedSources) {
+  if (configured) {
+    return `GitNexus is configured in ${matchedSources.join(", ")} — prefer pulse:gitnexus for discovery, then confirm results with direct file reads.`;
   }
 
-  function walk(dir, depth) {
-    if (depth > MAX_WALK_DEPTH) return;
-    let entries;
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        if (!WALK_SKIP_DIRS.has(entry.name)) {
-          walk(path.join(dir, entry.name), depth + 1);
-        }
-        continue;
-      }
-      if (!entry.isFile()) {
-        continue;
-      }
-      const ext = path.extname(entry.name);
-      const lang = flatExtensions.get(ext);
-      if (lang) {
-        counts.supported += 1;
-        supportedLanguages.add(lang);
-        continue;
-      }
-      if (SUPPORTED_GKG_BASENAMES.has(entry.name)) {
-        counts.supported += 1;
-        supportedLanguages.add("Ruby");
-        continue;
-      }
-      if (OTHER_SOURCE_EXTENSIONS.has(ext)) {
-        counts.unsupported_code += 1;
-        continue;
-      }
-      counts.ignored += 1;
-    }
-  }
+  return "GitNexus is not configured in known MCP sources — use grep/file inspection fallback, or add the gitnexus MCP server before graph-backed discovery.";
+}
 
-  walk(repoRoot, 0);
-
-  const sortedLanguages = [...supportedLanguages].sort();
-  const total = counts.supported + counts.unsupported_code;
-  let coverage = "none";
-  if (total > 0) {
-    coverage = counts.unsupported_code === 0 ? "full" : counts.supported > 0 ? "limited" : "none";
-  }
+export async function readGitNexusReadiness(repoRoot, dependencyHealth = null) {
+  const health = dependencyHealth && typeof dependencyHealth === "object"
+    ? dependencyHealth
+    : readDependencyHealthSafe(repoRoot);
+  const matchedSources = summarizeConfiguredGitNexusSources(health?.mcp_sources);
+  const configured = matchedSources.length > 0;
 
   return {
-    supported_languages: sortedLanguages,
-    primary_supported_language: sortedLanguages[0] || null,
-    counts,
-    coverage,
-  };
-}
-
-function normalizeFsPath(p) {
-  try {
-    return fs.realpathSync.native(p);
-  } catch {
-    return path.resolve(p);
-  }
-}
-
-async function fetchJsonWithTimeout(url, timeoutMs = 1500) {
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
-    if (!response.ok) {
-      return null;
-    }
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
-
-function extractProjectPaths(payload) {
-  const paths = new Set();
-  function walk(obj) {
-    if (!obj || typeof obj !== "object") return;
-    if (Array.isArray(obj)) { obj.forEach(walk); return; }
-    for (const [key, value] of Object.entries(obj)) {
-      if (typeof value === "string" && /folder_path|project_root|repo_path|root_path|path/i.test(key)) {
-        paths.add(value);
-      }
-      if (typeof value === "object") walk(value);
-    }
-  }
-  walk(payload);
-  return [...paths];
-}
-
-async function readGkgServerStatus(repoRoot) {
-  const serverUrl = process.env.PULSE_GKG_SERVER_URL || "http://127.0.0.1:27495";
-  const [info, workspace] = await Promise.all([
-    fetchJsonWithTimeout(`${serverUrl}/api/info`),
-    fetchJsonWithTimeout(`${serverUrl}/api/workspace/list`),
-  ]);
-  if (!info) {
-    return { server_reachable: false, server_version: null, project_indexed: false };
-  }
-
-  const projectPaths = workspace ? extractProjectPaths(workspace) : [];
-  const normalizedRoot = normalizeFsPath(repoRoot);
-  const project_indexed = projectPaths.some((p) => normalizeFsPath(p) === normalizedRoot);
-
-  return {
-    server_reachable: true,
-    server_version: info.version || info.server_version || null,
-    project_indexed,
-  };
-}
-
-function buildGkgRecommendedAction(signals, serverStatus) {
-  if (!signals.supported_languages.length) {
-    return "Use grep/file inspection fallback — this repo is outside gkg's supported language set.";
-  }
-  if (!serverStatus.server_reachable && !serverStatus.project_indexed) {
-    return "Run `gkg index <repo-root>`, then `gkg server start` to enable gkg discovery.";
-  }
-  if (!serverStatus.server_reachable && serverStatus.project_indexed) {
-    return "Run `gkg server start` to enable gkg discovery.";
-  }
-  if (serverStatus.server_reachable && !serverStatus.project_indexed) {
-    return "Stop the server if needed, run `gkg index <repo-root>`, then restart it so this project is ready for gkg discovery.";
-  }
-  return "gkg is ready — use MCP tools as the default discovery path.";
-}
-
-export async function readGkgReadiness(repoRoot) {
-  const signals = collectRepoLanguageSignals(repoRoot);
-  const serverStatus = await readGkgServerStatus(repoRoot);
-  const recommended_action = buildGkgRecommendedAction(signals, serverStatus);
-
-  return {
-    supported_repo: signals.supported_languages.length > 0,
-    supported_languages: signals.supported_languages,
-    primary_supported_language: signals.primary_supported_language,
-    coverage: signals.coverage,
-    ...serverStatus,
-    recommended_action,
+    configured,
+    matched_sources: matchedSources,
+    recommended_action: buildGitNexusRecommendedAction(configured, matchedSources),
   };
 }
 
@@ -484,7 +324,7 @@ function deriveAndPersistRuntimeArtifacts(repoRoot) {
     runtime_snapshot: summarizeRuntimeSnapshot(runtimeSnapshot),
     handoff_manifest: summarizeHandoffManifest(handoffManifest),
     dependency_health: null,
-    gkg_readiness: null,
+    gitnexus_readiness: null,
     checkpoints: { root_exists: fs.existsSync(paths.checkpointsRoot), feature: "", count: 0, latest: null, entries: [] },
     critical_patterns_exists: fs.existsSync(paths.criticalPatterns),
     memory_recall: null,
@@ -1805,7 +1645,7 @@ export async function readPulseStatus(repoRoot) {
   const handoffManifest = readJsonIfExists(paths.handoffManifest);
 
   const dependencyHealth = readDependencyHealthSafe(repoRoot);
-  const gkgReadiness = await readGkgReadiness(repoRoot);
+  const gitNexusReadiness = await readGitNexusReadiness(repoRoot, dependencyHealth);
 
   const stateJsonSummary = {
     exists: Boolean(stateJson),
@@ -1852,7 +1692,7 @@ export async function readPulseStatus(repoRoot) {
     history_lifecycle: historyLifecycle,
     critical_patterns_exists: fs.existsSync(paths.criticalPatterns),
     dependency_health: dependencyHealth,
-    gkg_readiness: gkgReadiness,
+    gitnexus_readiness: gitNexusReadiness,
     memory_recall: null,
     next_reads: [],
     recommended_actions: [],
@@ -2162,30 +2002,23 @@ function renderDependencyHealthLines(status) {
   return lines;
 }
 
-function renderGkgReadinessLines(status) {
-  const readiness = status.gkg_readiness && typeof status.gkg_readiness === "object"
-    ? status.gkg_readiness
+function renderGitNexusReadinessLines(status) {
+  const readiness = status.gitnexus_readiness && typeof status.gitnexus_readiness === "object"
+    ? status.gitnexus_readiness
     : null;
   if (!readiness) {
     return [];
   }
 
-  const supportedLanguages =
-    Array.isArray(readiness.supported_languages) && readiness.supported_languages.length > 0
-      ? readiness.supported_languages.join(", ")
+  const matchedSources =
+    Array.isArray(readiness.matched_sources) && readiness.matched_sources.length > 0
+      ? readiness.matched_sources.join(", ")
       : "none";
-  const serverStatus = readiness.server_reachable
-    ? `reachable${readiness.server_version ? ` (${readiness.server_version})` : ""}`
-    : "unreachable";
 
   return [
-    "gkg readiness:",
-    `- Supported repo: ${readiness.supported_repo ? "yes" : "no"}`,
-    `- Supported languages: ${supportedLanguages}`,
-    `- Primary supported language: ${readiness.primary_supported_language || "n/a"}`,
-    `- Coverage: ${readiness.coverage || "unknown"}`,
-    `- Server: ${serverStatus}`,
-    `- Project indexed: ${readiness.project_indexed ? "yes" : "no"}`,
+    "gitnexus readiness:",
+    `- Configured: ${readiness.configured ? "yes" : "no"}`,
+    `- Matched sources: ${matchedSources}`,
     `- Recommended action: ${readiness.recommended_action || "n/a"}`,
   ];
 }
@@ -2345,7 +2178,7 @@ export function renderPulseStatus(status) {
     "",
     ...renderOperatorSurfaceLines(status),
     "",
-    ...renderGkgReadinessLines(status),
+    ...renderGitNexusReadinessLines(status),
     "",
     ...renderDependencyHealthLines(status),
     "",

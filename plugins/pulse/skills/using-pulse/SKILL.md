@@ -95,7 +95,7 @@ node .codex/pulse_status.mjs --json
 The scout is read-only. It summarizes:
 
 - onboarding health
-- gkg readiness for this repo
+- gitnexus readiness for this repo/session
 - dependency health across packaged skills
 - `.pulse/state.json`
 - `.pulse/STATE.md`
@@ -114,19 +114,17 @@ Recall-pack rules:
 - the recall pack is only a focused reading list, not a new workflow state
 - use it to avoid grepping the whole memory plane when only a few files are likely relevant
 
-### gkg Readiness Is Part of Session Start
+### GitNexus Readiness Is Part of Session Start
 
-Treat `gkg` as a first-class discovery dependency for supported repositories.
+Treat `gitnexus` as the preferred graph-backed discovery dependency when it is configured.
 
 After reading the scout output:
 
-- If `gkg readiness` says the repo is unsupported: do not force gkg. Note the fallback and use grep/file inspection.
-- If the repo is supported and `server_reachable = false`: make `gkg` ready before planning by running `gkg index <repo-root>` and then `gkg server start`.
-- If the repo is supported and `project_indexed = false`: stop the server if needed, run `gkg index <repo-root>`, then start the server again.
-- If both server and index are ready: downstream skills should assume `gkg` is the default architecture-discovery path, not an optional nice-to-have.
+- If `gitnexus readiness` says `configured = true`: prefer `pulse:gitnexus` for architecture/discovery work, then confirm the results with direct file reads.
+- If `configured = false`: do not stall the workflow. Note the fallback and use grep/file inspection.
+- Use `matched_sources` to see where the MCP configuration is coming from instead of guessing whether the repo/session is wired correctly.
 
-Supported repo languages for this bootstrap are: Ruby, Java, TypeScript / JavaScript, Kotlin, and Python.
-Use the scout's `supported_languages` and `primary_supported_language` fields instead of guessing from the prompt.
+Do not invent a fake index-health probe for GitNexus during session start. The scout only tells you whether the MCP server is configured and what discovery path to use next.
 
 ---
 
@@ -166,10 +164,12 @@ Read this as the Pulse cookbook: one line per skill, then route into the special
 | 7 | `pulse:reviewing` | 4 specialist reviewers plus a final synthesizer, artifact verification, and UAT | Execution is complete and quality must be verified |
 | 8 | `pulse:compounding` | Capture durable learnings into `.pulse/memory/learnings/` | Feature shipped or a cycle completed |
 | 9 | `pulse:debugging` | Root-cause blocked work, test failures, and runtime breakage; escalates architectural doubt back to planning when needed | A worker, review, or UAT path is stuck |
-| 10 | `pulse:gkg` | Codebase intelligence support for discovery, pattern search, and symbol tracing | Architecture questions, related-file search, dependency tracing, or planning acceleration when gkg is ready |
-| 11 | `pulse:dream` | Consolidate durable learnings from Claude Code or Codex runtime artifacts into Pulse memory | Bootstrapping or curating learnings manually |
-| 12 | `pulse:writing-pulse-skills` | Improve or create Pulse skills using a skill-TDD loop | Editing Pulse itself |
-| 13 | `pulse:v2-to-v3-migration` | Assess and safely apply the Pulse repo migration wrapper for stale installs | Preflight or bootstrap detects legacy Pulse layout, version drift, or partial onboarding |
+| 10 | `pulse:gitnexus` | Codebase intelligence support for architecture snapshots, symbol context, and dependency tracing | Architecture questions, related-file search, API consumer mapping, blast-radius checks, or planning acceleration when GitNexus is configured |
+| 11 | `pulse:dev-note` | Capture one concrete developer learning from the current coding-with-AI session into a structured raw note | The user wants to save an insight, heuristic, reframe, or lesson they just learned while coding with AI |
+| 12 | `pulse:dev-note-distil` | Distill pending raw dev notes into stable topic knowledge and rebuild the global topic index | The user wants to categorize, merge, consolidate, or distill accumulated developer notes into durable topics |
+| 13 | `pulse:dream` | Consolidate durable learnings from Claude Code or Codex runtime artifacts into Pulse memory | Bootstrapping or curating learnings manually |
+| 14 | `pulse:writing-pulse-skills` | Improve or create Pulse skills using a skill-TDD loop | Editing Pulse itself |
+| 15 | `pulse:v2-to-v3-migration` | Assess and safely apply the Pulse repo migration wrapper for stale installs | Preflight or bootstrap detects legacy Pulse layout, version drift, or partial onboarding |
 
 ## Routing Logic
 
@@ -196,9 +196,11 @@ Given a user request, determine which skill to invoke first:
 | Clear implementation request | `pulse:planning` | Skip exploring only if decisions are already locked and the feature shape is already defined |
 | Small, low-risk fix | `pulse:planning` | Route in `small_change` mode only when no new capability or ownership boundary is introduced |
 | "Review my code" | `pulse:reviewing` | Load directly |
+| "Note this learning" / "save this insight" / "ghi lại ý này" | `pulse:dev-note` | Use to capture one concrete developer learning from the current coding-with-AI session |
+| "Distill these dev notes" / "chưng cất notes" / "gom notes thành topic" | `pulse:dev-note-distil` | Use to turn accumulated raw dev notes into durable topic knowledge and a refreshed global index |
 | "What did we learn?" | `pulse:compounding` | Load directly |
 | "Improve Pulse itself" | `pulse:writing-pulse-skills` | Load directly |
-| "What is the architecture?" / "Find files related to X" / "How is Y wired?" | `pulse:gkg` | Use as a support skill for codebase intelligence; route back to planning if this is part of a larger feature flow |
+| "What is the architecture?" / "Find files related to X" / "How is Y wired?" | `pulse:gitnexus` | Use as a support skill for codebase intelligence; route back to planning if this is part of a larger feature flow |
 | Agent blocked or failing | `pulse:debugging` | Load directly; if fixes stop converging or the failure hops subsystems, route back to `pulse:planning` or `pulse:validating` |
 | "/go" or "run the full pipeline" | Go Mode | See `references/go-mode-pipeline.md` |
 | Resume interrupted work | Resume Logic | Read the handoff manifest first |
@@ -574,8 +576,10 @@ Each skill reads upstream artifacts and writes downstream artifacts:
 | Skill | Reads | Writes |
 |---|---|---|
 | exploring | user conversation | `history/<feature>/CONTEXT.md` |
-| gkg | codebase structure, definitions, references | planning-ready discovery findings |
-| planning | `CONTEXT.md`, relevant learnings, optional `pulse:gkg` findings | `discovery.md`, `approach.md`, `phase-plan.md`, `phase-<n>-contract.md`, `phase-<n>-story-map.md`, canonical bead files |
+| gitnexus | codebase structure, execution flows, symbol context, dependency impact | planning-ready discovery findings |
+| dev-note | current chat context and the user’s note intent | `dev-notes/raws/YYYYMMDD.md` raw learning capture |
+| dev-note-distil | pending raw dev notes plus existing topic pages | `dev-notes/distil/topics/*` and `dev-notes/distil/TOPICS.md` |
+| planning | `CONTEXT.md`, relevant learnings, optional `pulse:gitnexus` findings | `discovery.md`, `approach.md`, `phase-plan.md`, `phase-<n>-contract.md`, `phase-<n>-story-map.md`, canonical bead files |
 | validating | phase-plan.md, phase-<n>-contract.md, phase-<n>-story-map.md, .beads/*, approach.md, CONTEXT.md | validated current phase, `.spikes/` results |
 | swarming | validated beads, `tooling-status.json`, `state.json`, `STATE.md` | coordinator mail state, coordinator handoff, updated `state.json`, updated `STATE.md` |
 | executing | bead file, `STATE.md`, `CONTEXT.md` | implementation commits, canonical evidence under `history/<feature>/verification/`, `br close`, worker handoff if needed |

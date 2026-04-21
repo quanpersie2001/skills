@@ -50,7 +50,9 @@ Pulse is not:
 | Skill | Purpose |
 |-------|---------|
 | `pulse:debugging` | Systematic debugging when workers hit blockers |
-| `pulse:gkg` | Codebase intelligence via gkg tool |
+| `pulse:gitnexus` | Codebase intelligence via GitNexus graph tools or local fallback |
+| `pulse:dev-note` | Capture one structured developer learning from the current coding-with-AI session |
+| `pulse:dev-note-distil` | Distill pending raw dev notes into stable topic knowledge and rebuild the global topic index |
 | `pulse:dream` | Manual dream consolidation over Claude Code or Codex runtime artifacts |
 
 ## The Chain
@@ -71,7 +73,7 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 - `br` — beads CLI (create/update/close work items)
 - `bv` — beads viewer (graph analytics, priority routing)
 - Agent Mail — inter-agent messaging, file reservations
-- `gkg` — codebase intelligence (optional)
+- `gitnexus` — graph-backed codebase intelligence (optional)
 - CASS/CM — session search, cognitive memory (optional)
 
 ## 3-Plane Model

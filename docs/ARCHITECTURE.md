@@ -122,7 +122,7 @@ The routing brain. Loaded after preflight on every session.
 | Decisions already locked | `pulse:planning` |
 | "Review my code" | `pulse:reviewing` |
 | Agent blocked or failing | `pulse:debugging` |
-| "What is the architecture?" | `pulse:gkg` |
+| "What is the architecture?" | `pulse:gitnexus` |
 | "Improve Pulse itself" | `pulse:writing-pulse-skills` |
 
 ---
@@ -192,7 +192,7 @@ Works in two sub-phases:
 **Sub-phase A — Whole-feature plan (ends at Gate 2):**
 1. Reads `CONTEXT.md` and `.pulse/memory/critical-patterns.md`
 2. Warns if institutional memory is stale (>3 features since last compounding)
-3. Runs codebase discovery (architecture, patterns, constraints; optionally via `pulse:gkg`)
+3. Runs codebase discovery (architecture, patterns, constraints; preferably via `pulse:gitnexus` when configured)
 4. Writes `history/<feature>/discovery.md` and `approach.md` (includes risk map and spike questions for HIGH-risk items)
 5. Writes `history/<feature>/phase-plan.md` — whole-feature phase breakdown
 6. **Gate 2:** presents phase plan and waits for approval
@@ -359,7 +359,7 @@ flowchart LR
     subgraph support[Support Skills — invoke anytime]
         DBG[pulse:debugging]
         SDF[pulse:systematic-debug-fix]
-        GKG[pulse:gkg]
+        GNX[pulse:gitnexus]
         DRM[pulse:dream]
         AIM[pulse:ai-multimodal]
         SC[pulse:simplify-code]
@@ -369,7 +369,7 @@ flowchart LR
 
     DBG -->|escalate if unfixable| planning[pulse:planning / pulse:validating]
     DBG -->|learning found| CP2[pulse:compounding]
-    GKG -->|feeds discovery| planning
+    GNX -->|feeds discovery| planning
     DRM -->|consolidates into| learnings[(.pulse/memory/)]
 ```
 
@@ -401,13 +401,13 @@ Multi-bug investigation with tracker discipline. Used when multiple known issues
 
 ---
 
-### `pulse:gkg`
-Codebase intelligence via scout-first gkg MCP discovery (or `rg` fallback).
+### `pulse:gitnexus`
+Codebase intelligence via scout-first GitNexus MCP discovery (or `rg` fallback).
 
 - Checks `node .codex/pulse_status.mjs --json` before discovery work
-- Uses MCP tools like `repo_map`, `search_codebase_definitions`, and `read_definitions` as the primary path
-- Treats `get_references` and `get_definition` as helper-only tools, not the backbone of discovery
-- Falls back to `rg` + file reads when gkg is unavailable or the repo is unsupported, and documents the fallback
+- Uses MCP tools like `query`, `context`, `impact`, `api_impact`, and `route_map` as the primary path
+- Treats graph results as acceleration, not as a replacement for direct file reads
+- Falls back to `rg` + file reads when GitNexus is unavailable, and documents the fallback
 - Saves findings to `history/<feature>/discovery.md`
 - Used as a support skill during planning and exploring — not a worker skill
 
@@ -600,7 +600,7 @@ history/<feature>/
 |------|--------|---------|
 | Beads CLI | `br` | Create, update, close, sync beads |
 | Beads viewer | `bv` | TUI inspection; `bv --robot-priority` for machine-readable priority queue |
-| GKG | `gkg` | Optional codebase intelligence (map, search, refs, definitions) |
+| GitNexus | `gitnexus` | Optional codebase intelligence (query, context, impact, route analysis) |
 | Agent Mail | — | Swarm coordination runtime (coordinator ↔ workers) |
 | Onboarding | `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs` | Installs/updates repo-level Pulse config |
 
