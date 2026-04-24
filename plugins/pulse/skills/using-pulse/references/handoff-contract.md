@@ -294,6 +294,8 @@ Recommended checkpoint record shape:
 Checkpoint rules:
 
 - Checkpoints are advisory snapshots. If checkpoint content disagrees with current handoff or state artifacts, current handoff/state artifacts win.
+- A checkpoint feature directory must contain only `manifest.json` and valid checkpoint `*.json` records. Beads repair backups, `beads.db*`, `issues.jsonl`, and `config.yaml` are foreign artifacts in this namespace.
+- Beads recovery artifacts belong under `.beads/.br_recovery/`; debugging or verification evidence belongs under `.spikes/` or `history/<feature>/verification/`, not `.pulse/checkpoints/<feature>/`.
 - `resume-brief` can point to relevant memory files and `history/<feature>/lifecycle-summary.md` when present, but it must not create a second durable memory store.
 - `diff` should stay summary-level: phase, gate, mode, next action, blockers, links, and memory hooks.
 - `save` may write a checkpoint record, but read-only status/scout flows must never mutate runtime state.

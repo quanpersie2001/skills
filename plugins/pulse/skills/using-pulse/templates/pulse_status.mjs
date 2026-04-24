@@ -154,10 +154,12 @@ function renderCheckpointResult(result) {
   }
 
   if (result.operation === "list") {
+    const warnings = Array.isArray(result.checkpoints?.warnings) ? result.checkpoints.warnings : [];
     return [
       `Checkpoint list for ${result.feature || "(no feature)"}`,
       `Count: ${result.checkpoints?.count || 0}`,
       ...(result.checkpoints?.entries || []).map((entry) => `- ${entry.operator_summary}`),
+      ...(warnings.length > 0 ? ["Checkpoint warnings:", ...warnings.map((warning) => `- ${warning}`)] : []),
     ].join("\n");
   }
 

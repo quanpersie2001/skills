@@ -397,6 +397,20 @@ function listDirectoryFiles(dirPath) {
   }
 }
 
+function listDirectoryEntries(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
+
+  try {
+    return fs.readdirSync(dirPath, { withFileTypes: true })
+      .map((entry) => ({ name: entry.name, is_directory: entry.isDirectory(), is_file: entry.isFile() }))
+      .sort((left, right) => left.name.localeCompare(right.name));
+  } catch {
+    return [];
+  }
+}
+
 function toRepoRelative(repoRoot, targetPath) {
   return path.relative(repoRoot, targetPath).split(path.sep).join("/");
 }
@@ -450,6 +464,14 @@ function ensureCheckpointFeatureDir(paths, feature) {
 
 function buildCheckpointRecordSummary(record, relativePath) {
   if (!record || typeof record !== "object" || Array.isArray(record)) {
+    return null;
+  }
+  if (
+    typeof record.schema_version !== "string" || !record.schema_version ||
+    typeof record.checkpoint_id !== "string" || !record.checkpoint_id ||
+    typeof record.feature !== "string" || !record.feature ||
+    typeof record.created_at !== "string" || !record.created_at
+  ) {
     return null;
   }
 
@@ -516,6 +538,8 @@ function readCheckpointManifest(featureDir) {
 function listCheckpointEntries(repoRoot, featureDir, manifest) {
   const listedEntries = Array.isArray(manifest?.checkpoints) ? manifest.checkpoints : [];
   const entries = [];
+  const invalidCheckpointFiles = new Set();
+  const manifestReferenceIssues = new Set();
   const relativeFeatureDir = toRepoRelative(repoRoot, featureDir);
 
   for (const entry of listedEntries) {
@@ -526,35 +550,65 @@ function listCheckpointEntries(repoRoot, featureDir, manifest) {
     if (!checkpointPath) {
       continue;
     }
+    const relativePath = `${relativeFeatureDir}/${normalizeSelector(checkpointPath)}`;
     const checkpointFile = path.join(featureDir, checkpointPath);
     const checkpointRecord = readJsonIfExists(checkpointFile);
-    const summary = buildCheckpointRecordSummary(
-      checkpointRecord,
-      `${relativeFeatureDir}/${normalizeSelector(checkpointPath)}`,
-    );
+    const summary = buildCheckpointRecordSummary(checkpointRecord, relativePath);
     if (summary) {
       entries.push(summary);
+    } else {
+      manifestReferenceIssues.add(relativePath);
+      if (fs.existsSync(checkpointFile) && checkpointPath.endsWith(".json")) {
+        invalidCheckpointFiles.add(relativePath);
+      }
     }
   }
 
   const knownEntryPaths = new Set(entries.map((entry) => entry.path));
-  for (const fileName of listDirectoryFiles(featureDir)) {
-    if (fileName === "manifest.json" || !fileName.endsWith(".json")) {
+  const foreignArtifacts = [];
+  for (const entry of listDirectoryEntries(featureDir)) {
+    const relativePath = `${relativeFeatureDir}/${entry.name}${entry.is_directory ? "/" : ""}`;
+    if (entry.name === "manifest.json") {
       continue;
     }
-    const relativePath = `${relativeFeatureDir}/${fileName}`;
+    if (entry.is_directory || !entry.name.endsWith(".json")) {
+      foreignArtifacts.push(relativePath);
+      continue;
+    }
     if (knownEntryPaths.has(relativePath)) {
       continue;
     }
-    const checkpointRecord = readJsonIfExists(path.join(featureDir, fileName));
+    const checkpointRecord = readJsonIfExists(path.join(featureDir, entry.name));
     const summary = buildCheckpointRecordSummary(checkpointRecord, relativePath);
     if (summary) {
       entries.push(summary);
+      knownEntryPaths.add(relativePath);
+    } else {
+      invalidCheckpointFiles.add(relativePath);
     }
   }
 
   entries.sort((left, right) => (right.created_at || "").localeCompare(left.created_at || ""));
-  return entries;
+  return {
+    entries,
+    invalid_checkpoint_files: [...invalidCheckpointFiles].sort((left, right) => left.localeCompare(right)),
+    foreign_artifacts: foreignArtifacts.sort((left, right) => left.localeCompare(right)),
+    manifest_reference_issues: [...manifestReferenceIssues].sort((left, right) => left.localeCompare(right)),
+  };
+}
+
+function buildCheckpointWarnings(checkpointSummary) {
+  const warnings = [];
+  if ((checkpointSummary.invalid_checkpoint_files || []).length > 0) {
+    warnings.push(`Invalid checkpoint JSON files: ${checkpointSummary.invalid_checkpoint_files.join(", ")}.`);
+  }
+  if ((checkpointSummary.foreign_artifacts || []).length > 0) {
+    warnings.push(`Foreign artifacts: ${checkpointSummary.foreign_artifacts.join(", ")}. Move Beads repair backups to .beads/.br_recovery/ or verification/debug artifact locations.`);
+  }
+  if ((checkpointSummary.manifest_reference_issues || []).length > 0) {
+    warnings.push(`Checkpoint manifest references missing or invalid records: ${checkpointSummary.manifest_reference_issues.join(", ")}.`);
+  }
+  return warnings;
 }
 
 function summarizeCheckpointFeature(paths, feature) {
@@ -568,24 +622,33 @@ function summarizeCheckpointFeature(paths, feature) {
       count: 0,
       latest: null,
       entries: [],
+      invalid_checkpoint_files: [],
+      foreign_artifacts: [],
+      manifest_reference_issues: [],
+      warnings: [],
     };
   }
 
   const repoRoot = path.dirname(paths.agents);
   const featureDir = path.join(paths.checkpointsRoot, feature);
   const { manifest } = readCheckpointManifest(featureDir);
-  const entries = listCheckpointEntries(repoRoot, featureDir, manifest);
-
-  return {
+  const checkpointEntries = listCheckpointEntries(repoRoot, featureDir, manifest);
+  const summary = {
     root_exists: checkpointsRootExists,
     feature,
     directory_exists: fs.existsSync(featureDir),
     manifest_exists: Boolean(manifest),
     manifest_updated_at: typeof manifest?.updated_at === "string" ? manifest.updated_at : "",
-    count: entries.length,
-    latest: entries[0] || null,
-    entries,
+    count: checkpointEntries.entries.length,
+    latest: checkpointEntries.entries[0] || null,
+    entries: checkpointEntries.entries,
+    invalid_checkpoint_files: checkpointEntries.invalid_checkpoint_files,
+    foreign_artifacts: checkpointEntries.foreign_artifacts,
+    manifest_reference_issues: checkpointEntries.manifest_reference_issues,
+    warnings: [],
   };
+  summary.warnings = buildCheckpointWarnings(summary);
+  return summary;
 }
 
 function tokenizeRecallValue(value) {
@@ -1378,6 +1441,9 @@ function buildRecommendedActions(status) {
   const hygieneWarnings = Array.isArray(status.memory_recall?.hygiene?.warnings)
     ? status.memory_recall.hygiene.warnings
     : [];
+  const checkpointWarnings = Array.isArray(status.checkpoints?.warnings)
+    ? status.checkpoints.warnings
+    : [];
 
   if (status.handoff_manifest.active_count > 0) {
     const actions = [
@@ -1402,6 +1468,9 @@ function buildRecommendedActions(status) {
     if (hygieneWarnings.length > 0) {
       actions.push(`Memory hygiene warning: ${hygieneWarnings[0]}`);
     }
+    if (checkpointWarnings.length > 0) {
+      actions.push(`Checkpoint hygiene warning: ${checkpointWarnings[0]}`);
+    }
 
     return actions;
   }
@@ -1416,6 +1485,9 @@ function buildRecommendedActions(status) {
     }
     if (hygieneWarnings.length > 0) {
       actions.push(`Memory hygiene warning: ${hygieneWarnings[0]}`);
+    }
+    if (checkpointWarnings.length > 0) {
+      actions.push(`Checkpoint hygiene warning: ${checkpointWarnings[0]}`);
     }
     return actions;
   }
@@ -1440,6 +1512,9 @@ function buildRecommendedActions(status) {
   }
   if (hygieneWarnings.length > 0) {
     actions.push(`Memory hygiene warning: ${hygieneWarnings[0]}`);
+  }
+  if (checkpointWarnings.length > 0) {
+    actions.push(`Checkpoint hygiene warning: ${checkpointWarnings[0]}`);
   }
 
   return actions;
@@ -2101,6 +2176,12 @@ function renderOperatorSurfaceLines(status) {
     if (checkpoints.latest) {
       lines.push(`  - latest_checkpoint: ${checkpoints.latest.operator_summary}`);
       lines.push(`  - latest_checkpoint_created_at: ${checkpoints.latest.created_at || "(none)"}`);
+    }
+    if ((checkpoints.warnings || []).length > 0) {
+      lines.push("  - checkpoint_warnings:");
+      for (const warning of checkpoints.warnings) {
+        lines.push(`    - ${warning}`);
+      }
     }
   }
 

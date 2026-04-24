@@ -534,10 +534,10 @@ This is the scout-plane map of the shared Pulse working set.
   debug-notes/                 <- debugging debug notes for compounding
   memory/dream-pending/        <- queued ambiguous dream items for explicitly non-blocking runs
   memory/                      <- shared reusable memory subtree for recall hooks and durable learnings
-  checkpoints/                 <- advisory feature-scoped checkpoints for list/show/diff/resume-brief
+  checkpoints/                 <- advisory feature-scoped checkpoint metadata only
     <feature>/
       manifest.json           <- optional checkpoint index for one feature
-      *.json                  <- checkpoint records
+      *.json                  <- valid checkpoint records; Beads repair backups and beads.db* are foreign here
   handoffs/
     manifest.json             <- active handoff index
     planning.json             <- planning checkpoint

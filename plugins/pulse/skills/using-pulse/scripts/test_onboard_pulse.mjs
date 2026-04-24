@@ -1028,7 +1028,14 @@ test("checkpoint commands fail soft for malformed entries, missing selectors, an
 
   try {
     applyRepo(root, false);
-    fs.mkdirSync(path.join(root, ".pulse", "checkpoints", "soft-fail-feature"), { recursive: true });
+    const featureDir = path.join(root, ".pulse", "checkpoints", "soft-fail-feature");
+    fs.mkdirSync(featureDir, { recursive: true });
+    fs.mkdirSync(path.join(featureDir, "beads-pre-rebuild-20260424T185318Z"), { recursive: true });
+    fs.writeFileSync(path.join(featureDir, "beads.db"), "sqlite-cache\n", "utf8");
+    fs.writeFileSync(path.join(featureDir, "beads.db-wal"), "wal\n", "utf8");
+    fs.writeFileSync(path.join(featureDir, "beads.db-shm"), "shm\n", "utf8");
+    fs.writeFileSync(path.join(featureDir, "issues.jsonl"), "{}\n", "utf8");
+    fs.writeFileSync(path.join(featureDir, "config.yaml"), "path: beads\n", "utf8");
     fs.writeFileSync(
       path.join(root, ".pulse", "current-feature.json"),
       `${JSON.stringify({
@@ -1046,13 +1053,31 @@ test("checkpoint commands fail soft for malformed entries, missing selectors, an
         schema_version: "1.0",
         updated_at: "2026-04-16T12:00:00.000Z",
         checkpoints: [
+          { checkpoint_id: "valid", path: "valid.json" },
           { checkpoint_id: "broken", path: "broken.json" },
+          { checkpoint_id: "missing", path: "missing.json" },
         ],
       }, null, 2)}\n`,
       "utf8",
     );
     fs.writeFileSync(
-      path.join(root, ".pulse", "checkpoints", "soft-fail-feature", "broken.json"),
+      path.join(featureDir, "valid.json"),
+      `${JSON.stringify({
+        schema_version: "1.0",
+        checkpoint_id: "valid",
+        feature: "soft-fail-feature",
+        created_at: "2026-04-16T12:01:00.000Z",
+        summary: "Valid checkpoint",
+        next_action: "Continue validating checkpoint hygiene.",
+        captured: { phase: "planning", gate: "GATE 2", mode: "standard_feature", story: "", bead: "" },
+        links: {},
+        blockers: [],
+        memory_hooks: {},
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(featureDir, "broken.json"),
       "{not-json}\n",
       "utf8",
     );
@@ -1063,6 +1088,16 @@ test("checkpoint commands fail soft for malformed entries, missing selectors, an
         [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "list", "--json"],
         { cwd: root, encoding: "utf8" },
       ),
+    );
+    const listText = execFileSync(
+      "node",
+      [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "list"],
+      { cwd: root, encoding: "utf8" },
+    );
+    const statusText = execFileSync(
+      "node",
+      [path.join(root, ".codex", "pulse_status.mjs")],
+      { cwd: root, encoding: "utf8" },
     );
 
     let showExitCode = 0;
@@ -1129,7 +1164,27 @@ test("checkpoint commands fail soft for malformed entries, missing selectors, an
     const missingFeatureSave = JSON.parse(missingFeatureSaveStdout);
 
     assert.equal(listPayload.ok, true);
-    assert.equal(listPayload.checkpoints.count, 0);
+    assert.equal(listPayload.checkpoints.count, 1);
+    assert.equal(listPayload.checkpoints.latest.checkpoint_id, "valid");
+    assert.deepEqual(listPayload.checkpoints.invalid_checkpoint_files, [
+      ".pulse/checkpoints/soft-fail-feature/broken.json",
+    ]);
+    assert.deepEqual(listPayload.checkpoints.manifest_reference_issues, [
+      ".pulse/checkpoints/soft-fail-feature/broken.json",
+      ".pulse/checkpoints/soft-fail-feature/missing.json",
+    ]);
+    assert.deepEqual(listPayload.checkpoints.foreign_artifacts, [
+      ".pulse/checkpoints/soft-fail-feature/beads-pre-rebuild-20260424T185318Z/",
+      ".pulse/checkpoints/soft-fail-feature/beads.db",
+      ".pulse/checkpoints/soft-fail-feature/beads.db-shm",
+      ".pulse/checkpoints/soft-fail-feature/beads.db-wal",
+      ".pulse/checkpoints/soft-fail-feature/config.yaml",
+      ".pulse/checkpoints/soft-fail-feature/issues.jsonl",
+    ]);
+    assert.match(listText, /Checkpoint warnings:/);
+    assert.match(listText, /Foreign artifacts:/);
+    assert.match(statusText, /checkpoint_warnings:/);
+    assert.match(statusText, /beads-pre-rebuild-20260424T185318Z\//);
     assert.equal(showExitCode, 1);
     assert.equal(JSON.parse(showStdout).ok, false);
     assert.equal(JSON.parse(showStdout).error, "Checkpoint not found.");

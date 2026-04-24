@@ -1,6 +1,6 @@
 {
   "name": "pulse",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Pulse: validate-first multi-agent skills for phase contracts, stories, swarming, and execution",
   "author": {
     "name": "quanpersie2001",

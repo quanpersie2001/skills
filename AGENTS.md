@@ -162,9 +162,9 @@ Some runtimes expose high-level macros (e.g., a single "spawn worker" call). Oth
 
 ## Beads Workflow Integration
 
-This project uses [beads_rust](https://github.com/Dicklesworthstone/beads_rust) for issue tracking. Issues are stored in `.beads/` and tracked in git.
+This project uses [beads_rust](https://github.com/Dicklesworthstone/beads_rust) for issue tracking. Durable issue state lives in `.beads/issues.jsonl` and `.beads/config.yaml`.
 
-**Important:** `br` is non-invasive — it NEVER runs git commands automatically. After `br sync --flush-only`, you must manually run `git add .beads/ && git commit`.
+**Important:** `br` is non-invasive — it NEVER runs git commands automatically. After `br sync --flush-only`, stage durable Beads files explicitly before committing. Do not stage SQLite cache/sidecar or recovery artifacts such as `.beads/beads.db`, `.beads/beads.db-wal`, `.beads/beads.db-shm`, or `.beads/.br_recovery/`.
 
 ### Essential Commands
 
@@ -203,12 +203,12 @@ br sync --flush-only  # Flush bead changes to disk (does NOT run git)
 **Before ending any session, run this checklist:**
 
 ```bash
-git status                # Check what changed
-git add <files>           # Stage code changes
-br sync --flush-only      # Flush bead changes to disk
-git add .beads/           # Stage bead changes
-git commit -m "..."       # Commit code + beads together
-git push                  # Push to remote
+git status                                      # Check what changed
+git add <files>                                 # Stage code changes
+br sync --flush-only                            # Flush bead changes to disk
+git add .beads/issues.jsonl .beads/config.yaml # Stage durable bead state only
+git commit -m "..."                             # Commit code + beads together
+git push                                        # Push to remote
 ```
 
 ### Best Practices
@@ -217,7 +217,7 @@ git push                  # Push to remote
 - Update status as you work (in_progress → closed)
 - Create new issues with `br create` when you discover tasks
 - Use descriptive titles and set appropriate priority/type
-- Always `br sync --flush-only` then `git add .beads/ && git commit` before ending session
+- Always `br sync --flush-only`, stage `.beads/issues.jsonl` and `.beads/config.yaml` explicitly, then commit before ending session
 
 <!-- end-bv-agent-instructions -->
 
@@ -384,7 +384,7 @@ Update `.pulse/STATE.md` with current phase, completed work, and any open blocke
 
 ```bash
 br sync --flush-only
-git add .beads/
+git add .beads/issues.jsonl .beads/config.yaml
 git commit -m "sync beads"
 ```
 
@@ -594,7 +594,7 @@ Before ending a substantial Pulse work chunk:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **pulse** (3119 symbols, 4277 relationships, 128 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **pulse** (3136 symbols, 4304 relationships, 132 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
