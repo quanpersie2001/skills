@@ -47,7 +47,36 @@
 
 ---
 
-## 5. Demo Walkthrough
+## 5. Unlocks Next
+
+> Name what later phases/stories become safe, possible, or cheaper after this phase lands.
+
+- `<specific downstream phase/story this unlocks>`
+- `<specific risk removed for downstream work>`
+- `<specific capability now available to build on>`
+
+---
+
+## 6. Locked Assumptions vs Open Ambiguities
+
+### Locked Assumptions (must hold; if broken, stop and re-plan)
+
+- `<assumption tied to system behavior or contract>`
+- `<assumption tied to dependency or interface stability>`
+
+### Open Ambiguities (known unknowns; can proceed with bounded risk)
+
+- `<unknown that does not block phase start>`
+- `<unknown with explicit validation path during phase>`
+
+### Ambiguity Exit Rule
+
+- If a locked assumption is false, **pause execution** and update plan/contract.
+- If an open ambiguity becomes phase-blocking, convert it into a locked item and re-approve.
+
+---
+
+## 7. Demo Walkthrough
 
 > The simplest walkthrough that proves this phase is real.
 
@@ -61,7 +90,7 @@
 
 ---
 
-## 6. Story Sequence At A Glance
+## 8. Story Sequence At A Glance
 
 > Stories explain why the internal order of this phase makes sense before beads are created.
 
@@ -73,7 +102,7 @@
 
 ---
 
-## 7. Phase Diagram
+## 9. Phase Diagram
 
 ```mermaid
 flowchart LR
@@ -87,21 +116,37 @@ If the phase has fewer than 3 stories, remove the unused nodes and keep the diag
 
 ---
 
-## 8. Out Of Scope
+## 10. Out Of Scope
 
 - `<thing intentionally not solved in this phase>`
 - `<adjacent idea deferred to a later phase>`
 
 ---
 
-## 9. Success Signals
+## 11. Success Contract (Execution + Validation)
 
-- `<how we know this phase genuinely worked>`
-- `<what reviewers or UAT should specifically confirm>`
+> This is the gate definition for moving forward.
+
+### Execution Success
+
+- [ ] Every planned story reaches its "Done Looks Like" condition.
+- [ ] No unresolved blocker remains hidden as "follow-up" work.
+- [ ] Story-to-bead mapping is explicit enough for swarming handoff.
+
+### Validation Success
+
+- [ ] Exit-state statements are directly demonstrated by tests, checks, or walkthrough evidence.
+- [ ] Evidence location is recorded (`history/<feature>/verification/...`).
+- [ ] Any assumption changes are reflected back into this contract.
+
+### Gate Decision Rule
+
+- Advance only when **both** execution and validation success are true.
+- If either side fails, phase stays open and plan/contract is revised.
 
 ---
 
-## 10. Failure / Pivot Signals
+## 12. Failure / Pivot Signals
 
 > If any of these happen, do not blindly continue to later phases.
 

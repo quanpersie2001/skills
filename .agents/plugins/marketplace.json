@@ -7,7 +7,7 @@
     {
       "name": "pulse",
       "description": "Validate-first multi-agent skills for phase contracts, stories, swarming, execution, review, and compounding. Includes all 23 Pulse skills.",
-      "version": "3.4.1",
+      "version": "3.4.2",
       "source": {
         "source": "local",
         "path": "./plugins/pulse"

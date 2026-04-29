@@ -2,6 +2,7 @@
 
 **Date**: <YYYY-MM-DD>
 **Feature**: <feature-slug>
+**Discovery output**: `history/<feature>/discovery.md`
 **CONTEXT.md reference**: `history/<feature>/CONTEXT.md`
 
 ---
@@ -28,20 +29,19 @@ _If no prior learnings found: "No prior learnings for this domain."_
 
 > Source: GitNexus query + direct file reads
 
-### Relevant Packages / Modules
+### Relevant Areas
 
-| Package/Module | Purpose | Key Files |
-|----------------|---------|-----------|
-| `packages/domain` | Entities, ports | `src/entities/`, `src/ports/` |
-| `packages/application` | Use cases, orchestration | `src/usecases/` |
+| Area | Purpose | Key Paths |
+|------|---------|-----------|
+| `[module/package/skill]` | `[responsibility]` | `[paths]` |
 | ... | ... | ... |
 
-### Entry Points
+### Execution / Change Entry Points
 
-- **API**: `packages/api/src/routers/...`
-- **UI**: `apps/web/src/routes/...`
-- **Server**: `apps/server/src/...`
-- **Workers/Jobs**: `...` _(if applicable)_
+- **User-facing surface**: `<CLI command / skill invocation / route / workflow trigger>`
+- **Primary implementation path**: `<where behavior is implemented>`
+- **State/artifact updates**: `<state files, manifests, generated docs, DB, etc.>`
+- **Automation hooks**: `<scripts/CI/checks touched by this work>` _(if applicable)_
 
 ### Key Files to Model After
 
@@ -56,88 +56,83 @@ _If no prior learnings found: "No prior learnings for this domain."_
 
 ### Similar Existing Implementations
 
-| Feature/Component | Location | Pattern Used | Reusable? |
-|-------------------|----------|--------------|-----------|
-| [e.g., User CRUD] | `packages/domain/src/entities/user.ts` | Entity + Port + UseCase | Yes |
+| Implementation | Location | Pattern Used | Reusable? |
+|----------------|----------|--------------|-----------|
+| `[similar behavior/workflow]` | `<path>` | `<pattern>` | Yes/Partial/No |
 | ... | ... | ... | ... |
 
-### Reusable Utilities
+### Reusable Building Blocks
 
-- **Validation**: `<path>` — `<what it does>`
-- **Error handling**: `<path>` — `<what it does>`
-- **Shared types**: `<path>`
-- _(List any utility that the new feature should reuse rather than reimplement)_
+- **Core utility/helper**: `<path>` — `<what it does>`
+- **Validation/guardrails**: `<path>` — `<what it does>`
+- **Shared schema/types/contracts**: `<path>`
+- **Artifact/template precedent**: `<path>` _(if docs/metadata-driven)_
+- _(List any existing building block to reuse instead of reimplementing)_
 
-### Naming Conventions
+### Naming & Structural Conventions to Mirror
 
-- Entities: `PascalCase` (e.g., `Invoice`, `Subscription`)
-- Ports/Interfaces: `<Noun>Repository`, `<Noun>Service`
-- Use cases: `<verb>-<noun>.ts` (e.g., `create-invoice.ts`)
-- API routes: `<resource>s` plural (e.g., `/invoices`)
-- Tests: `<filename>.test.ts` co-located or in `__tests__/`
+- Files/folders: `<pattern used in this repo area>`
+- Public interfaces (commands, exports, schemas): `<pattern>`
+- Tests/verification artifacts: `<pattern + location>`
 
 ---
 
 ## Agent C: Constraints Analysis
 
-> Source: package.json, tsconfig, .env.example, lockfile
+> Source: package.json, tsconfig, .env.example, lockfile, or equivalent repo manifests
 
-### Runtime & Framework
+### Environment & Runtime Constraints
 
-- **Node version**: `>=<version>`
-- **Runtime**: Bun / Node / Deno
-- **Language**: TypeScript `<version>`
-- **Framework**: `<name>` `<version>`
+- **Primary runtime/toolchain**: `<runtime(s), language(s), version constraints>`
+- **Execution context**: `<CLI/plugin/server/browser/CI/docs-only>`
+- **Framework/platform constraints**: `<name/version or "N/A">`
 
-### Existing Dependencies (Relevant to This Feature)
+### Existing Dependencies / Inputs (Relevant to This Feature)
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| [e.g., drizzle-orm] | [version] | ORM |
+| Dependency/Input | Version/Source | Purpose |
+|------------------|----------------|---------|
+| `[library/tool/spec/internal artifact]` | `[version/path]` | `[purpose]` |
 | ... | ... | ... |
 
-### New Dependencies Needed
+### New Dependencies / Inputs Needed
 
-| Package | Reason | Risk Level |
-|---------|--------|------------|
-| [e.g., stripe] | Payment SDK | HIGH — new external dep |
+| Dependency/Input | Reason | Risk Level |
+|------------------|--------|------------|
+| `[library/tool/data source]` | `[reason]` | LOW/MEDIUM/HIGH |
 | ... | ... | ... |
 
 ### Build / Quality Requirements
 
 ```bash
 # Must pass before bead is closeable:
-bun run check-types    # TypeScript type-check
-bun run build          # Full build
-bun run test           # Test suite
-bun run lint           # Linter
+<typecheck/build/test/lint or artifact validation commands used by this repo area>
 ```
 
-### Database / Storage (if applicable)
+### Persistence / Artifact Surface (if applicable)
 
-- **ORM**: Drizzle / Prisma / raw SQL
-- **Schema location**: `packages/db/src/schema/`
-- **Migration command**: `bun run db:push` (dev) / `bun run db:migrate` (prod)
+- **State or schema location**: `<path or "N/A">`
+- **Generation/update command**: `<command or "N/A">`
+- **Backward-compat constraints**: `<if any>`
 
 ---
 
-## Agent D: External Research
+## Agent D: External / Adjacent Research
 
-> Source: web_search, WebFetch, library docs
+> Source: web_search, WebFetch, upstream docs, internal references
 > Guided by locked decisions in CONTEXT.md — not generic research
 
-### Library Documentation
+### Authoritative References
 
-| Library | Version | Key Docs |
-|---------|---------|----------|
-| [e.g., stripe] | 14.x | [URL or inline summary] |
+| Source | Version/Date | Key Reference |
+|--------|--------------|---------------|
+| `[library/spec/internal standard]` | `[version/date]` | `[URL/path or inline summary]` |
 | ... | ... | ... |
 
-### Community Patterns
+### Proven Patterns
 
 - **Pattern**: `<description>`
   - Why it applies: `<reason>`
-  - Reference: `<URL>`
+  - Reference: `<URL/path>`
 
 ### Known Gotchas / Anti-Patterns
 

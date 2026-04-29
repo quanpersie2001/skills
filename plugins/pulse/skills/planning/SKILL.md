@@ -259,7 +259,7 @@ All discovery findings go to:
 
 `history/<feature>/discovery.md`
 
-Use `references/discovery-template.md`.
+Use `plugins/pulse/skills/planning/references/discovery-template.md`.
 
 ---
 
@@ -285,7 +285,7 @@ The synthesis result must produce:
 5. **Proposed File Structure**
 6. **Institutional Learnings Applied**
 
-Use `references/approach-template.md`.
+Use `plugins/pulse/skills/planning/references/approach-template.md`.
 
 ### Risk classification
 
@@ -317,22 +317,24 @@ Write:
 
 - `history/<feature>/phase-plan.md`
 
-Use `references/phase-plan-template.md`.
+Use `plugins/pulse/skills/planning/references/phase-plan-template.md`.
 
 ### What phase planning must answer
 
 For the whole feature:
 
-1. What are the 2-4 meaningful phases?
-2. What changes for real users or systems after each phase?
-3. Why does Phase 1 come before Phase 2?
-4. What is the simplest believable demo for each phase?
-5. Which phase should be prepared first?
+1. What durable architecture baseline must every phase preserve?
+2. What are the 2-4 meaningful phases?
+3. What changes for real users or systems after each phase?
+4. Why does Phase 1 come before Phase 2?
+5. What is the simplest believable demo for each phase?
+6. Which phase should be prepared first?
 
 ### Rules for a good phase plan
 
 - Every phase must describe a real, observable capability slice
 - A reader should understand the phase without reading implementation files
+- Phases must preserve the defined ownership boundaries and contracts instead of quietly collapsing them
 - Phase 1 must feel obviously first
 - If a phase has 5+ stories, it is probably too large
 - If a phase can only be described with architecture jargon, rewrite it in practical language
@@ -379,7 +381,7 @@ Write:
 
 - `history/<feature>/phase-<n>-contract.md`
 
-Use `references/phase-contract-template.md`.
+Use `plugins/pulse/skills/planning/references/phase-contract-template.md`.
 
 The current phase contract must answer, in plain language:
 
@@ -415,7 +417,7 @@ Write:
 
 - `history/<feature>/phase-<n>-story-map.md`
 
-Use `references/story-map-template.md`.
+Use `plugins/pulse/skills/planning/references/story-map-template.md`.
 
 ### Story rules
 
@@ -423,15 +425,19 @@ Every story must state:
 
 - what happens in this story
 - why it happens now
+- whether it runs serially or in parallel and why that is safe
 - what part of the phase exit state it advances
 - what it creates
 - what it unlocks next
+- what shared files or shared context create coordination risk
 - what "done looks like"
+- what testing discipline downstream beads should likely inherit when risk is higher
 
 ### Story quality checks
 
 - Story 1 must have an obvious reason to exist first
 - Every story must unlock or de-risk a later story, or directly close part of the exit state
+- Any claimed parallel path must name collision risks and coordination intent
 - If all stories complete, the phase exit state should hold
 - If a story cannot answer "what becomes possible after this?" it is probably not a real story
 
@@ -511,7 +517,7 @@ Every task bead must explicitly include:
 
 If the CLI cannot create these fields inline, create the bead first and update the bead file immediately after creation. Do not leave the contract implicit in prose alone.
 
-Use `references/bead-template.md`.
+Use `plugins/pulse/skills/planning/references/bead-template.md`.
 
 ### Create epic first if missing, then current-phase task beads
 

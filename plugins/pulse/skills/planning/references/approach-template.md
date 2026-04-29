@@ -32,6 +32,21 @@ Describe the concrete strategy in 3-5 sentences.
 |---|---|---|
 | <decision> | <choice> | <why> |
 
+### Architecture Baseline for Phase Slicing
+
+Capture the durable architecture that phases must preserve.
+
+#### Enduring Foundations
+
+- <foundation that persists across all phases>
+- <invariant that later work cannot bypass>
+
+#### Ownership and Contracts
+
+| Boundary | Owner | Contract / Interface | Constraint to Preserve |
+|---|---|---|---|
+| <module boundary> | <owner> | <API/event/data contract> | <what later phases must not violate> |
+
 ---
 
 ## 3. Alternatives Considered

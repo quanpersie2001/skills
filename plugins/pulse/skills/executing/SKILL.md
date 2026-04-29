@@ -148,6 +148,22 @@ If any required field is missing, stop and bounce the bead back to validating or
 
 If `testing_mode` is `tdd-required`, confirm `tdd_steps` is present before implementation starts.
 
+### Phase-artifact read rule for non-trivial beads
+
+Do not rely on the bead alone when the work is architecturally or operationally sensitive.
+
+Before reserving files or writing code, read `history/<feature>/phase-<n>-contract.md` and `history/<feature>/phase-<n>-story-map.md` if any of these are true:
+
+- `testing_mode` is `tdd-required`
+- the bead touches multiple files across different modules or ownership boundaries
+- the bead has multiple upstream dependencies or explicitly references story coordination, parallelism, shared file/context risk, or boundary preservation
+- the `verify` path is multi-step, integration-heavy, or hard to explain in one line from the bead alone
+- after reading the bead, more than one plausible implementation path still seems possible
+
+For beads that touch module interfaces, ownership boundaries, or HIGH-risk constraints, also read the relevant parts of `history/<feature>/approach.md`.
+
+If the bead is a small single-path change with tight file scope, unambiguous verification, and no boundary sensitivity, the bead plus `CONTEXT.md` is usually sufficient.
+
 ---
 
 ## Step 3: Reserve Files
@@ -207,6 +223,7 @@ Before writing any code, scan your bead's description for decision IDs (D1, D2, 
 Before you change a file, say what you believe is true:
 - which existing path or component you are extending
 - what the bead is explicitly asking you to preserve or change
+- which phase exit-state or story done condition this bead advances when phase artifacts were required
 - what will prove success once verification runs
 
 If two plausible interpretations remain, stop. Surface the ambiguity explicitly and get the bead repaired or clarified instead of guessing in code.
@@ -514,7 +531,8 @@ Re-read in this exact order before any further action:
 1. `AGENTS.md`
 2. `history/<feature>/CONTEXT.md`
 3. The current bead you were working on: `br show <bead-id>`
-4. Your active file reservations (query the coordination runtime, worker mode only)
+4. If the bead qualifies as non-trivial under Step 2, re-read `history/<feature>/phase-<n>-contract.md` and `history/<feature>/phase-<n>-story-map.md`, plus `history/<feature>/approach.md` when boundary-sensitive or HIGH-risk
+5. Your active file reservations (query the coordination runtime, worker mode only)
 
 Only after re-reading all applicable items may you continue.
 
@@ -536,6 +554,7 @@ Stop and reassess if you notice any of these:
 - **Continuing after compaction without re-reading** — you have amnesia; fix it before proceeding
 - **Implementing stubs, TODOs, or empty handlers** — these are not implementations; they are deferred failures
 - **Ignoring a locked decision from CONTEXT.md**
+- **Skipping required phase-contract/story-map reads for a non-trivial bead** — you are forcing execution to guess phase meaning and story intent
 - **Guessing through ambiguity instead of surfacing it** — hidden design choices belong back in planning/validation, not in worker code
 - **Bundling multiple beads into one commit** — atomic commits per bead are the audit trail; don't corrupt it
 - **Claiming a bead without checking reservations** — self-routing still depends on file coordination

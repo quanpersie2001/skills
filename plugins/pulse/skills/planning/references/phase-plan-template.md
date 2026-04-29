@@ -17,15 +17,43 @@
 
 ---
 
-## 2. Why This Breakdown
+## 2. Whole-Feature Architecture Baseline
 
-- `<Why Phase 1 must happen first>`
+> Define the durable architecture shape before slicing into phases. This is the boundary contract phases must preserve.
+
+### 2.1 Enduring Foundations
+
+- `<foundation that must exist across all phases>`
+- `<data model, control-plane, or runtime invariant that stays stable>`
+
+### 2.2 Ownership Boundaries
+
+| Area / Module | Owner | Responsibilities In Scope | Explicitly Out Of Scope |
+|---|---|---|---|
+| `<module>` | `<team/component>` | `<what it owns>` | `<what it must not absorb>` |
+
+### 2.3 Interfaces and Contracts
+
+| Interface / Contract | Producer | Consumer | Contract Shape | Stability Expectation |
+|---|---|---|---|---|
+| `<interface name>` | `<owner>` | `<owner>` | `<request/response/events/invariants>` | `<stable now / evolves in phase N>` |
+
+### 2.4 Decision Propagation Rules
+
+- `<architecture decision>` -> `<which phases/stories must honor it>`
+- `<boundary constraint>` -> `<what cannot be bypassed later>`
+
+---
+
+## 3. Why This Breakdown
+
+- `<Why Phase 1 must happen first while preserving the architecture baseline>`
 - `<Why later phases are separate instead of folded into Phase 1>`
 - `<What risk or ambiguity this phased approach contains>`
 
 ---
 
-## 3. Phase Overview Table
+## 4. Phase Overview Table
 
 | Phase | What Changes In Real Life | Why This Phase Exists Now | Demo Walkthrough | Unlocks Next |
 |-------|----------------------------|---------------------------|------------------|--------------|
@@ -37,12 +65,14 @@ Remove unused rows. Most features should fit in 2-4 phases.
 
 ---
 
-## 4. Phase Details
+## 5. Phase Details
 
 ### Phase 1: <Name>
 
 - **What Changes In Real Life**: `<observable outcome>`
 - **Why This Phase Exists Now**: `<why it must happen before later phases>`
+- **Architecture Decisions Applied**: `<which baseline decisions/contracts this phase implements or enforces>`
+- **Boundary Integrity Check**: `<how this phase preserves ownership boundaries and avoids cross-module leakage>`
 - **Stories Inside This Phase**:
   - Story 1: `<name>` — `<what happens>`
   - Story 2: `<name>` — `<what happens>`
@@ -54,6 +84,8 @@ Remove unused rows. Most features should fit in 2-4 phases.
 
 - **What Changes In Real Life**: `<observable outcome>`
 - **Why This Phase Exists Now**: `<why it happens after Phase 1>`
+- **Architecture Decisions Applied**: `<which baseline decisions/contracts this phase extends without violating>`
+- **Boundary Integrity Check**: `<how this phase keeps ownership and contracts clean while expanding capability>`
 - **Stories Inside This Phase**:
   - Story 1: `<name>` — `<what happens>`
   - Story 2: `<name>` — `<what happens>`
@@ -65,6 +97,8 @@ Remove unused rows. Most features should fit in 2-4 phases.
 
 - **What Changes In Real Life**: `<observable outcome>`
 - **Why This Phase Exists Now**: `<why it closes the feature>`
+- **Architecture Decisions Applied**: `<which baseline decisions/contracts are finalized or hardened here>`
+- **Boundary Integrity Check**: `<how this closing phase avoids collapsing boundaries in late-stage work>`
 - **Stories Inside This Phase**:
   - Story 1: `<name>` — `<what happens>`
   - Story 2: `<name>` — `<what happens>`
@@ -76,7 +110,7 @@ Remove unused phase sections and keep only the real phases.
 
 ---
 
-## 5. Phase Order Check
+## 6. Phase Order Check
 
 > A human should be able to answer "why this phase before the next one?" without reading implementation details.
 
@@ -88,7 +122,7 @@ If any box is unchecked, revise the breakdown before asking for approval.
 
 ---
 
-## 6. Approval Summary
+## 7. Approval Summary
 
 > This is the short version presented to the user before current-phase preparation begins.
 

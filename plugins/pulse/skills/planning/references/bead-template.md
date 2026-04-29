@@ -19,7 +19,7 @@ files:
   - src/path/to/file.ts
   - src/path/to/file.test.ts
 verify:
-  - command: npm test -- --runInBand path/to/file.test.ts
+  - command: <repo-appropriate verification command>
     expect: exits 0
 verification_evidence:
   - kind: artifact
@@ -87,8 +87,10 @@ After the structured block, use this body shape:
 - Decision refs: D1, D4
 - Learning refs: .pulse/memory/learnings/20260327-auth-cookie.md
 - Testing mode: standard | tdd-required
+- Testing hint from story map: <smoke / focused integration / full integration-regression>
 - Verification evidence: history/<feature>/verification/<bead-id>.md or an explicit verification record
 - If `testing_mode` is `tdd-required`, include red and green steps in `tdd_steps`
+- Translate the story-map testing hint into concrete `verify` depth, and escalate to `tdd-required` when the phase plan or risk map says that is mandatory
 
 ## Done When
 - <behavioral acceptance criteria>
