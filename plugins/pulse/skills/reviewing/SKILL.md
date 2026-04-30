@@ -46,11 +46,18 @@ If a finding makes sense only to someone who already read the diff carefully, it
 
 Read before starting:
 
+- `.pulse/project-docs.json` when present, plus the smallest relevant listed project docs
 - `history/<feature>/CONTEXT.md` — locked decisions (D1, D2...) and testable deliverables
 - `history/<feature>/approach.md` — planned approach and risk map from planning
 - `history/<feature>/lifecycle-summary.md` when it already exists — durable audit summary from prior review/closeout work
 - `.pulse/STATE.md` — current epic state
 - the git diff or worktree diff
+
+If `.pulse/project-docs.json` is absent, detect likely project docs (README, architecture, ADR, domain docs) and read the smallest relevant set before finalizing review conclusions.
+
+Terminology discipline:
+- Reuse project glossary terms when evaluating correctness.
+- When a user/story term conflicts with project glossary or docs, call it out in the finding and verify behavior against both docs and code before severity assignment.
 
 ## Phase 1: Specialist Review
 
@@ -157,63 +164,8 @@ Goal-backward check on every artifact named in `CONTEXT.md` and `approach.md`. T
 
 Run this as a subagent with isolated context (diff + CONTEXT.md + approach.md). Use the live bead graph and bead files when you need to verify acceptance criteria coverage.
 
-### The 3 Levels
-
-**Level 1 — EXISTS:** Does the file/component/route exist?
-
-```bash
-ls src/components/PaymentForm.tsx
-```
-
-**Level 2 — SUBSTANTIVE:** Is it real, not a stub?
-
-Scan for anti-patterns:
-
-```
-return null / return {} / return []
-Empty handlers: onClick={() => {}}
-TODO / FIXME / PLACEHOLDER comments
-console.log-only implementations
-API routes returning static data without DB queries
-Components with state that never renders state
-```
-
-**Level 3 — WIRED:** Is it imported and used in the integration layer?
-
-```bash
-grep -r "PaymentForm" src/pages/ src/app/
-```
-
-### Reporting
-
-For each artifact:
-
-- L1+L2+L3: fully wired
-- L1+L2 only: created but not integrated — create a `P2` review bead
-- L1 only (stub): exists but empty — create a `P1` review bead
-- Missing: not found — create a `P1` review bead
-
-### Findings Template
-
-Use this structure for each finding in a review bead:
-
-```markdown
-## Finding: [title]
-- **Severity**: P1 | P2 | P3
-- **Location**: [file:line or module]
-- **Description**: [what's wrong]
-- **Recommendation**: [suggested fix]
-```
-
-### UAT Evidence for Non-Interactive Changes
-
-For changes that cannot be manually walked through (APIs, config, infrastructure, CLI tools), UAT evidence should include:
-
-- Verification command output (e.g., `curl` response, CLI invocation result)
-- Before/after config diff or API response comparison
-- Log output showing the change is active
-- Automated test results covering the modified behavior
-
+Use `references/artifact-verification-contract.md` as the canonical Level 1/2/3 verification and severity-mapping contract.
+Use `references/review-bead-template.md` for per-finding bead structure.
 Treat `history/<feature>/verification/` as the canonical evidence surface during execution and review.
 
 ## Review Intake
@@ -249,7 +201,7 @@ Can you navigate to /forgot-password, enter an email, and confirm the reset emai
 
 On failure:
 
-1. Invoke `pulse:debugging` — root-cause the failure
+1. Invoke `pulse:systematic-debug-fix` — root-cause the failure
 2. Create a fix bead: `br create "Fix: <description>" -t task -p 0 --parent <epic-id>`
 3. Execute the fix bead (invoke `pulse:executing`)
 4. Re-verify the specific UAT item
@@ -261,53 +213,9 @@ On skip: Record in `.pulse/STATE.md` with reason. Do not count as pass.
 
 You are the last step before compounding. Close the loop completely.
 
-### Checklist
-
-```
-[ ] All beads in epic are closed
-    -> bv --robot-triage --graph-root <epic-id>
-    -> Any open beads? Create final fix tasks or explicitly defer with br update --defer
-
-[ ] Final build/test/lint passes
-    -> Run project's standard commands (npm test / pytest / cargo test / etc.)
-    -> If fails: create a P1 review bead, fix before continuing
-
-[ ] Present merge options to user:
-    1. Create PR (recommended)
-    2. Merge directly
-    3. Keep branch for further work
-    4. Discard branch
-
-[ ] Confirm canonical verification evidence is complete
-    -> verify `history/<feature>/verification/` contains the evidence needed for audit and closeout
-
-[ ] Write or refresh `history/<feature>/lifecycle-summary.md`
-    -> record approved context/plan links, gate outcomes, canonical verification pointers, key durable learnings, and unresolved follow-up debt
-    -> do not mirror live runtime state or use this file as a resume artifact
-
-[ ] Clean up worktree (if used)
-    -> git worktree remove .worktrees/<feature>
-
-[ ] Close epic bead
-    -> br close <epic-id> --reason "Feature complete: <summary>"
-
-[ ] Clear working state
-    -> Archive STATE.md: cp .pulse/STATE.md history/<feature>/STATE-final.md
-    -> Update state.json and STATE.md to reflect completion
-```
-
-### Merge Options Detail
-
-Create PR:
-
-```bash
-gh pr create \
-  --title "<feature title>" \
-  --body "## Summary\n<description>\n\n## Verified\n- [ ] All UAT items passed\n- [ ] No P1 review beads remain open\n- P2 follow-up beads: <list or 'none'>\n- P3 follow-up beads: <list or 'none'>"
-```
-
-If P2 review beads exist: Include them in the PR body. Recommend fixing before merge, but user decides.
-If P3 review beads exist: Add them to the PR body under "Future Work." Do not block merge.
+Use `references/finishing-checklist.md` as the canonical closeout checklist.
+When creating a PR, include verification status and open P2/P3 follow-up bead lists in the body.
+P2/P3 remain non-blocking, but must stay visible in closeout artifacts.
 
 ## Quick Mode
 
@@ -359,3 +267,5 @@ FLAGGED_LEARNINGS: <count>
 
 - `references/review-agent-prompts.md` — exact prompts for all 5 agents
 - `references/review-bead-template.md` — review bead format and creation contract
+- `references/artifact-verification-contract.md` — Level 1/2/3 verification and severity mapping
+- `references/finishing-checklist.md` — canonical review closeout checklist

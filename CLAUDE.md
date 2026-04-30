@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 23 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 22 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ## Repository Layout
 
@@ -23,7 +23,7 @@ Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation
 | Beads CLI | **`br`** (not `bd`) | Create, update, close, sync work items |
 | Beads viewer | `bv` | TUI and graph inspection |
 | Git | `git` | Version control |
-| Agent Mail | — | Worker orchestration (swarm mode only) |
+| Native swarm adapters | — | Claude Code teammates or Codex subagents in swarm mode |
 | GitNexus | `gitnexus` | Optional graph-backed codebase intelligence |
 
 **Important:** The beads CLI binary is `br`. Use `br` in Pulse workflows and examples.
@@ -48,6 +48,7 @@ Four human gates control progression:
 .pulse/tooling-status.json           ← preflight writes this
 .pulse/state.json                    ← machine-readable routing mirror
 .pulse/STATE.md                      ← shared state across phases
+.pulse/project-docs.json             ← routing map for repo-owned project docs consumed by Pulse
 .pulse/handoffs/manifest.json        ← owner-scoped pause/resume index
 history/<feature>/verification/      ← canonical verification evidence
 history/<feature>/CONTEXT.md         ← exploring output (source of truth for decisions)
@@ -85,7 +86,7 @@ git push                # Push to remote
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **pulse** (3153 symbols, 4322 relationships, 132 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **pulse** (3154 symbols, 4322 relationships, 132 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

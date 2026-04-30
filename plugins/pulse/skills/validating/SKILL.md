@@ -1,11 +1,11 @@
 ---
 name: validating
 description: |
-  The critical gate between planning and execution in the Pulse ecosystem. Load this skill after planning completes and before swarming begins. Verifies the phase contract, story map, and bead graph across 8 structural dimensions, executes time-boxed spikes for HIGH-risk items, polishes beads with bv graph analytics, and requires explicit user approval before any code is written. Prevents executing unclear phases, malformed story breakdowns, unknown blockers, and redundant duplicate work.
+  The critical gate between planning and execution in the Pulse ecosystem. Load this skill after planning completes and before execution starts (swarming in multi-worker mode, direct executing in single-worker mode). Verifies the phase contract, story map, and bead graph across 8 structural dimensions, executes time-boxed spikes for HIGH-risk items, polishes beads with bv graph analytics, and requires explicit user approval before any code is written. Prevents executing unclear phases, malformed story breakdowns, unknown blockers, and redundant duplicate work.
 metadata:
   version: '1.3'
   position: 3
-  chain: exploring → planning → validating → swarming
+  chain: exploring → planning → validating → (swarming | executing)
   dependencies:
     - id: beads-cli
       kind: command
@@ -335,11 +335,7 @@ Use it to catch:
 
 Fix all CRITICAL flags before moving on. MINOR flags are judgment calls but should be considered carefully.
 
-When asking a model to perform the bead-refinement pass, use this prompt:
-
-```text
-Check each bead super carefully from an executor's point of view. Revise only when the fix is clear, local, and makes the bead easier to execute without guessing. Focus on missing proof criteria, hidden assumptions, scope overreach, and ambiguous implementation paths. Do not redesign the plan or broaden the bead set for hypothetical future improvement. Use /effort max.
-```
+Use `references/bead-reviewer-prompt.md` as the canonical bead-refinement prompt contract.
 
 ### Story-to-bead coherence check
 

@@ -199,80 +199,28 @@ bv --robot-triage --graph-root <EPIC_ID>
 
 Do not park in passive wait mode while the swarm is active. If updates are quiet, you still keep tending until the swarm is complete or a real human decision is needed.
 
-### Worker Startup Acknowledgments
+### Worker Event Handling
 
-When a worker posts an online message:
-1. Confirm it joined the correct coordination surface
-2. Confirm it reports the runtime identity
-3. Confirm it explicitly says `AGENTS.md` was read
-4. Confirm it is loading `pulse:executing`
-5. Confirm the worker's next step is `bv --robot-priority`
-6. Update the matching `.pulse/STATE.md` worker entry from:
-   `Runtime: <runtime-identity> | Adapter: <adapter-name> | Status: spawned | Current bead: -`
-   to:
-   `Runtime: <runtime-identity> | Adapter: <adapter-name> | Status: online | Current bead: -`
+Treat worker events as protocol-driven, not ad hoc. Use `references/message-templates.md` as the canonical event contract for:
+- `[ONLINE]` startup acknowledgments
+- `[DONE]` completion reports
+- `[BLOCKED]` blocker alerts
+- `[FILE CONFLICT]` reservation collisions
+- coordinator reminders, broadcasts, and completion notices
 
-If a worker does not post a startup acknowledgment:
-1. After 2 poll cycles: send a direct reminder telling the worker to re-read `AGENTS.md`, post `[ONLINE]`, and load `pulse:executing`
-2. After 3 silent poll cycles: mark the worker `stalled-startup` in `.pulse/STATE.md` and send a second reminder
-3. After 5 silent poll cycles with ready work remaining: escalate to the user with the specific worker identity, current graph state, and recovery attempts already made
+Minimum coordinator obligations per cycle:
+1. Validate incoming event shape against the message contract.
+2. Update the worker entry in `.pulse/STATE.md` keyed by runtime identity.
+3. Verify bead-state transitions in `br`/`bv` before acknowledging completion.
+4. Resolve reservations through `.codex/pulse_reservations.mjs` before permitting overlapping edits.
+5. Escalate to the user when blockers require product judgment or a worker stays silent through the silence ladder.
 
-### Bead Completion Reports
+Silence ladder (authoritative thresholds):
+- 2 quiet cycles -> reminder
+- 3 quiet cycles -> direct status check + stalled marker when appropriate
+- 5 quiet cycles with active work remaining -> escalate to user
 
-When a worker posts a completion report:
-1. Verify the bead is actually closed: `br status <bead-id>`
-2. Acknowledge receipt on the active coordination surface
-3. Confirm the report includes the bead ID, worker runtime identity, verification summary, commit hash, and evidence path or paths
-4. Update `.pulse/STATE.md` using the existing worker entry keyed by runtime identity
-5. Re-check the graph to see what newly unblocked
-
-### Blocker Alerts
-
-When a worker posts a blocker alert:
-1. Assess severity:
-   - **Resolvable with existing context:** reply on the active coordination surface
-   - **Needs another worker's status or release:** coordinate immediately
-   - **Needs human judgment:** escalate to the user quickly
-   - **Persistent blocker:** invoke `pulse:systematic-debug-fix` to investigate root cause before restarting the worker
-2. Do not let workers spin silently on blockers
-3. Record blocker state in `.pulse/STATE.md` on the same worker entry keyed by runtime identity
-
-### File Conflict Requests
-
-When a worker requests a path another worker holds:
-1. Inspect the shared reservation state in `.pulse/reservations.json` or through `.codex/pulse_reservations.mjs list --active-only --json`
-2. Identify holder and requester
-3. Coordinate one of:
-   - holder releases at a safe checkpoint
-   - requester waits
-   - requester defers and creates a follow-up bead
-4. Before swarm execution begins from a newly approved phase, capture or refresh a feature checkpoint so the resume brief has a stable freeze-frame for recovery
-5. Log the resolution in `.pulse/STATE.md` using the runtime-identity worker entries
-
-### Silence Ladder
-
-Silence is not neutral. Treat it as a coordination problem to resolve.
-
-- After 2 quiet poll cycles from a worker that should have reported: send a reminder
-- After 3 quiet poll cycles from an active worker: send a direct status check telling the worker to re-read `AGENTS.md` if needed and report back on the active coordination surface
-- After 5 quiet poll cycles while ready work, in-progress work, or unresolved reservations still exist: mark the worker stalled in `.pulse/STATE.md` and escalate to the user with the concrete status, what you already tried, and why the swarm cannot safely continue unattended
-
-### Overseer Broadcasts
-
-Use broadcast messages when the swarm needs a shared correction, for example:
-- `re-read AGENTS.md after compaction`
-- `do not touch file X until blocker Y is cleared`
-- `new user decision: D7 is locked, honor it`
-- `refresh reservation state before claiming new work`
-
-### Worker Monitoring Checklist
-
-Every monitoring cycle, also check:
-
-- **Queue balance**: if any worker has 0 beads remaining while others have 2+, rebalance
-- **File conflicts**: two workers touching the same file — pause one and re-sequence the beads
-- **Completion rate**: if < 50% beads closed after 60% elapsed time, escalate to the user
-- **Blocker accumulation**: if 2+ workers report blockers on the same subsystem, pause the swarm and return to planning
+Keep examples and exact message bodies in `references/message-templates.md` to avoid inflating hot-path skill context.
 
 ### Context Checkpoint
 

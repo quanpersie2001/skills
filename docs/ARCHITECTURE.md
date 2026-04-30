@@ -14,7 +14,7 @@ Pulse keeps these invariants:
 
 - `CONTEXT.md` is the source of truth for locked decisions.
 - `validating` is a real execution gate, not an optional review step.
-- beads + `bv` + Agent Mail are the coordination substrate.
+- beads + `bv` + runtime-native swarm adapters + local reservations are the coordination substrate.
 - `swarming` is the orchestrator role and `executing` is the worker role.
 - `reviewing` and `compounding` are first-class phases, not cleanup afterthoughts.
 
@@ -92,8 +92,9 @@ No skill crosses these without explicit user approval:
 Validates the environment before any Pulse work begins.
 
 - Checks that `git`, `br`, and `bv` are available and reports versions
-- Runs `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs` to verify or apply repo onboarding (AGENTS.md, `.codex/` hooks, `.pulse/onboarding.json`)
-- Checks coordination runtime health (determines swarm vs single-worker capability)
+- Runs `node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <repo-root>` to assess repo onboarding/migration state for `AGENTS.md`, `.codex/` hooks, and `.pulse/onboarding.json`
+- Applies onboarding or migration changes only after explicit approval, using `--apply` when remediation is needed
+- Checks native runtime swarm capability and reservation-helper readiness (determines swarm vs single-worker capability)
 - Writes `.pulse/tooling-status.json` with outcome and `recommended_mode`
 - Maintains `.pulse/state.json` as a lightweight machine-readable routing mirror
 - **Modes:** `swarm`, `single-worker`, `planning-only`, `blocked`
@@ -121,7 +122,7 @@ The routing brain. Loaded after preflight on every session.
 | Feature intent clear, decisions fuzzy | `pulse:exploring` |
 | Decisions already locked | `pulse:planning` |
 | "Review my code" | `pulse:reviewing` |
-| Agent blocked or failing | `pulse:debugging` |
+| Agent blocked or failing | `pulse:systematic-debug-fix` |
 | "What is the architecture?" | `pulse:gitnexus` |
 | "Improve Pulse itself" | `pulse:writing-pulse-skills` |
 
@@ -234,10 +235,11 @@ Proves the current phase is actually ready to execute before anyone starts writi
 #### `pulse:swarming`
 Orchestrates parallel worker agents. Runs only when `recommended_mode=swarm`.
 
-- Initializes the coordination runtime (registers project, agent names, epic thread)
-- Spawns bounded worker subagents — each loads `pulse:executing`
-- Runs a continuous monitor loop: `fetch_inbox` → `fetch_topic` → act (reassign blocked work, resolve file conflicts, broadcast state)
-- Implements a silence ladder for idle workers (poke → reassign → spawn replacement)
+- Adapts the shared swarm contract to the active runtime: Claude Code teammates or Codex native subagents
+- Spawns bounded workers — each loads `pulse:executing`
+- Runs a continuous monitor loop over the active coordination surface plus the live bead graph
+- Resolves file conflicts through `.codex/pulse_reservations.mjs` and shared Pulse state
+- Implements a silence ladder for idle workers (remind → recover → escalate)
 - **Hard rule:** Never implements beads directly. The coordinator only orchestrates.
 
 **Outputs:** Coordinator handoff (`.pulse/handoffs/coordinator.json`), updated `STATE.md`  
@@ -357,47 +359,30 @@ Standalone utilities also ship outside the core chain:
 ```mermaid
 flowchart LR
     subgraph support[Support Skills — invoke anytime]
-        DBG[pulse:debugging]
         SDF[pulse:systematic-debug-fix]
         GNX[pulse:gitnexus]
         DRM[pulse:dream]
-        AIM[pulse:ai-multimodal]
         SC[pulse:simplify-code]
         PL2[pulse:prompt-leverage]
         WPS[pulse:writing-pulse-skills]
     end
 
-    DBG -->|escalate if unfixable| planning[pulse:planning / pulse:validating]
-    DBG -->|learning found| CP2[pulse:compounding]
+    SDF -->|route planning gaps back| planning[pulse:planning / pulse:validating]
+    SDF -->|learning found| CP2[pulse:compounding]
     GNX -->|feeds discovery| planning
     DRM -->|consolidates into| learnings[(.pulse/memory/)]
 ```
 
-### `pulse:debugging`
-Root-causes blocked work, failing tests, and runtime breakage.
-
-1. Classify issue type (build / test / runtime / integration / coordination blocker)
-2. Check bead's `learning_refs` first — before any global search
-3. Reproduce the failure with the exact command that caused it
-4. Trace to a single root cause sentence
-5. Implement fix; verify it eliminates the failure
-6. Write `.pulse/debug-notes/<bead-id>-debug.md`
-7. Recommend compounding if learning is durable
-
-**Architecture suspicion gate:** If fixes stop converging or the failure hops subsystems, stop patching and escalate back to `pulse:planning` or `pulse:validating`.
-
----
-
 ### `pulse:systematic-debug-fix`
-Multi-bug investigation with tracker discipline. Used when multiple known issues need to be resolved systematically.
+Root-cause-first bug fixing for blocked work, test failures, runtime breakage, and multi-bug cleanup.
 
-1. Creates an issue tracker (IDs, symptoms, status) before touching any code
-2. For each bug: write hypothesis → reproduce → trace root cause → then fix
-3. Fixes applied one at a time, verified individually
-4. Regression tests added for every fixed bug
-5. Tracks status across all issues throughout
+1. Frame the work as a single issue, multiple issues, or a mixed case before editing
+2. Reproduce the failure and trace the bad state back to one explicit hypothesis
+3. Fix one issue at a time only after evidence supports the root cause
+4. Verify each fix with the narrowest reproduction, then broader local checks
+5. Add regression coverage so the bug does not return
 
-**Hard rule:** No fix without prior investigation. No batch-fixing multiple bugs simultaneously.
+**Hard rule:** No fix without prior investigation. If fixes stop converging or new symptoms keep surfacing elsewhere, stop patching and route the work back to planning or validating.
 
 ---
 
@@ -422,17 +407,6 @@ Manual consolidation of durable learnings from Claude Code or Codex runtime arti
 - Uses `.pulse/memory/...` as the single write root, including `.pulse/memory/dream-pending/` for explicitly queued ambiguous items
 - Writes run provenance to `.pulse/memory/dream-run-provenance.md`
 - **Hard rule:** Never edits `critical-patterns.md` without explicit user approval
-
----
-
-### `pulse:ai-multimodal`
-Gemini-powered media processing.
-
-- Checks `GEMINI_API_KEY` before any operation
-- Uses bundled scripts: `gemini_batch_process.py`, `media_optimizer.py`, `document_converter.py`
-- Supports: image analysis/OCR, audio transcription, video analysis, document extraction, media generation
-- Handles rate limits with auto key rotation (60s cooldown between rotations)
-- Outputs structured results (JSON/Markdown/CSV) consumable by executing as verification evidence
 
 ---
 
@@ -497,7 +471,6 @@ flowchart TD
         MF[handoffs/manifest.json]
         HF[handoffs/owner.json]
         VE[runs/feature/verification/]
-        DN[debug-notes/]
     end
 
     subgraph history[history/feature/]
@@ -529,7 +502,6 @@ flowchart TD
     planning --> DISC & APP & PP & PC & PSM & BD
     validating --> SP
     executing --> VE
-    debugging --> DN
     reviewing --> BD
     compounding --> LF
     compounding -->|global only| CP
@@ -544,16 +516,24 @@ flowchart TD
 
 ```
 .pulse/
+  state.json                  — lightweight routing/status mirror
   STATE.md                    — active feature, phase, last updated, worker tracking
+  current-feature.json        — active feature pointer derived from current state
+  runtime-snapshot.json       — persisted scout mirror derived from current state
   config.json                 — feature toggles
   tooling-status.json         — preflight output (required before any execution)
+  project-docs.json           — routing map for repo-owned project docs
   handoffs/
     manifest.json             — index of all active pause/resume entries
     planning.json             — planning checkpoint
     coordinator.json          — swarm coordinator checkpoint
     worker-<agent>.json       — per-worker checkpoint
     single-worker.json        — single-worker checkpoint
-  debug-notes/                — debugging debug notes (input to compounding)
+  memory/
+    critical-patterns.md      — globally promoted patterns
+    learnings/                — durable cross-feature learning entries
+    corrections/              — durable corrections to prior guidance
+    ratchet/                  — durable quality bars and non-regression rules
 ```
 
 ### Feature history
@@ -601,8 +581,8 @@ history/<feature>/
 | Beads CLI | `br` | Create, update, close, sync beads |
 | Beads viewer | `bv` | TUI inspection; `bv --robot-priority` for machine-readable priority queue |
 | GitNexus | `gitnexus` | Optional codebase intelligence (query, context, impact, route analysis) |
-| Agent Mail | — | Swarm coordination runtime (coordinator ↔ workers) |
-| Onboarding | `node plugins/pulse/skills/using-pulse/scripts/onboard_pulse.mjs` | Installs/updates repo-level Pulse config |
+| Native swarm adapters | — | Claude Code teammates or Codex subagents coordinated through Pulse |
+| Onboarding / migration | `node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <repo-root>` | Assesses repo-level Pulse onboarding/migration state; apply with `--apply` only after approval |
 
 ---
 
@@ -674,6 +654,16 @@ sequenceDiagram
 On resume, `pulse:using-pulse` reads the manifest and presents active handoffs for the user to choose from. The new session loads the named skill and continues from the handoff file.
 
 ---
+
+## Evaluation Surface
+
+Public evaluation contracts and interpretation guides:
+
+- [`docs/evaluation/pulse-plugin-eval.md`](evaluation/pulse-plugin-eval.md)
+- [`docs/evaluation/pulse-swarming-hardening.md`](evaluation/pulse-swarming-hardening.md)
+- [`docs/evaluation/how-to-read-results.md`](evaluation/how-to-read-results.md)
+
+Machine scenario matrix and longitudinal benchmark evidence live in `pulse-eval-workspace/`.
 
 ## Verification Expectations
 

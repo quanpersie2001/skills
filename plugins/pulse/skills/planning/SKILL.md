@@ -89,40 +89,11 @@ If a phase sounds like a bucket of chores, or a story sounds like an implementat
 
 ## Worked Example
 
-Use this mental model while planning:
+Keep phase and story explanations scenario-first. For concrete examples and expansion patterns, use:
+- `references/phase-plan-template.md`
+- `references/story-map-template.md`
 
-> Feature: add inbound email support for the agent inbox.
-
-**Phase 1: Receive and normalize inbound email**
-
-- What changes in real life: an incoming email can reach the system and become a normalized internal message record.
-- Why this phase exists first: nothing else matters until inbound mail can be accepted safely.
-- Demo: send one test email, see one normalized inbox record appear.
-
-**Stories inside Phase 1**
-
-- **Story 1: Accept the webhook safely**
-  The system can verify the inbound request and reject invalid payloads.
-- **Story 2: Normalize the message**
-  The accepted payload becomes one predictable internal shape.
-- **Story 3: Surface it in tooling**
-  A human or agent can inspect the normalized message in the inbox flow.
-
-Why this order makes sense:
-
-- Story 1 comes first because unsafe input should not reach storage.
-- Story 2 comes next because later code needs one consistent message shape.
-- Story 3 comes last because there is nothing useful to show until normalization works.
-
-**Phase 2: Route messages to the right agent and thread**
-
-- What changes in real life: the email no longer just exists, it lands in the right conversation.
-
-**Phase 3: Add reply polish, safety checks, and operational visibility**
-
-- What changes in real life: the feature is dependable enough to run in normal use.
-
-This is the standard to match. A good plan lets someone picture what would actually happen after each phase.
+The standard remains unchanged: Phase 1 must be obviously first, story order must be causally justified, and each phase must describe a real observable outcome.
 
 ## Pipeline Overview
 
@@ -160,6 +131,11 @@ If `CONTEXT.md` does not exist, stop. Tell the user: "Run the pulse:exploring sk
 If `.pulse/tooling-status.json` says `blocked`, stop and clear preflight blockers before planning further.
 
 If a larger roadmap or whole-feature document exists, read it too. The phase plan should show how the feature unfolds from a foundation-first, production-worthy opening phase to finished capability. Plan the whole-feature architecture before you slice execution into phases.
+
+Project docs first:
+- Read `.pulse/project-docs.json` first when present, then read the listed docs before relying only on feature-history artifacts.
+- If `.pulse/project-docs.json` is absent, detect and read the smallest relevant project docs set (README, architecture, ADR, domain docs).
+- Reuse existing glossary terms; if terminology conflicts with `CONTEXT.md` wording, surface it and resolve the meaning before phase slicing.
 
 ---
 
@@ -672,7 +648,7 @@ HIGH-risk components in current phase: [list] -> flagged for validating to spike
 
 ## Context Budget
 
-If context exceeds 65% at any phase transition, write `.pulse/handoffs/planning.json` using the shared envelope in `../pulse:using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path. Treat this pause point as a checkpoint trigger boundary as well: if `.pulse/checkpoints/<feature>/...` is in use, capture a checkpoint before leaving the phase.
+If context exceeds 65% at any phase transition, write `.pulse/handoffs/planning.json` using the shared envelope in `../using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path. Treat this pause point as a checkpoint trigger boundary as well: if `.pulse/checkpoints/<feature>/...` is in use, capture a checkpoint before leaving the phase.
 
 Planning handoffs use the same companion blocks as every other Pulse owner:
 
@@ -688,55 +664,7 @@ Planning payload should still include:
 - `open_questions`
 - `stories_defined`
 
-```json
-{
-  "schema_version": "2.0",
-  "handoff_id": "planning-<ISO-8601>",
-  "owner_type": "phase",
-  "owner_id": "planning",
-  "skill": "pulse:planning",
-  "feature": "<feature-name>",
-  "phase": "planning/phase-<n>",
-  "status": "ready_to_resume",
-  "paused_at": "<ISO-8601>",
-  "reason": "context_critical",
-  "next_action": "Reload the planning artifacts, then finish the current phase preparation work.",
-  "read_first": [
-    ".pulse/STATE.md",
-    "history/<feature>/CONTEXT.md",
-    "history/<feature>/phase-plan.md",
-    ".pulse/handoffs/planning.json"
-  ],
-  "summary": "Planning paused cleanly because context is near the limit. The current feature shape is still intact and the next turn should resume phase preparation from the saved artifacts.",
-  "payload": {
-    "transfer": {
-      "status": "Planning is paused safely and the current feature decomposition is still in progress.",
-      "completed": [
-        "Updated the feature-level planning artifacts written before the pause"
-      ],
-      "in_flight": [
-        "Finish the remaining current-phase preparation and bead shaping work"
-      ],
-      "blockers": [],
-      "resume_notes": [
-        "Re-open the saved planning artifacts before making new edits",
-        "Keep `phase-plan.md`, the current phase contract, and the story map aligned"
-      ]
-    },
-    "completed_through": "Phase <N>",
-    "artifacts_written": [
-      "history/<feature>/discovery.md",
-      "history/<feature>/approach.md",
-      "history/<feature>/phase-plan.md",
-      "history/<feature>/phase-<n>-contract.md",
-      "history/<feature>/phase-<n>-story-map.md"
-    ],
-    "stories_defined": ["Story 1", "Story 2"],
-    "beads_created": ["br-101", "br-102"],
-    "open_questions": []
-  }
-}
-```
+Use the canonical handoff envelope and companion blocks from `../using-pulse/references/handoff-contract.md`. Keep planning handoff payloads concise and phase-specific; do not inline large example JSON in the hot path.
 
 ---
 

@@ -24,6 +24,7 @@ Do not explore, plan, validate, swarm, or execute until this skill finishes.
 ## What This Skill Produces
 
 - `.pulse/tooling-status.json`
+- `.pulse/state.json`
 - `.pulse/STATE.md` update with the latest preflight result
 - One of three outcomes: `PASS`, `DEGRADED`, or `FAIL`
 
@@ -217,6 +218,18 @@ Write `.pulse/tooling-status.json` with this shape:
 }
 ```
 
+Also refresh `.pulse/state.json` as the lightweight routing mirror:
+
+```json
+{
+  "phase": "preflight",
+  "status": "PASS | DEGRADED | FAIL",
+  "requested_mode": "<mode>",
+  "recommended_mode": "<mode>",
+  "tooling_status": ".pulse/tooling-status.json"
+}
+```
+
 Update `.pulse/STATE.md` with:
 
 ```markdown
@@ -271,4 +284,4 @@ Next:
 ## References
 
 - `references/tool-readiness-matrix.md`
-- `../pulse:using-pulse/references/handoff-contract.md`
+- `../using-pulse/references/handoff-contract.md`

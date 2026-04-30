@@ -101,6 +101,7 @@ The scout is read-only. It summarizes:
 - `.pulse/STATE.md`
 - `.pulse/handoffs/manifest.json`
 - `.pulse/checkpoints/<feature>/...` when checkpoints exist for the active feature
+- `.pulse/project-docs.json` status and recommended project-doc reads when available
 - targeted memory-plane recall hooks from `.pulse/memory/`
 - a small **recall pack** of the most relevant critical patterns, corrections, ratchet rules, and learnings
 - memory hygiene warnings when the memory plane looks noisy or stale
@@ -110,6 +111,7 @@ Use it to get the current truth quickly, then open the deeper files it points to
 
 Recall-pack rules:
 - handoffs and live state remain authoritative
+- project docs remain authoritative for durable terminology and domain intent when available
 - checkpoints remain advisory
 - the recall pack is only a focused reading list, not a new workflow state
 - use it to avoid grepping the whole memory plane when only a few files are likely relevant
@@ -163,13 +165,14 @@ Read this as the Pulse cookbook: one line per skill, then route into the special
 | 6 | `pulse:executing` | Implement beads in either worker mode or single-worker mode | Direct execution is happening |
 | 7 | `pulse:reviewing` | 4 specialist reviewers plus a final synthesizer, artifact verification, and UAT | Execution is complete and quality must be verified |
 | 8 | `pulse:compounding` | Capture durable learnings into `.pulse/memory/learnings/` | Feature shipped or a cycle completed |
-| 9 | `pulse:debugging` | Root-cause blocked work, test failures, and runtime breakage; escalates architectural doubt back to planning when needed | A worker, review, or UAT path is stuck |
+| 9 | `pulse:systematic-debug-fix` | Root-cause-first bug fixing for blocked work, test failures, runtime breakage, and regression lock-down | A worker, review, or UAT path is stuck |
 | 10 | `pulse:gitnexus` | Codebase intelligence support for architecture snapshots, symbol context, and dependency tracing | Architecture questions, related-file search, API consumer mapping, blast-radius checks, or planning acceleration when GitNexus is configured |
 | 11 | `pulse:dev-note` | Capture one concrete developer learning from the current coding-with-AI session into a structured raw note | The user wants to save an insight, heuristic, reframe, or lesson they just learned while coding with AI |
 | 12 | `pulse:dev-note-distil` | Distill pending raw dev notes into stable topic knowledge and rebuild the global topic index | The user wants to categorize, merge, consolidate, or distill accumulated developer notes into durable topics |
 | 13 | `pulse:dream` | Consolidate durable learnings from Claude Code or Codex runtime artifacts into Pulse memory | Bootstrapping or curating learnings manually |
 | 14 | `pulse:writing-pulse-skills` | Improve or create Pulse skills using a skill-TDD loop | Editing Pulse itself |
 | 15 | `pulse:v2-to-v3-migration` | Assess and safely apply the Pulse repo migration wrapper for stale installs | Preflight or bootstrap detects legacy Pulse layout, version drift, or partial onboarding |
+| 16 | `pulse:architecture-rescue` | Architecture hygiene report for shallow modules, leaky seams, ownership drift, and deepening opportunities | Repo-wide or subsystem-wide architecture cleanup is requested and the default output should be a report, not execution |
 
 ## Routing Logic
 
@@ -184,6 +187,11 @@ Start in the operator plane: decide the work shape first, then load the cookbook
 | `high_risk_feature` | Cross-cutting, high-blast-radius, or architecture-sensitive feature/refactor work | Use deeper planning review and explicit spikes for risky items |
 
 If the request introduces a new user-visible capability, workflow, subsystem, API surface, durable data model change, or ownership boundary, it is feature work. Do not route it into `small_change` or `Micro Mode`, even if the first implementation phase looks small.
+
+Project docs routing discipline:
+- Before routing decisions that depend on domain terminology, read `.pulse/project-docs.json` first when present and consume the smallest relevant listed docs.
+- If missing, detect likely project docs and use them before relying only on feature-history artifacts.
+- If user language conflicts with glossary/docs and would alter decisions or review outcomes, surface the conflict and resolve meaning explicitly.
 
 ### First-Skill Routing
 
@@ -200,8 +208,9 @@ Given a user request, determine which skill to invoke first:
 | "Distill these dev notes" / "chưng cất notes" / "gom notes thành topic" | `pulse:dev-note-distil` | Use to turn accumulated raw dev notes into durable topic knowledge and a refreshed global index |
 | "What did we learn?" | `pulse:compounding` | Load directly |
 | "Improve Pulse itself" | `pulse:writing-pulse-skills` | Load directly |
+| "What should we clean up in this subsystem?" / "Where are the shallow modules?" / "How should we improve the architecture here?" | `pulse:architecture-rescue` | Use for repo-wide or subsystem-wide rescue analysis; stay in report-only mode unless the user explicitly asks for planning or execution follow-through |
 | "What is the architecture?" / "Find files related to X" / "How is Y wired?" | `pulse:gitnexus` | Use as a support skill for codebase intelligence; route back to planning if this is part of a larger feature flow |
-| Agent blocked or failing | `pulse:debugging` | Load directly; if fixes stop converging or the failure hops subsystems, route back to `pulse:planning` or `pulse:validating` |
+| Agent blocked or failing | `pulse:systematic-debug-fix` | Load directly; if fixes stop converging or the failure exposes a planning or architecture gap, route back to `pulse:planning` or `pulse:validating` |
 | "/go" or "run the full pipeline" | Go Mode | See `references/go-mode-pipeline.md` |
 | Resume interrupted work | Resume Logic | Read the handoff manifest first |
 | Trivial single-file task | Micro Mode | See Micro Mode section below; confirm with user before entering |
@@ -323,175 +332,29 @@ If the manifest contains active entries:
 
 ## Go Mode
 
-Go mode is the full operator-plane pipeline: same routing chain, same cookbook, exactly 4 human gates. Load `references/go-mode-pipeline.md` for the complete step-by-step sequence.
+Go mode is the full operator-plane pipeline with 4 human gates. Use `references/go-mode-pipeline.md` as the canonical protocol.
 
-**Trigger:** User says `/go [feature]`, "run the full pipeline", or "go mode".
+Trigger:
+- User says `/go <feature>`, "run the full pipeline", or "go mode"
 
-**The 4 gates -- never skip these:**
+Non-negotiable gate contract:
+- Gate 1: approve `history/<feature>/CONTEXT.md` before planning
+- Gate 2: approve `history/<feature>/phase-plan.md` before current-phase prep
+- Gate 3: approve current-phase execution after validating
+- Gate 4: approve merge after reviewing (`P1` still blocks)
 
-If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it for every gate. Ask one gate at a time and prefer focused multiple-choice options over free-form replies. Only fall back to plain-text prompts when no structured question tool exists in the current harness.
+Execution branch from preflight:
+- `recommended_mode=swarm` -> `pulse:swarming`
+- `recommended_mode=single-worker` -> `pulse:executing` directly
+- `recommended_mode=planning-only|blocked` -> do not start execution
 
-```
-GATE 1 (after exploring):
-  Present history/<feature>/CONTEXT.md to user.
-  Ask with structured options when available:
-    - "Approve and continue"
-    - "Revise decisions"
-    - "Show CONTEXT.md"
-  Plain-text fallback: "Decisions locked. Approve CONTEXT.md before planning?"
-  HARD-GATE: do not invoke planning until user approves.
+Mode contract:
+- `small_change`: low-risk local work with lightweight planning/validating/reviewing
+- `standard_feature`: default full chain
+- `high_risk_feature`: deeper planning and stricter spike discipline
+- `Micro Mode`: explicit user-approved shortcut for trivial non-feature work only
 
-GATE 2 (after whole-feature planning):
-  Present history/<feature>/phase-plan.md to user.
-  Ask with structured options when available:
-    - "Approve phase plan"
-    - "Revise phase plan"
-    - "Show phase-plan.md"
-  Plain-text fallback: "Phase breakdown complete. Approve this shape before current-phase preparation?"
-  HARD-GATE: do not prepare the current phase or create beads until user approves.
-
-GATE 3 (after validating the current phase):
-  Present: phase exit state, story count, bead count, risk summary, spike results.
-  Ask with structured options when available:
-    - "Approve execution"
-    - "Review beads"
-    - "Revise plan"
-  Plain-text fallback: "Current phase verified. Approve execution?"
-  HARD-GATE: do not invoke swarming until user approves.
-
-GATE 4 (after reviewing):
-  Present: P1 count, P2 count, P3 count.
-  If P1 > 0: ask with structured options when available:
-    - "Fix findings"
-    - "Show review details"
-    - "Override merge" only with explicit user confirmation
-  If P1 = 0: ask with structured options when available:
-    - "Approve merge"
-    - "Show review details"
-    - "Do not merge yet"
-  Plain-text fallback:
-    - If P1 > 0: "P1 findings block merge. Options: fix P1s now / show P1 details / override (requires explicit user confirmation)"
-    - If P1 = 0: "No blocking findings. Ready to [create PR / merge to main / keep branch]. Approve? (yes / show P2s first / no)"
-  HARD-GATE: do not merge or close epic until user responds.
-```
-
-**Go mode sequence:**
-```
-preflight -> using-pulse -> exploring -> [GATE 1]
--> planning (whole feature) -> [GATE 2]
--> planning (current phase prep) -> validating -> [GATE 3]
--> swarming + executing xN OR executing(single-worker)
-   -> if later phases remain: loop back to current phase prep
--> reviewing (after final phase) -> [GATE 4] -> compounding -> DONE
-```
-
-The branch depends on `.pulse/tooling-status.json`:
-
-- `recommended_mode=swarm` -> use `pulse:swarming`
-- `recommended_mode=single-worker` -> skip `pulse:swarming`, invoke `pulse:executing` directly
-
-## Mode Guidance
-
-### `small_change`
-
-One-line concept: a low-risk change that still stays inside the normal Pulse gate structure.
-
-For requests classified as `small_change`:
-
-```text
-planning (lightweight: single bead, no multi-model refinement)
-  -> present one-phase plan and wait for approval
-  -> validating (lightweight: single-story phase, abbreviated verification + bv check)
-  -> executing (single-worker)
-  -> reviewing (lightweight but still required)
-  -> compounding (only if a lesson was learned)
-```
-
-Choose `small_change` when ALL of these are true:
-- Change touches 3 files or fewer
-- No new API surface or data model changes
-- Risk is clearly LOW
-- No gray areas about intent
-- The phase can honestly be expressed as one story
-
-### `standard_feature`
-
-One-line concept: the default Pulse delivery path for ordinary feature and refactor work.
-
-Use this for the default Pulse chain. This is the normal case for most feature work:
-
-```text
-exploring -> planning -> validating -> swarming/executing -> reviewing -> compounding
-```
-
-### `high_risk_feature`
-
-One-line concept: a change where wrong assumptions are expensive, so Pulse slows down before execution.
-
-Use this when the work is cross-cutting, hard to reverse, or likely to fail if assumptions are wrong.
-
-Additional expectations:
-- more discovery depth during planning
-- explicit second-opinion refinement during planning
-- spike discipline for risky items during validating
-- slower approval at GATE 3 before execution begins
-
-### Micro Mode
-
-One-line concept: a user-approved shortcut for genuinely trivial non-feature work, not a stealth way to bypass normal Pulse discipline.
-
-Micro mode is for genuinely trivial tasks that do not warrant the full Pulse pipeline or even `small_change` mode.
-
-<HARD-GATE>
-Never use Micro Mode for new feature work. If the request introduces a new capability, workflow, contract, subsystem, data model change, or ownership boundary, leave Micro Mode immediately and route to `standard_feature` or `high_risk_feature`.
-</HARD-GATE>
-
-### When micro mode applies
-
-All of the following must be true:
-
-- single-file change (at most one file modified)
-- zero new dependencies introduced
-- estimated 1-2 beads maximum
-- no architectural decisions required
-- no gray areas or unresolved intent
-- no new capability, workflow, contract, or ownership boundary introduced
-
-If any condition is false, fall back to `small_change` mode or the full pipeline.
-
-### User-facing trigger
-
-Before entering micro mode, tell the user:
-
-> "This task looks trivial. I'll run in micro-mode: abbreviated exploring → single-bead execute → done. Planning, validating, swarming, and reviewing will be skipped. Confirm?"
-
-Do not proceed until the user confirms.
-
-### Micro mode flow
-
-```text
-exploring (abbreviated) -> executing (single-worker, single bead) -> DONE
-```
-
-**Abbreviated exploring** means: capture only the what, where, and done-criteria. Skip gray-area probing and decision locking beyond the minimum needed to execute safely.
-
-**Single-bead execute** means: create one bead with `br`, implement it, verify it, close it.
-
-**Done** means: the change is committed. No reviewing gate, no handoff ceremony.
-
-### What micro mode skips
-
-- `pulse:planning`
-- `pulse:validating`
-- `pulse:swarming`
-- `pulse:reviewing`
-- `pulse:compounding` — micro mode does not produce durable learnings; skip compounding unless an unexpected non-obvious insight emerged
-
-### What micro mode does NOT skip
-
-- Pulse onboarding check
-- `pulse:preflight` (tooling-status.json must exist)
-- Bead verification criteria (the bead still needs `verify` and evidence)
+For gate prompts, fallback behavior, go-mode sequence, and Micro Mode details, load `references/go-mode-pipeline.md`.
 
 ## Priority Rules
 
@@ -531,7 +394,6 @@ This is the scout-plane map of the shared Pulse working set.
   STATE.md                     <- shared project state
   config.json                  <- feature toggles
   tooling-status.json          <- preflight output
-  debug-notes/                 <- debugging debug notes for compounding
   memory/dream-pending/        <- queued ambiguous dream items for explicitly non-blocking runs
   memory/                      <- shared reusable memory subtree for recall hooks and durable learnings
   checkpoints/                 <- advisory feature-scoped checkpoint metadata only

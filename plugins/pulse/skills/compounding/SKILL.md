@@ -1,6 +1,6 @@
 ---
 name: compounding
-description: Capture durable learnings from completed Pulse work so future planning gets smarter and future beads carry the right context. Invoke after reviewing completes and the feature is merged, or after a debugging session uncovers a non-obvious root cause. Runs three parallel analysis subagents (patterns/decisions/failures), synthesizes into .pulse/memory/learnings/YYYYMMDD-<slug>.md, promotes critical items to .pulse/memory/critical-patterns.md. Classifies the rest for planner-only or bead-local propagation. Key output: critical-patterns.md is read by every planning and exploring Phase 0 — this is the flywheel that makes the ecosystem smarter over time.
+description: Capture durable learnings from completed Pulse work so future planning gets smarter and future beads carry the right context. Invoke after reviewing completes and the feature is merged, or after systematic bug-fix work uncovers a non-obvious root cause. Runs three parallel analysis subagents (patterns/decisions/failures), synthesizes into .pulse/memory/learnings/YYYYMMDD-<slug>.md, promotes critical items to .pulse/memory/critical-patterns.md. Classifies the rest for planner-only or bead-local propagation. Key output: critical-patterns.md is read by every planning and exploring Phase 0 — this is the flywheel that makes the ecosystem smarter over time.
 metadata:
   version: '1.3'
   ecosystem: pulse
@@ -30,7 +30,7 @@ This skill is where those future learnings are distilled and classified. Each fe
 ## When to Use
 
 - after `pulse:reviewing` completes and the feature is merged
-- after a debugging session surfaces a non-obvious root cause
+- after systematic bug-fix work surfaces a non-obvious root cause
 - after an abandoned feature if the failure taught something reusable
 
 Skip only when nothing durable or reusable emerged.
@@ -50,7 +50,6 @@ history/<feature>/verification/       <- canonical feature verification evidence
 .pulse/handoffs/manifest.json         <- and any owner files that still matter
 .beads/ or `br show` output           <- the executable work graph we actually ran
 review findings or review beads       <- P1/P2/P3 output from reviewing
-.pulse/debug-notes/                   <- debug notes from debugging invocations
 ```
 
 Also inspect the bead files to see which prior learnings were actually propagated through `learning_refs`.
@@ -81,76 +80,10 @@ If `history/<feature>/lifecycle-summary.md` exists, read it early as the durable
 Launch three subagents simultaneously. Each writes findings to a temp file.
 Do NOT have subagents write the final learnings file — only the orchestrator writes that.
 
----
-
-### Agent 1: Pattern Extractor
-
-**Task for Agent 1:**
-
-```
-Read the feature artifacts provided. Identify all REUSABLE PATTERNS that emerged:
-
-- Code patterns: new functions, utilities, abstractions worth standardizing
-- Architecture patterns: structural decisions that worked and should be repeated
-- Process patterns: workflow approaches that saved time or prevented errors
-- Integration patterns: how this feature connected to other systems
-
-For each pattern:
-1. Name it concisely
-2. Describe what it does and why it's valuable
-3. Note the specific file/location where it was first used (if applicable)
-4. State "applicable-when": under what conditions should future agents use this?
-
-Write findings to: /tmp/compounding-patterns.md
-```
-
----
-
-### Agent 2: Decision Analyst
-
-**Task for Agent 2:**
-
-```
-Read the feature artifacts provided. Identify all significant DECISIONS made during this work:
-
-- Good calls: decisions that proved correct, saved time, or prevented problems
-- Bad calls: decisions that were wrong, required rework, or added unnecessary complexity
-- Surprises: things that turned out differently than expected (either direction)
-- Trade-offs accepted: conscious choices where alternatives were considered
-
-For each decision:
-1. State the decision clearly (what was chosen vs what was rejected)
-2. Describe how it played out in practice
-3. Tag as: GOOD_CALL | BAD_CALL | SURPRISE | TRADEOFF
-4. State the recommendation for future work
-
-Write findings to: /tmp/compounding-decisions.md
-```
-
----
-
-### Agent 3: Failure Analyst
-
-**Task for Agent 3:**
-
-```
-Read the feature artifacts provided. Identify all FAILURES, BLOCKERS, and WASTED EFFORT:
-
-- Bugs introduced and their root causes
-- Wrong assumptions that required backtracking
-- Blockers encountered and how they were resolved (or not)
-- Wasted effort: work done that turned out unnecessary
-- Missing prerequisites discovered mid-execution
-- Test gaps that allowed regressions
-
-For each failure:
-1. Describe what went wrong
-2. Identify the root cause (not just the symptom)
-3. State how long it blocked progress (estimate)
-4. Write the prevention rule: what should future agents do differently?
-
-Write findings to: /tmp/compounding-failures.md
-```
+Use `references/analysis-prompts.md` as the canonical prompt contract for:
+- Agent 1: Pattern Extractor -> `/tmp/compounding-patterns.md`
+- Agent 2: Decision Analyst -> `/tmp/compounding-decisions.md`
+- Agent 3: Failure Analyst -> `/tmp/compounding-failures.md`
 
 ---
 
@@ -249,9 +182,9 @@ Do not promote directly to `global-critical` when the right destination is narro
 ```markdown
 # Critical Patterns
 
-Promoted global learnings for future planning and targeted debugging lookups.
+Promoted global learnings for future planning and targeted bug-fix lookups.
 Planning reads this file during Phase 0.
-Debugging may consult it selectively when symptoms match a known pattern.
+Systematic bug-fix work may consult it selectively when symptoms match a known pattern.
 Workers do not read this file wholesale by default.
 
 ---
@@ -332,3 +265,4 @@ Next feature starts with this knowledge available.
 ## References
 
 - `references/learnings-template.md` — full template for learnings files with YAML frontmatter
+- `references/analysis-prompts.md` — canonical prompt contracts for the three Phase 2 analysis subagents

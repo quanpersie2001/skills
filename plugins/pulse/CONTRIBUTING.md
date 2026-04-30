@@ -1,6 +1,6 @@
 # Contributing to Pulse
 
-Pulse is a packaged skill plugin for Claude Code and Codex. Skills are defined as `SKILL.md` files — there is no compiled code. The plugin currently ships 23 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+Pulse is a packaged skill plugin for Claude Code and Codex. Skills are defined as `SKILL.md` files — there is no compiled code. The plugin currently ships 22 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ---
 
@@ -87,6 +87,7 @@ The plugin does have automated coverage for onboarding/runtime control-plane beh
 2. Change only what was asked — do not add features or sections not requested.
 3. The Iron Law applies to edits: even a small change requires re-running pressure scenarios.
 4. Body length limit: under 400 lines. Move supporting material to `references/`.
+5. If the skill consumes repo-level docs, reuse `bootstrap-project-context/references/project-docs-contract.md` and keep project docs separate from `history/<feature>/...`.
 
 ---
 
@@ -112,6 +113,11 @@ The script updates:
 - `plugins/pulse/.claude-plugin/plugin.json`
 - `plugins/pulse/.codex-plugin/plugin.json`
 - `.agents/plugins/marketplace.json`
+
+Manifest asymmetry is intentional:
+- Claude manifest keeps runtime-facing fields like `skills` and `mcpServers`
+- Codex manifest is intentionally minimal and may omit equivalent runtime fields
+- Do not force the two manifests to match field-for-field unless runtime requirements change
 
 The raw skill mirror is generated from `plugins/pulse/skills/` via `scripts/sync-skills.sh`; it is not versioned separately.
 

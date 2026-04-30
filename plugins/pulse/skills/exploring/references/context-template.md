@@ -22,6 +22,7 @@ Rules for filling this in:
 **Date:** YYYY-MM-DD
 **Exploring session:** complete
 **Scope:** Quick | Standard | Deep
+**Project docs consumed:** [.pulse/project-docs.json -> <doc paths>] | [Detected docs: <doc paths>] | none
 
 ---
 

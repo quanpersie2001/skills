@@ -8,13 +8,13 @@
 
 <p>
   <a href="plugins/pulse/.codex-plugin/plugin.json">
-    <img alt="Version" src="https://img.shields.io/badge/version-3.4.2-0F766E?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-3.5.0-0F766E?style=flat-square" />
   </a>
   <a href="docs/legal/terms.md">
     <img alt="License" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
   </a>
   <a href="plugins/pulse/skills">
-    <img alt="Skills" src="https://img.shields.io/badge/skills-23-8B5CF6?style=flat-square" />
+    <img alt="Skills" src="https://img.shields.io/badge/skills-22-8B5CF6?style=flat-square" />
   </a>
 </p>
 
@@ -30,7 +30,7 @@ Pulse wraps AI agents in a **gated delivery chain**. Every decision is locked be
 
 Without this structure, agents skip steps. With it, they can't.
 
-Pulse ships as **23 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled app to build. No separate orchestration product to adopt. It is a docs-first skill plugin that uses the tools you already have.
+Pulse ships as **22 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled app to build. No separate orchestration product to adopt. It is a docs-first skill plugin that uses the tools you already have.
 
 ## What Pulse Is / Is Not
 
@@ -57,6 +57,20 @@ Pulse is not:
 - bead — one worker-sized unit of work with exact files, checks, and decision links.
 - handoff — the pause/resume contract that says where work stopped and what happens next.
 - `pulse_status` — the read-only scout surface for current workflow state and key artifact pointers.
+- project docs — repo-level `CONTEXT.md`, `CONTEXT-MAP.md`, and `docs/adr/` that define durable project truth outside feature history.
+- `.pulse/project-docs.json` — Pulse's routing map for discovered or approved project docs in the target repo.
+
+## Project Docs vs Feature History
+
+Pulse treats downstream repo docs as a separate input plane from `history/<feature>/...` artifacts.
+
+Supported repo patterns:
+
+- `single-context` — one canonical root `CONTEXT.md`
+- `multi-context` — one root `CONTEXT-MAP.md` plus per-context `CONTEXT.md` files
+- optional ADR directories such as `docs/adr/`
+
+When those docs already exist, Pulse reuses them. When they do not, `pulse:bootstrap-project-context` and downstream skills default to a lazy scaffold proposal and ask before creating files.
 
 ---
 
@@ -71,7 +85,7 @@ Pulse moves that request through a repeatable chain:
 1. `pulse:exploring` locks the missing decisions into `CONTEXT.md`.
 2. `pulse:planning` turns those decisions into a phase plan, a current-phase contract, a story map, and beads.
 3. `pulse:validating` checks that the current phase is sound before any implementation starts.
-4. `pulse:swarming` and `pulse:executing` implement the current phase with reservations and live graph coordination.
+4. `pulse:swarming` coordinates the current phase, and `pulse:executing` implements beads with reservations and live graph coordination.
 5. `pulse:reviewing` verifies the work and records P1/P2/P3 findings.
 6. `pulse:compounding` captures durable learnings for future work.
 
@@ -117,7 +131,7 @@ Pulse keeps one core workflow but presents it in three user-facing modes:
 The core contract does not change across modes:
 - `CONTEXT.md` is still the source of truth
 - `validating` still gates execution
-- beads + `bv` + Agent Mail still drive coordination
+- beads + `bv` + native runtime swarm adapters + local reservations still drive coordination
 
 `Micro Mode` is not a fourth working mode. It is a user-approved shortcut exception for genuinely trivial, non-feature work, defined in `pulse:using-pulse`. Use it only for the narrow single-file cases that do not warrant even `small_change`.
 
@@ -129,7 +143,7 @@ Pulse is downstream of everal strong agentic-development systems and distills th
 
 - **[Khuym](https://github.com/hoangnb24/skills/tree/main)**, which provides most of the validate-first chain and Flywheel-style bead workflow
 - **[Superpowers](https://github.com/obra/superpowers)**, which contributes the strongest behavioral discipline around brainstorming, verification, debugging, and skill design
-- **[Flywheel](https://agent-flywheel.com/complete-guide)** contributes the operational backbone: beads, `bv`, Agent Mail, swarm execution, and the habit of turning plans into live work graphs instead of loose TODO lists.
+- **[Flywheel](https://agent-flywheel.com/complete-guide)** contributes the operational backbone: beads, `bv`, swarm execution, and the habit of turning plans into live work graphs instead of loose TODO lists.
 - **[Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin)** contributes parallel review, severity-based findings, and the compound-learning loop that feeds future work.
 - **[GSD](https://github.com/gsd-build/get-shit-done)** contributes the philosophy: discuss first, research second, plan third, and do not execute until the plan has been verified.
 
@@ -199,13 +213,13 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 
 | Skill | Role |
 |-------|------|
-| `pulse:preflight` | Checks `git`, `br`, `bv`, and coordination runtime; writes `.pulse/tooling-status.json`; chooses `swarm / single-worker / planning-only / blocked` |
+| `pulse:preflight` | Checks `git`, `br`, `bv`, native runtime swarm capability, and reservation-helper readiness; writes `.pulse/tooling-status.json`; chooses `swarm / single-worker / planning-only / blocked` |
 | `pulse:using-pulse` | Session router; manages go-mode, small_change/standard_feature/high_risk_feature mode selection, micro mode, resume from handoffs, and repo-local Pulse status scouting |
 | `pulse:brainstorming` | Turns vague intent into an approved design spec via one-question-at-a-time dialogue, using previews by default and an optional local visual runtime for complex UI brainstorming |
 | `pulse:exploring` | Socratic decision extraction into `history/<feature>/CONTEXT.md`; assigns stable D1, D2... IDs |
 | `pulse:planning` | Codebase research → `approach.md` + `phase-plan.md` → bead decomposition |
 | `pulse:validating` | 8-dimension plan-checker, spike execution for HIGH-risk items, bead schema gate |
-| `pulse:swarming` | Coordinator-only orchestration for parallel workers via Agent Mail |
+| `pulse:swarming` | Coordinator-only orchestration for parallel workers via runtime-native swarm adapters |
 | `pulse:executing` | Per-bead worker loop: claim → implement → verify → commit → close |
 | `pulse:reviewing` | 4 parallel specialist reviewers + learnings synthesizer + artifact verification + UAT |
 | `pulse:compounding` | Captures durable learnings into `.pulse/memory/learnings/` with propagation triage |
@@ -214,18 +228,17 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 
 | Skill | Role |
 |-------|------|
-| `pulse:debugging` | Root-cause blocked work; architecture suspicion gate escalates unfixable issues back to planning |
-| `pulse:systematic-debug-fix` | Multi-bug tracker discipline: investigate before fixing, verify each fix, regression tests for all |
+| `pulse:systematic-debug-fix` | Root-cause-first bug fixing for blocked work, test failures, runtime breakage, and regression lock-down |
 | `pulse:gitnexus` | Codebase intelligence via GitNexus MCP tools or `rg` fallback; saves findings to `discovery.md` |
 | `pulse:dream` | Consolidates Claude Code or Codex runtime artifacts into Pulse memory with provenance tracking |
-| `pulse:ai-multimodal` | Gemini-powered image/audio/video/document processing with bundled scripts |
 | `pulse:simplify-code` | 4-lens code review (reuse, quality, efficiency, clarity) with optional safe fixes |
 | `pulse:prompt-leverage` | Upgrades raw prompts into structured execution-ready prompts |
 | `pulse:dev-note` | Captures one structured developer learning from the current coding-with-AI session into a raw daily note |
 | `pulse:dev-note-distil` | Distills pending raw dev notes into stable topic knowledge and rebuilds the global topic index |
 | `pulse:writing-pulse-skills` | TDD workshop for creating and improving Pulse skills (RED → GREEN → REFACTOR) |
-| `bootstrap-project-context` | Standalone repo-onboarding utility that forces a docs-first, source-grounded architecture pass before implementation |
-| `refresh-project-docs` | Standalone docs-sync utility that rewrites README and related docs to match the current repo state in evergreen language |
+| `pulse:architecture-rescue` | Repo-wide or subsystem-wide architecture hygiene pass that surfaces shallow modules, leaky seams, ownership drift, and deepening opportunities; report-only by default |
+| `pulse:bootstrap-project-context` | Standalone repo-onboarding utility that forces a docs-first, source-grounded architecture pass and maps downstream project docs before implementation |
+| `pulse:refresh-project-docs` | Standalone docs-sync utility that rewrites README and related docs to match the current repo state in evergreen language |
 
 ---
 
@@ -299,12 +312,13 @@ Pulse is getting clearer about three artifact planes:
   STATE.md                   ← shared state
   current-feature.json       ← active feature pointer derived from current state
   runtime-snapshot.json      ← persisted scout mirror derived from current state
+  config.json                ← feature toggles
+  project-docs.json          ← mapping artifact for repo-owned project docs consumed by Pulse
   handoffs/manifest.json     ← resume index
   handoffs/<owner>.json      ← per-actor checkpoints
-  debug-notes/               ← debugging notes → compounding
   memory/dream-pending/      ← queued ambiguous dream items for explicitly non-blocking runs
   memory/                    ← shared reusable memory root
-    critical-patterns.md     ← globally promoted patterns for planning/debugging lookups
+    critical-patterns.md     ← globally promoted patterns for planning and targeted bug-fix lookups
     learnings/               ← durable cross-feature learning entries
     corrections/             ← durable fixes to prior mistaken guidance
     ratchet/                 ← durable quality bars and non-regression constraints
@@ -334,7 +348,7 @@ history/<feature>/
 | `br` | Yes | Beads CLI — create, update, close, sync work items |
 | `bv` | Yes | Beads viewer — TUI + `bv --robot-priority` for worker bead selection |
 | Node.js 18+ | Yes | Pulse onboarding script |
-| Agent Mail | Swarm only | Worker coordination runtime |
+| Native swarm adapters | Swarm only | Claude Code teammates or Codex subagents coordinated through Pulse |
 | `gitnexus` | Optional | Stronger graph-backed codebase intelligence |
 
 Run `pulse:preflight` to check your environment before starting.
@@ -366,7 +380,7 @@ Or install individual skills:
 
 1. Clone this repo
 2. Register `.agents/plugins/marketplace.json` as a local marketplace in Codex
-3. Install the `pulse` plugin — all 23 skills are discovered automatically
+3. Install the `pulse` plugin — all 22 skills are discovered automatically
 
 ---
 
@@ -422,6 +436,25 @@ pulse:using-pulse
 For a full walkthrough, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/examples/golden-path.md`](docs/examples/golden-path.md).
 
 ---
+
+## Evaluation
+
+Pulse evaluation guidance lives in:
+
+- [`docs/evaluation/pulse-plugin-eval.md`](docs/evaluation/pulse-plugin-eval.md) — gate-based plugin evaluation runbook
+- [`docs/evaluation/pulse-swarming-hardening.md`](docs/evaluation/pulse-swarming-hardening.md) — swarming pressure scenarios and expected coordinator/worker behavior
+- [`docs/evaluation/how-to-read-results.md`](docs/evaluation/how-to-read-results.md) — how to interpret benchmark and scenario output
+
+The scenario source of truth remains [`pulse-eval-workspace/evals.json`](pulse-eval-workspace/evals.json), with iterative benchmark evidence under `pulse-eval-workspace/iteration-*/benchmark.md`.
+
+## Manifest Asymmetry (Intentional)
+
+Pulse intentionally keeps different packaged manifests for Claude Code and Codex:
+
+- Claude manifest (`plugins/pulse/.claude-plugin/plugin.json`) declares `skills` and `mcpServers`.
+- Codex manifest (`plugins/pulse/.codex-plugin/plugin.json`) remains minimal and does not declare `mcpServers`.
+
+This is by design for runtime compatibility and should not be normalized unless the target runtime contract changes.
 
 ## Documentation Checks
 

@@ -37,11 +37,9 @@ plugins/pulse/skills/
 ├── executing/
 ├── reviewing/                 references/
 ├── compounding/               references/
-├── debugging/
 ├── gitnexus/
 ├── dream/                     references/
 ├── writing-pulse-skills/      references/
-├── ai-multimodal/             references/ scripts/
 ├── prompt-leverage/           agents/ references/ scripts/
 ├── bootstrap-project-context/ agents/ references/
 ├── refresh-project-docs/      agents/ references/
@@ -163,7 +161,7 @@ The delivery chain is:
 pulse:exploring -> pulse:planning -> pulse:validating -> pulse:swarming -> pulse:executing -> pulse:reviewing -> pulse:compounding
 ```
 
-Support routing may also invoke `pulse:debugging`, `pulse:gitnexus`, or `pulse:dream`.
+Support routing may also invoke `pulse:systematic-debug-fix`, `pulse:gitnexus`, or `pulse:dream`.
 
 ### Hard Contract Rules
 
@@ -194,7 +192,7 @@ Public docs and skill changes should preserve these current behaviors:
 
 - `pulse:reviewing` includes specialist review, artifact verification, review intake, and human UAT
 - verification evidence is a first-class artifact, not a vague claim in prose
-- `pulse:debugging` contains an Architecture Suspicion Gate that escalates repeated non-converging fixes back to planning or validating
+- `pulse:systematic-debug-fix` keeps blocked or failing work root-cause-first and adds regression lock-down before the work is considered done
 
 ## Adding a New Skill
 

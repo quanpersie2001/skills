@@ -12,6 +12,8 @@ Start a session by absorbing the repo's explicit instructions first, then confir
 
 Load [references/prompt-template.md](references/prompt-template.md) when the user wants a reusable bootstrap prompt or when you need a strong starting template before beginning repo discovery.
 
+Use the shared project-docs contract in [references/project-docs-contract.md](references/project-docs-contract.md) when bootstrapping or validating downstream project documentation structure.
+
 ## Modes
 
 Choose the lightest mode that fits the request.
@@ -33,7 +35,27 @@ Treat them as mandatory orientation, not optional background.
 
 If the repo exposes a read-only status or onboarding scout, you may use it as a supplement after the mandatory docs pass, never as a substitute for reading the docs.
 
-### 2. Build a source-first map of the repository
+### 2. Resolve project-docs contract and scaffold policy
+
+Treat project docs as a separate plane from feature history.
+
+Support these repository patterns:
+
+- `single-context`: one top-level `CONTEXT.md`
+- `multi-context`: one top-level `CONTEXT-MAP.md` plus per-context `CONTEXT.md` files
+- `adrs`: ADR directory for durable architectural decisions
+
+Record the selected structure in `.pulse/project-docs.json` as a mapping artifact in the skill workflow instructions.
+
+If project docs are missing, default to a lazy scaffold proposal and ask for explicit user confirmation before creating files. Never force eager scaffolding.
+
+Use these references when scaffolding is approved:
+
+- [references/project-context-template.md](references/project-context-template.md)
+- [references/context-map-template.md](references/context-map-template.md)
+- [references/adr-template.md](references/adr-template.md)
+
+### 3. Build a source-first map of the repository
 
 Understand the codebase from the implementation, not from naming alone.
 
@@ -54,7 +76,7 @@ Aim to identify:
 - the main execution paths, data flows, and external integrations
 - the development and verification commands that matter
 
-### 3. Trace the technical architecture with enough depth
+### 4. Trace the technical architecture with enough depth
 
 Go broad before going deep.
 
@@ -68,7 +90,7 @@ At minimum, determine:
 
 Read representative files from each important area. Do not pretend to understand the architecture from one or two files, but do not exhaustively read the whole repo when a targeted map is enough.
 
-### 4. Return a practical onboarding synthesis
+### 5. Return a practical onboarding synthesis
 
 Summarize the repo in a way that helps the next turn start strong.
 
@@ -82,7 +104,7 @@ Include:
 - open questions or areas that still need deeper inspection
 - the best next files or directories to read for the user's likely goal
 
-### 5. Verify the orientation pass
+### 6. Verify the orientation pass
 
 Before finishing, check that your summary is grounded in files you actually inspected.
 

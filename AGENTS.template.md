@@ -4,7 +4,7 @@ Read this file at every session start. Re-read after any context compaction.
 
 ## What is Pulse?
 
-A multi-skill ecosystem for agentic software development, built on the Flywheel toolchain (beads/bv/Agent Mail). Skills chain together to move from vague requirements to shipped, reviewed, compounded code.
+A multi-skill ecosystem for agentic software development, built on the Flywheel toolchain (`br`, `bv`, runtime-native swarm adapters, and local reservations). Skills chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ## Skill Catalog
 
@@ -16,7 +16,7 @@ A multi-skill ecosystem for agentic software development, built on the Flywheel 
 | `pulse:planning` | Research + synthesis + bead creation → approach.md + beads | After exploring, with CONTEXT.md |
 | `pulse:validating` | Plan verification + spikes + bead polishing — THE GATE | After planning, before execution |
 | `pulse:swarming` | Launch + tend parallel worker agents | After validating approves beads |
-| `pulse:executing` | Per-agent worker loop (register → implement → close) | Loaded by workers spawned by swarming |
+| `pulse:executing` | Per-agent worker loop (report online → implement → close) | Loaded by workers spawned by swarming |
 | `pulse:reviewing` | Specialist reviewers + 3-level verification + UAT + finishing | After swarming completes all beads |
 | `pulse:compounding` | Capture learnings → .pulse/memory/learnings/ | After reviewing, always |
 | `pulse:writing-pulse-skills` | TDD-for-skills meta-skill | Creating/improving pulse skills |
@@ -25,7 +25,7 @@ A multi-skill ecosystem for agentic software development, built on the Flywheel 
 
 | Skill | Purpose |
 |-------|---------|
-| `pulse:debugging` | Systematic debugging when workers hit blockers |
+| `pulse:systematic-debug-fix` | Root-cause-first bug fixing when workers hit blockers |
 | `pulse:gitnexus` | Codebase intelligence via GitNexus graph tools or local fallback |
 | `pulse:dream` | Manual dream consolidation over Claude Code or Codex runtime artifacts |
 
@@ -46,7 +46,8 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 
 - `br` — beads CLI (create/update/close work items)
 - `bv` — beads viewer (graph analytics, priority routing)
-- Agent Mail — inter-agent messaging, file reservations
+- native swarm adapters — Claude Code teammates or Codex subagents in swarm mode
+- `.codex/pulse_reservations.mjs` — shared local file reservations for swarm safety
 - `gitnexus` — graph-backed codebase intelligence (optional)
 - CASS/CM — session search, cognitive memory (optional)
 
@@ -75,51 +76,47 @@ history/<feature>/              ← Per-feature artifacts
 
 ---
 
-## MCP Agent Mail — Multi-Agent Coordination
+## Native Swarm Coordination
 
-Agent Mail is the MCP-based messaging and file-reservation layer that enables Pulse swarm workers to coordinate without conflicts.
+Pulse keeps one swarm contract and adapts it to the active runtime.
 
-### Why Agent Mail?
+### Runtime adapters
 
-- **Prevents conflicts.** File reservations stop two workers from editing the same file simultaneously.
-- **Token-efficient.** Workers read only their inbox and topic threads instead of scanning shared state files.
-- **Quick reads.** Coordinators poll structured inboxes instead of parsing free-form logs.
+- **Claude Code** — use teammate primitives such as `TeamCreate`, `Agent`, and `SendMessage` when swarm mode is active.
+- **Codex** — use native subagents and parent-thread follow-ups.
+- **Shared reservation layer** — every runtime uses `.codex/pulse_reservations.mjs` and `.pulse/reservations.json` to prevent overlapping edits.
 
 ### Same Repository Workflow
 
 When multiple agents operate in the same repository:
 
-1. **Register** — each agent registers a unique identity with the project.
-2. **Reserve files** — before editing, a worker requests exclusive access to the files listed in its bead's `files` field.
-3. **Communicate** — use topic threads (typically `epic-<EPIC_ID>`) for broadcasts and direct messages for point-to-point coordination.
+1. **Spawn with bounded context** — workers receive runtime identity, coordinator identity, epic ID, feature name, and an optional startup hint.
+2. **Reserve files** — before editing, a worker claims the files listed in its bead's `files` field through the local reservation helper.
+3. **Report on the active coordination surface** — workers post `[ONLINE]`, `[DONE]`, `[BLOCKED]`, `[FILE CONFLICT]`, and `[HANDOFF]` as state changes happen.
 
-Canonical operations (runtime names may differ):
+### Shared rules
 
-| Operation | Purpose |
-|-----------|---------|
-| `ensure_project` | Register or confirm the project exists |
-| `register_agent` | Register the current agent identity |
-| `send_message` | Post a message to a topic or direct recipient |
-| `fetch_inbox` | Read messages addressed to this agent |
-| `fetch_topic` | Read all messages on a topic thread |
-| `file_reservation_paths` | Reserve or release file paths |
+- beads plus `bv` remain the source of truth for work selection
+- do not edit without reservations
+- do not invent extra registration, inbox, or topic mechanics when the runtime does not use them
+- release reservations before advertising completion or pause
 
 ### Quick Reads
 
-- Inbox: `fetch_inbox` — messages sent directly to this agent
-- Topic: `fetch_topic("epic-<EPIC_ID>")` — all broadcast messages for the epic
-- Reservations: `file_reservation_paths` — current file locks
+- Scout: `node .codex/pulse_status.mjs --json`
+- Reservations: `node .codex/pulse_reservations.mjs list --active-only --json`
+- Graph: `bv --robot-triage --graph-root <EPIC_ID>`
 
 ### Macros vs Granular Tools
 
-Some runtimes expose high-level macros (e.g., a single "spawn worker" call). Others expose only granular primitives. Pulse skills reference the canonical operations above. If your runtime uses different names, keep the behavior, not the spelling.
+Some runtimes expose high-level worker-spawn macros. Others expose a smaller set of teammate or subagent primitives. Pulse skills reference the behavior contract; keep the behavior, not the spelling.
 
 ### Common Pitfalls
 
 - **Forgetting to release files.** Always release reservations after closing a bead or pausing.
-- **Polling too aggressively.** Check inboxes at natural checkpoints (after each bead, before each new bead), not in tight loops.
-- **Ignoring topic history.** When resuming, read the full topic thread to catch decisions made while you were paused.
-- **Registering duplicate identities.** Use a stable agent name per worker across pause/resume cycles.
+- **Skipping `[ONLINE]`.** Startup is not complete until the worker reports in.
+- **Treating tasks or chat threads as the work graph.** Beads plus `bv` stay authoritative.
+- **Editing around a conflict.** Report `[FILE CONFLICT]` and wait for resolution.
 
 ---
 

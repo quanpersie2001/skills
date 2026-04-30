@@ -122,6 +122,9 @@ or any execution skill. After brainstorming, the ONLY valid next step is `pulse:
 
 Before asking any question, understand what already exists:
 
+- Read `.pulse/project-docs.json` first when present, then read the listed project docs before relying on feature history alone
+- If `.pulse/project-docs.json` is absent, detect likely project docs (README, architecture, ADR, domain docs) and read the smallest relevant set
+- Reuse existing glossary/terminology from project docs when present; do not invent new terms when established names already exist
 - Check relevant files, docs, and the last few commits related to the topic
 - Identify existing patterns, components, or decisions that constrain the design
 - Note what can be reused vs. what needs to be created from scratch
@@ -378,10 +381,12 @@ The ONLY valid next step is the user invoking pulse:exploring.
 - **One question at a time** — never overwhelm
 - **Multiple-choice preferred** — easier to answer than open-ended
 - **Use visuals only when they clarify** — seeing options should remove ambiguity, not add noise
+- **Honor existing glossary first** — prefer established project terminology and call out conflicts early
 - **YAGNI ruthlessly** — remove unrequested features from all designs
 - **Always propose alternatives** — 2–3 approaches before settling
 - **Incremental validation** — present design in sections, get approval before continuing
 - **Be ready to revise** — go back and clarify when something doesn't fit
+- **Do not scaffold project docs here** — brainstorming can consume existing docs but durable project-doc scaffolding belongs to exploring when needed
 
 ---
 

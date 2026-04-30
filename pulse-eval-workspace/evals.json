@@ -172,16 +172,16 @@
     },
     {
       "id": 13,
-      "skill": "debugging",
-      "skill_path": "plugins/pulse/skills/debugging",
-      "prompt": "A worker is stuck: the OAuth callback test is failing with 'Cannot read property token of undefined'. Debug this with pulse:debugging.",
-      "expected_output": "Agent classifies the issue (test failure), checks bead learning_refs first, reproduces the failure with the exact command, traces root cause, writes a debug note, and hands off to compounding for learning propagation.",
+      "skill": "systematic-debug-fix",
+      "skill_path": "plugins/pulse/skills/systematic-debug-fix",
+      "prompt": "A worker is stuck: the OAuth callback test is failing with 'Cannot read property token of undefined'. Investigate it with pulse:systematic-debug-fix.",
+      "expected_output": "Agent frames the work as a single-issue investigation, reproduces the failure with the exact command, states an explicit root-cause hypothesis, traces the failure back to the original trigger, and defines the regression coverage needed so the bug does not return.",
       "files": [],
       "expectations": [
-        "Agent classifies the issue type before starting (test failure vs build vs runtime)",
-        "Agent checks bead-local learning_refs before doing a global search",
-        "Agent identifies and states a clear root cause sentence",
-        "Agent writes a debug note to .pulse/debug-notes/ and recommends compounding"
+        "Agent frames the work as a single issue before editing code",
+        "Agent reproduces the failure before proposing a fix",
+        "Agent identifies and states a clear root-cause hypothesis",
+        "Agent calls for regression coverage that would fail without the fix"
       ]
     },
     {
@@ -239,20 +239,6 @@
         "Agent extracts durable candidates and routes them into learning, correction, ratchet, pending, or skip outcomes",
         "Agent writes provenance markers when updating memory files",
         "Agent does NOT auto-edit critical-patterns.md — requires explicit approval for promotions"
-      ]
-    },
-    {
-      "id": 18,
-      "skill": "ai-multimodal",
-      "skill_path": "plugins/pulse/skills/ai-multimodal",
-      "prompt": "I have a screenshot of our app's dashboard (dashboard.png). Use pulse:ai-multimodal to analyze it and extract all visible UI text and component labels.",
-      "expected_output": "Agent checks for GEMINI_API_KEY and Gemini setup, uses gemini_batch_process.py or the analyze script on the image, extracts all visible text/labels, and returns structured results.",
-      "files": [],
-      "expectations": [
-        "Agent checks for GEMINI_API_KEY or Gemini setup before proceeding",
-        "Agent uses or describes using a bundled Gemini script (gemini_batch_process.py or similar) rather than just reading the file natively",
-        "Agent returns structured extracted text/labels from the image",
-        "Agent mentions rate limits or format constraints relevant to image processing"
       ]
     },
     {

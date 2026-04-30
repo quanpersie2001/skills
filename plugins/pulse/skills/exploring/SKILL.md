@@ -57,7 +57,19 @@ Assess from the request + a 30-second project scan:
 
 If scope is unclear, ask ONE disambiguation question before continuing.
 
-**Step 0.2 — Load prior context**
+**Step 0.2 — Load project docs and prior context**
+
+Read project docs first when available:
+
+```
+Read first (if exists):
+- .pulse/project-docs.json                 ← canonical project-doc index and status
+```
+
+If `.pulse/project-docs.json` exists, read the smallest relevant listed docs before relying on feature history alone.
+If `.pulse/project-docs.json` is missing, detect likely project docs (README, architecture, ADR, domain docs) and read the smallest relevant set.
+
+Then load prior context:
 
 ```
 Read (if exists):
@@ -104,20 +116,10 @@ Example internal frame:
 
 ### Phase 1: Domain Classification
 
-Classify what is being built. This determines which gray areas to probe.
+Classify what is being built so Phase 2 probes the right ambiguity surface.
 
-| Type | What it is | Example |
-|------|-----------|---------|
-| **SEE** | Something users look at | UI, dashboard, layout |
-| **CALL** | Something callers invoke | API, CLI command, webhook |
-| **RUN** | Something that executes | Background job, script, service |
-| **READ** | Something users read | Docs, emails, reports |
-| **ORGANIZE** | Something being structured | Data model, file layout, taxonomy |
-
-One feature can span types (e.g., SEE + CALL). Classify all that apply.
-
-Load `references/gray-area-probes.md` now. You will use the probes for your domain type(s)
-in Phase 2.
+Use the canonical type definitions in `references/gray-area-probes.md` (SEE/CALL/RUN/READ/ORGANIZE).
+One feature can span types (for example, SEE + CALL). Classify all that apply before moving on.
 
 ---
 
@@ -132,18 +134,18 @@ A gray area is a decision that:
 
 **Quick codebase scout** (grep only — no deep analysis):
 
-```bash
-grep -rl "<feature-keyword>" src/ app/ --include="*.ts" --include="*.tsx" \
-  --include="*.js" --include="*.py" | head -10
-```
-
-Read 2–3 most relevant files. Annotate gray area options with what already exists:
-> "You already have a `Card` component — reusing it keeps visual consistency."
+Run a minimal keyword scan over likely source roots, read 2-3 relevant files, and annotate options with what already exists.
+Keep this scout shallow; deep codebase analysis belongs to planning.
 
 Filter OUT of gray areas:
 - Technical implementation details (architecture, library choices)
 - Performance concerns
 - Scope expansion (new capabilities not requested)
+
+Terminology discipline for gray areas:
+- Reuse glossary terms from project docs when available
+- If user language conflicts with project glossary, call out the conflict explicitly and ask which term/meaning should be locked
+- If the wording materially changes implementation assumptions, cross-check the statement against both docs and quick code scout evidence before locking
 
 ---
 
@@ -180,6 +182,11 @@ by all downstream agents. Do not reuse or renumber IDs once assigned.
 
 ### Phase 4: Context Assembly
 
+Durable ambiguity rule:
+- Exploring is the primary place to propose lazy project-doc scaffolding when repeated ambiguity is clearly project-level (not feature-local) and existing docs cannot resolve it.
+- Keep this as a proposal, not an automatic write path. Confirm with the user before any scaffold action.
+- Even when scaffolding is proposed, `history/<feature>/CONTEXT.md` remains the feature source of truth for locked implementation decisions.
+
 **Step 4.1 — Write CONTEXT.md**
 
 ```
@@ -194,28 +201,7 @@ Load `references/context-template.md` and populate every section. Rules:
 
 **Step 4.2 — Self-review via subagent**
 
-Spawn a fresh subagent with this prompt (never pass session history):
-
-```
-You are a context document reviewer. Verify this CONTEXT.md is ready for planning agents.
-
-File to review: history/<feature>/CONTEXT.md
-
-Check for:
-- Completeness: any TODOs, placeholders, "Tbr", or unfilled sections?
-- Consistency: internal contradictions or conflicting decisions?
-- Clarity: decisions ambiguous enough to force a planner to guess?
-- Concrete vs vague: replace "should feel good" with specific behaviors
-- Decision IDs: all locked decisions have stable IDs (D1, D2...)?
-- "Resolve Before Planning" items: any still unresolved?
-
-Calibration: only flag issues that would cause a planning agent to make wrong assumptions.
-Approve unless there are serious gaps.
-
-Output:
-Status: Approved | Issues Found
-Issues (if any): [section] — [issue] — [why it matters for planning]
-```
+Spawn a fresh subagent using `references/context-reviewer-prompt.md` (never pass session history).
 
 - If Issues Found: fix, re-spawn reviewer, repeat
 - Maximum 2 iterations before asking the user to review directly
@@ -296,3 +282,4 @@ Stop immediately if you catch yourself doing any of these:
 
 - `references/gray-area-probes.md` — probes per domain type (SEE/CALL/RUN/READ/ORGANIZE)
 - `references/context-template.md` — the CONTEXT.md template to populate in Phase 4
+- `references/context-reviewer-prompt.md` — canonical prompt for the Phase 4.2 self-review subagent
