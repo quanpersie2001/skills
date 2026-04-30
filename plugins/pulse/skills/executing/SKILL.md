@@ -6,7 +6,7 @@ description: >-
   allow a swarm. Implements the bead loop, verification discipline, coordination reporting,
   and safe pause/resume behavior.
 metadata:
-  version: '1.3'
+  version: '1.4'
   ecosystem: pulse
   dependencies:
     - id: beads-cli
@@ -19,12 +19,6 @@ metadata:
       command: bv
       missing_effect: degraded
       reason: Executing checks bead state with bv during the implementation loop.
-    - id: agent-mail
-      kind: mcp_server
-      server_names: [mcp_agent_mail]
-      config_sources: [repo_codex_config, global_codex_config]
-      missing_effect: degraded
-      reason: Workers report progress through Agent Mail in swarm mode.
 ---
 
 # Executing
@@ -56,46 +50,60 @@ Determine mode from invocation plus `.pulse/tooling-status.json`:
 - if invoked by `pulse:swarming`, run in worker mode
 - if `recommended_mode=single-worker`, run in standalone mode
 
-### 1a. Register with the Coordination Runtime (worker mode only)
+### 1a. Restore Worker Bootstrap Context (worker mode only)
 
-Swarming gives you a runtime nickname first. Use that nickname as the attempted Agent Mail name, then keep the returned Agent Mail name for all later coordination calls.
+Swarming gives you runtime-native startup context. Capture and keep these fields together for the rest of the run:
 
-Register your session with the coordination runtime:
-- Use your runtime nickname as the attempted name
-- Capture the resolved Agent Mail name from the registration result
+- `runtime_identity`
+- `coordinator_identity`
+- `adapter_name`
+- `epic_id`
+- `feature_name`
+- optional `startup_hint`
 
-Record both identities in your startup acknowledgment:
-- `Runtime nickname: <runtime-nickname>`
-- `Agent Mail name: <resolved-agent-mail-name>`
+Treat `startup_hint` as a hint, not a silent permanent assignment. Re-check the live graph before you claim work.
 
-From this point on, use `resolved_agent_mail_name` for every coordination call.
+Do not invent extra registration, inbox, or topic mechanics if the active runtime does not use them.
 
 ### 1b. Read Project Context (in this order)
 
 1. **AGENTS.md** — project operating manual (mandatory; skip nothing)
-2. If present, run **`node .codex/pulse_status.mjs --json`** — quick onboarding/state/handoff scout
+2. If present, run **`node .codex/pulse_status.mjs --json`** — quick onboarding/state/handoff/reservation scout
 3. **.pulse/state.json** — machine-readable routing snapshot
 4. **.pulse/STATE.md** — current project focus, decisions, active blockers
-5. **history/\<feature\>/CONTEXT.md** — locked decisions that MUST be honored
+5. **history/<feature>/CONTEXT.md** — locked decisions that MUST be honored
 
 If any of these files does not exist, note the absence and proceed — do not fabricate content.
 
 If the bead references `learning_refs`, read those specific learning files. Do not load all learnings by default.
 
-### 1c. Report Online Before Claiming Work (worker mode only)
+### 1c. Report `[ONLINE]` Before Claiming Work (worker mode only)
 
-Before you select a bead, you must report in on the epic thread. Startup is not complete until you read `AGENTS.md`, post a startup acknowledgment with both identities, say `AGENTS.md` was read and `pulse:executing` is loading, and run `fetch_inbox(...)` on the epic topic.
+Before you select a bead, you must report in on the active coordination surface. Startup is not complete until you:
+
+1. read `AGENTS.md`
+2. load `pulse:executing`
+3. post `[ONLINE]` including:
+   - `runtime_identity`
+   - `AGENTS.md: read`
+   - `pulse:executing: loading`
+   - `Next step: bv --robot-priority`
 
 Do not call `bv --robot-priority` before this sequence is complete.
+
+Runtime mapping:
+- Claude Code -> send the startup acknowledgment to the coordinator with `SendMessage`
+- Codex -> reply on the parent coordination thread
+- otherwise -> use the active coordination surface defined by the runtime adapter
 
 ### 1d. Check for Handoff
 
 Use owner-scoped handoffs:
 
-- worker mode -> `.pulse/handoffs/worker-<agent>.json`
+- worker mode -> `.pulse/handoffs/worker-<runtime_identity>.json`
 - standalone mode -> `.pulse/handoffs/single-worker.json`
 
-If a handoff exists and was written by a prior instance of you (same agent identity):
+If a handoff exists and was written by a prior instance of you (same worker identity):
 
 1. Read it — restore active bead, progress markers, open questions
 2. Resume from where it stopped; skip re-reading already-read files
@@ -105,12 +113,15 @@ If a handoff exists and was written by a prior instance of you (same agent ident
 
 ## Step 2: Get the Next Bead
 
-In worker mode, every loop starts with coordination, not bead selection.
+In worker mode, every loop starts with coordination visibility, not blind bead selection.
 
-Start with `fetch_inbox(project_key="<project-root-path>", agent_name="<resolved-agent-mail-name>", topic="<EPIC_TOPIC>")`.
-If the thread looks stale, also run `fetch_topic(project_key="<project-root-path>", topic_name="<EPIC_TOPIC>")`.
+Check the active coordination surface for:
+- new coordinator instructions
+- unresolved blocker replies
+- conflict decisions
+- handoff or recovery instructions that affect your next move
 
-### Normal path: self-route from the live graph
+Then follow the normal path from the live graph:
 
 ```bash
 bv --robot-priority
@@ -124,7 +135,7 @@ Select the top-ranked bead that:
 
 ### Exceptional path: direct orchestrator hint
 
-If swarming suggests a bead via coordination, treat it as a startup hint or rescue instruction, not as a permanent assignment. Re-check the live graph before claiming the work.
+If swarming suggests a bead via the active coordination surface, treat it as a startup hint or rescue instruction, not as a permanent assignment. Re-check the live graph before claiming the work.
 
 ### Read the bead fully
 
@@ -168,39 +179,31 @@ If the bead is a small single-path change with tight file scope, unambiguous ver
 
 ## Step 3: Reserve Files
 
-In worker mode, reserve all listed files before editing.
+In worker mode, reserve all listed files before editing with the shared repo-local helper.
 
-```
-file_reservation_paths(
-  project_key: "<project-root-path>",
-  agent_name: "<resolved-agent-mail-name>",
-  paths: ["src/foo.ts", "src/bar.ts"],
-  reason: "Working bead <bead-id>"
-)
+Repeat `--path` for every declared file or glob you need to claim:
+
+```bash
+node .codex/pulse_reservations.mjs reserve --agent <runtime_identity> --bead <bead-id> --path "src/foo.ts" --path "src/bar.ts" --json
 ```
 
 In standalone mode, there is no cross-worker race, but still treat the bead's `files` list as a hard scope boundary. Do not blend multiple beads into one ad hoc change, and do not sneak in temporary cross-module structure that was not planned.
 
-### If reservation fails in worker mode:
+### If reservation fails in worker mode
 
-Report the conflict to the coordinator:
+1. Post `[FILE CONFLICT]` immediately on the active coordination surface
+2. Include:
+   - bead ID
+   - requested paths
+   - current holder when visible
+   - why you need the scope
+3. Wait for coordinator resolution
+4. Keep watching the active coordination surface while blocked
 
-```
-send_message(
-  project_key: "<project-root-path>",
-  sender_name: "<resolved-agent-mail-name>",
-  to: ["<COORDINATOR_AGENT_NAME>"],
-  thread_id: "<EPIC_ID>",
-  topic: "<EPIC_TOPIC>",
-  subject: "File conflict on <bead-id>",
-  body_md: "Need files: [list]. Currently held by: [holder]. Requesting resolution."
-)
-```
+Do not proceed without your reservations.
+Do not edit around the conflict.
 
-Wait for resolution. Do not proceed without your reservations.
-While waiting, keep polling `fetch_inbox(...)` on the epic topic.
-
-### If reservation succeeds:
+### If reservation succeeds
 
 Proceed to implementation immediately.
 
@@ -308,8 +311,8 @@ If verification fails:
 2. compare the failure against the success criteria you named before verification
 3. retry up to 2 times
 4. if still blocked:
-   - worker mode -> notify the coordinator via coordination runtime; keep polling `fetch_inbox(...)` while blocked
-   - standalone mode -> invoke `pulse:debugging` or surface the blocker to the user
+   - worker mode -> notify the coordinator on the active coordination surface and stay blocked until the situation is resolved
+   - standalone mode -> invoke `pulse:systematic-debug-fix` or surface the blocker to the user
 
 Do not quietly redefine success after a failing verify run. Either make the bead pass as written or escalate that the bead itself needs repair.
 
@@ -351,38 +354,31 @@ Do not batch multiple beads into one commit. Do not commit unrelated changes.
 
 ### 6d. Release file reservations (worker mode)
 
-```
-release_file_reservations(
-  agent_name: "<resolved-agent-mail-name>",
-  paths: ["src/foo.ts", "src/bar.ts"]
-)
+```bash
+node .codex/pulse_reservations.mjs release --agent <runtime_identity> --json
 ```
 
 Release **before** sending the completion report so other agents can acquire these files immediately.
 
 ### 6e. Send completion report (worker mode) or record completion (standalone)
 
-Worker mode:
+Worker mode: post `[DONE]` on the active coordination surface.
 
-```
-send_message(
-  project_key: "<project-root-path>",
-  sender_name: "<resolved-agent-mail-name>",
-  to: ["<COORDINATOR_AGENT_NAME>"],
-  thread_id: "<EPIC_ID>",
-  topic: "<EPIC_TOPIC>",
-  subject: "Completed <bead-id>",
-  body_md: "Runtime nickname: <runtime-nickname>. Agent Mail name: <resolved-agent-mail-name>. Implemented: [summary]. Files: [list]. Verification: [tests passed / build clean]. Commit: [hash]."
-)
-```
+Include:
+- bead ID
+- worker runtime identity
+- commit hash
+- short implementation summary
+- files modified
+- verification status
+- verification evidence path or paths
+- any scoped follow-up that still needs a new bead
 
 Standalone mode: record completion in `.pulse/STATE.md`.
 
-Completion reports should include the verification evidence path or paths, the final verification status, and any scoped follow-up that still needs a new bead.
+### 6f. Check coordination once after reporting (worker mode)
 
-### 6f. Check inbox once after reporting (worker mode)
-
-Before you claim the next bead, run `fetch_inbox(project_key="<project-root-path>", agent_name="<resolved-agent-mail-name>", topic="<EPIC_TOPIC>")`.
+Before you claim the next bead, inspect the active coordination surface once for new instructions, blocker resolutions, or reservation-related follow-ups.
 
 ---
 
@@ -397,35 +393,35 @@ After each bead:
 
 Use the standard handoff summary/resume briefing/transfer block contract from `pulse:using-pulse`. Treat this pause boundary as a checkpoint trigger: capture or refresh the feature checkpoint before stopping when the current phase meaningfully changed.
 
-Worker mode handoff payload (write to `.pulse/handoffs/worker-<agent>.json`):
+Worker mode handoff payload (write to `.pulse/handoffs/worker-<runtime_identity>.json`):
 
 ```json
 {
   "schema_version": "2.0",
-  "handoff_id": "worker-<resolved-agent-mail-name>-<ISO-8601>",
+  "handoff_id": "worker-<runtime_identity>-<ISO-8601>",
   "owner_type": "worker",
-  "owner_id": "worker-<resolved-agent-mail-name>",
+  "owner_id": "worker-<runtime_identity>",
   "skill": "pulse:executing",
   "feature": "<feature>",
   "phase": "execution/<EPIC_ID>",
   "status": "ready_to_resume",
   "paused_at": "<ISO timestamp>",
   "reason": "context_critical",
-  "next_action": "Check the epic thread, then run bv --robot-priority before claiming more work.",
+  "next_action": "Check the latest coordinator updates, then run bv --robot-priority before claiming more work.",
   "read_first": [
     "AGENTS.md",
     ".pulse/STATE.md",
     "history/<feature>/CONTEXT.md",
-    ".pulse/handoffs/worker-<agent>.json"
+    ".pulse/handoffs/worker-<runtime_identity>.json"
   ],
-  "summary": "Worker paused cleanly because context is near the limit. The next turn should rejoin coordination, confirm the current graph state, and continue from the highest-priority executable bead.",
+  "summary": "Worker paused cleanly because context is near the limit. The next turn should restore coordination state, confirm the live graph, and continue from the highest-priority executable bead.",
   "payload": {
     "runtime": {
-      "runtime_nickname": "<runtime-nickname>",
-      "agent_mail_name": "<resolved-agent-mail-name>",
+      "runtime_identity": "<runtime_identity>",
+      "coordinator_identity": "<coordinator_identity>",
+      "adapter_name": "<adapter_name>",
       "epic_id": "<EPIC_ID>",
-      "epic_topic": "<EPIC_TOPIC>",
-      "coordinator_agent_name": "<COORDINATOR_AGENT_NAME>"
+      "feature_name": "<feature_name>"
     },
     "context_snapshot": {
       "tokens_used_pct": 0.67,
@@ -434,14 +430,14 @@ Worker mode handoff payload (write to `.pulse/handoffs/worker-<agent>.json`):
     "transfer": {
       "status": "Worker is paused safely and no longer editing files.",
       "completed": [
-        "Closed bead <bead-id> and sent the completion report"
+        "Closed bead <bead-id> and posted the completion report"
       ],
       "in_flight": [
-        "No bead currently claimed; resume from the live graph after checking mail"
+        "No bead currently claimed; resume from the live graph after checking coordination updates"
       ],
       "blockers": [],
       "resume_notes": [
-        "Run fetch_inbox(...) on <EPIC_TOPIC> before selecting work",
+        "Inspect the active coordination surface before selecting work",
         "Re-check file reservations before editing any file",
         "Use bv --robot-priority as the source of truth for the next bead"
       ]
@@ -504,19 +500,7 @@ Standalone mode handoff payload (write to `.pulse/handoffs/single-worker.json`):
 
 Register the handoff in `.pulse/handoffs/manifest.json` using the same `summary`, `next_action`, and owner file path.
 
-Worker mode: notify the coordinator after writing the handoff.
-
-```
-send_message(
-  project_key: "<project-root-path>",
-  sender_name: "<resolved-agent-mail-name>",
-  to: ["<COORDINATOR_AGENT_NAME>"],
-  thread_id: "<EPIC_ID>",
-  topic: "<EPIC_TOPIC>",
-  subject: "[HANDOFF] <runtime-nickname> / <resolved-agent-mail-name>",
-  body_md: "Handoff summary: Worker paused cleanly because context is near the limit.\n\nResume briefing:\n- Next action: Check the epic thread, then run bv --robot-priority before claiming more work.\n- Read first: AGENTS.md, .pulse/STATE.md, history/<feature>/CONTEXT.md, .pulse/handoffs/worker-<agent>.json\n\nTransfer block:\n- Status: Worker is paused safely and no longer editing files.\n- Completed: [closed bead(s), sent completion report, updated evidence]\n- In flight: [next bead or \"none currently claimed\"]\n- Blockers: [none or concrete blocker]\n- Resume notes: [mail check, reservation check, graph check]"
-)
-```
+Worker mode: notify the coordinator after writing the handoff on the active coordination surface.
 
 ---
 
@@ -530,13 +514,14 @@ Re-read in this exact order before any further action:
 
 1. `AGENTS.md`
 2. `history/<feature>/CONTEXT.md`
-3. The current bead you were working on: `br show <bead-id>`
-4. If the bead qualifies as non-trivial under Step 2, re-read `history/<feature>/phase-<n>-contract.md` and `history/<feature>/phase-<n>-story-map.md`, plus `history/<feature>/approach.md` when boundary-sensitive or HIGH-risk
-5. Your active file reservations (query the coordination runtime, worker mode only)
+3. the current bead you were working on: `br show <bead-id>`
+4. if the bead qualifies as non-trivial under Step 2, re-read `history/<feature>/phase-<n>-contract.md` and `history/<feature>/phase-<n>-story-map.md`, plus `history/<feature>/approach.md` when boundary-sensitive or HIGH-risk
+5. your active file reservations: `node .codex/pulse_reservations.mjs list --active-only --json`
+6. the latest relevant coordinator updates on the active coordination surface
 
 Only after re-reading all applicable items may you continue.
 
-**Why this is non-negotiable:** Compaction erases knowledge of AGENTS.md, active reservations, and locked decisions. Agents that skip this step produce implementations that conflict with other workers and violate CONTEXT.md decisions.
+**Why this is non-negotiable:** Compaction erases knowledge of `AGENTS.md`, active reservations, and locked decisions. Agents that skip this step produce implementations that conflict with other workers and violate `CONTEXT.md` decisions.
 
 ---
 
@@ -547,7 +532,7 @@ Stop and reassess if you notice any of these:
 - **Executing without reading the bead file fully**
 - **Executing a bead that is missing canonical schema fields**
 - **Writing files outside your reserved scope** — you are creating conflicts for other workers
-- **Skipping verification** — "it looks right" is not verification; run the actual criteria
+- **Skipping verification** — `it looks right` is not verification; run the actual criteria
 - **Claiming success from stale or partial verification output**
 - **Closing a bead without a substantive `verification_evidence` record**
 - **Claiming `tdd-required` was satisfied without a real red failure and green pass**
@@ -558,41 +543,36 @@ Stop and reassess if you notice any of these:
 - **Guessing through ambiguity instead of surfacing it** — hidden design choices belong back in planning/validation, not in worker code
 - **Bundling multiple beads into one commit** — atomic commits per bead are the audit trail; don't corrupt it
 - **Claiming a bead without checking reservations** — self-routing still depends on file coordination
-- **Closing or blocking a bead without reporting via the coordination runtime** — off-thread progress is invisible progress; it breaks the swarm
-- **Waiting silently for the coordinator** — if you are blocked, conflicted, handing off, or done, post and keep polling
+- **Closing or blocking a bead without reporting on the active coordination surface** — invisible progress breaks the swarm
+- **Waiting silently for the coordinator** — if you are blocked, conflicted, handing off, or done, report it
 - **Reading the entire learnings corpus instead of the bead's cited learning refs**
 - **Writing the retired global handoff file**
 
 ---
 
-## Quick Reference: Tool Calls (Worker Mode)
+## Quick Reference: Worker Actions
 
 | Action | Call |
 |--------|------|
-| Register | Session registration via coordination runtime |
 | Get priority bead | `bv --robot-priority` |
 | Read bead | `br show <id>` |
-| Reserve files | `file_reservation_paths(...)` |
-| Release files | `release_file_reservations(...)` |
+| Reserve files | `node .codex/pulse_reservations.mjs reserve --agent <runtime_identity> --bead <bead-id> --path "..." --json` |
+| Release files | `node .codex/pulse_reservations.mjs release --agent <runtime_identity> --json` |
+| Inspect reservations | `node .codex/pulse_reservations.mjs list --active-only --json` |
 | Close bead | `br close <id> --reason "..."` |
-| Send mail | `send_message(project_key=..., sender_name=..., to=[...], thread_id=..., topic=..., subject=..., body_md=...)` |
-| Reply in thread | `reply_message(project_key=..., message_id=..., sender_name=..., body_md=...)` |
-| Check inbox | `fetch_inbox(project_key=..., agent_name=..., topic=...)` |
-| Check epic timeline | `fetch_topic(project_key=..., topic_name=...)` |
+| Send `[ONLINE]` / `[DONE]` / `[BLOCKED]` / `[FILE CONFLICT]` / `[HANDOFF]` | active coordination surface |
 
 ---
 
 ## Inputs You Receive from Swarming (Worker Mode)
 
-When spawned, swarming provides (via coordination message or task prompt):
+When spawned, swarming provides:
 
-- `runtime_nickname` — your runtime nickname from the parent spawn result
-- `coordinator_agent_name` — swarm coordinator identity
-- `epic_thread_id` — the coordination thread for this feature (normally the epic bead ID)
-- `epic_topic` — shared swarm topic tag (recommended: `epic-<EPIC_ID>`)
-- `startup_hint` — optional: a bead or area the orchestrator wants checked first
+- `runtime_identity` — your runtime identity from the parent spawn result
+- `coordinator_identity` — swarm coordinator identity
+- `adapter_name` — `claude-code` or `codex`
+- `epic_id` — the coordination root for this feature
 - `feature_name` — used to locate `history/<feature>/CONTEXT.md`
+- `startup_hint` — optional: a bead or area the orchestrator wants checked first
 
-You resolve `resolved_agent_mail_name` yourself during session registration with the coordination runtime.
-
-If any of the startup inputs are missing, query the coordination runtime for the swarm coordination message before proceeding.
+If any startup inputs are missing, request clarification on the active coordination surface before proceeding.

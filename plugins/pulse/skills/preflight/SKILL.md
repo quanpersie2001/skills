@@ -2,7 +2,7 @@
 name: preflight
 description: Use when starting any Pulse workflow, resuming a Pulse session, or before planning or execution when tool readiness or onboarding state may block the flow.
 metadata:
-  version: '1.1'
+  version: '1.2'
   ecosystem: pulse
   position: '0 - runs before using-pulse or any execution-capable phase'
   type: bootstrap
@@ -130,29 +130,30 @@ Rules:
 
 ## Phase 4: Validate Execution Runtime
 
-If the requested mode can lead to execution, validate the coordination runtime.
+If the requested mode can lead to execution, validate the active runtime path.
 
-Primary concern:
+Primary concerns:
 
-- Agent Mail or the Pulse-equivalent coordination runtime
+- native swarm capability for the current CLI runtime
+- shared reservation helper readiness for swarm execution
 
 Run the smallest real health check available in the current environment.
 Examples vary by runtime:
 
-- service health or status command
-- a no-op auth check
-- a lightweight mailbox or connection probe
+- Claude Code: confirm teammate primitives needed for swarming are available in this session
+- Codex: confirm native subagent flow is available in this session
+- reservation helper: confirm onboarding installed `.codex/pulse_reservations.mjs`
 
-If no real health-check primitive exists, mark coordination runtime as unavailable.
+If no real health-check primitive exists, mark swarm capability as unavailable.
 Do not infer readiness from environment variables alone.
 
 Decision rules:
 
 - If requested mode is `full-pipeline` and swarm execution is expected:
-  - coordination ready -> keep `swarm`
-  - coordination unavailable -> set result to `DEGRADED` and recommend `single-worker`
+  - native swarm + reservations ready -> keep `swarm`
+  - unavailable -> set result to `DEGRADED` and recommend `single-worker`
 - If requested mode is `execution-only` and the user explicitly asked for swarm mode:
-  - coordination unavailable -> stop and present the downgrade decision
+  - unavailable -> stop and present the downgrade decision
 
 ## Phase 5: Validate Optional Accelerators
 
@@ -205,11 +206,12 @@ Write `.pulse/tooling-status.json` with this shape:
     "git": { "status": "ready", "check": "git rev-parse --show-toplevel" },
     "br": { "status": "ready", "check": "br --help" },
     "bv": { "status": "ready", "check": "bv --help" },
-    "coordination": { "status": "unavailable", "check": "<actual health check or 'none available'>" }
+    "swarm_runtime": { "status": "unavailable", "check": "<actual runtime capability probe or 'none available'>" },
+    "reservations": { "status": "ready", "check": "test -f .codex/pulse_reservations.mjs" }
   },
   "blockers": [],
   "degradations": [
-    "Coordination runtime unavailable; execution downgraded to single-worker"
+    "Native swarm path unavailable; execution downgraded to single-worker"
   ],
   "next_skill": "pulse:using-pulse"
 }
@@ -260,7 +262,7 @@ Next:
 ## Red Flags
 
 - Marking `PASS` without running actual checks
-- Treating coordination runtime as optional in swarm mode
+- Treating swarm runtime as optional in swarm mode
 - Continuing after `FAIL`
 - Hiding degraded mode from the user
 - Reusing stale `.pulse/tooling-status.json` without refreshing it

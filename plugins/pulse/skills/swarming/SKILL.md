@@ -1,8 +1,8 @@
 ---
 name: swarming
-description: Orchestrates parallel worker agents for phase execution. Use after the pulse:validating skill approves the current phase for execution. Initializes the coordinator runtime, spawns bounded worker subagents, monitors coordination for completions/blockers/file conflicts, coordinates rescues and course corrections, and hands off either to planning for the next phase or to reviewing after the final phase. The orchestrator TENDS — it never implements beads directly.
+description: Orchestrates parallel worker agents for phase execution. Use after the pulse:validating skill approves the current phase for execution. Initializes the active runtime's native coordination surface, spawns bounded workers, monitors completions/blockers/file conflicts, coordinates rescues and course corrections, and hands off either to planning for the next phase or to reviewing after the final phase. The orchestrator TENDS — it never implements beads directly.
 metadata:
-  version: '1.2'
+  version: '1.3'
   ecosystem: pulse
   role: orchestrator
   dependencies:
@@ -16,12 +16,6 @@ metadata:
       command: bv
       missing_effect: degraded
       reason: Swarming inspects the live bead graph with bv.
-    - id: agent-mail
-      kind: mcp_server
-      server_names: [mcp_agent_mail]
-      config_sources: [repo_codex_config, global_codex_config]
-      missing_effect: degraded
-      reason: Swarming coordinates workers through Agent Mail when available.
 ---
 
 # Swarming
@@ -30,7 +24,7 @@ If `.pulse/onboarding.json` is missing or stale for the current repo, stop and i
 
 ## Role Boundary — Read First
 
-You are the **ORCHESTRATOR**. You launch workers, monitor coordination, handle escalations, and keep the swarm moving. You do NOT implement beads. If you find yourself editing source files, stop immediately — that is the pulse:executing skill's job.
+You are the **ORCHESTRATOR**. You launch workers, monitor coordination, handle escalations, and keep the swarm moving. You do NOT implement beads. If you find yourself editing source files, stop immediately — that is the `pulse:executing` skill's job.
 
 - **swarming** = launches and tends workers (this skill)
 - **executing** = each worker's self-routing implementation loop
@@ -39,14 +33,14 @@ You are the **ORCHESTRATOR**. You launch workers, monitor coordination, handle e
 
 If workers are spawned, online, busy, blocked, or expected to report, you are not in a waiting phase. You are in a tending phase.
 
-While the swarm is active, you must keep looping through the coordination runtime and the live bead graph. Do not stop and wait for user direction just because the thread is quiet. Silence is work for the orchestrator:
-- poll inboxes
-- inspect the epic timeline
+While the swarm is active, you must keep looping through the active coordination surface and the live bead graph. Do not stop and wait for user direction just because updates are quiet. Silence is work for the orchestrator:
+- inspect worker follow-ups
+- inspect the live graph
 - send reminders
 - resolve conflicts
 - escalate only when the next move truly requires human judgment
 
-User escalation is for real product decisions, unresolved blockers, or persistent worker silence after you have already tried to recover the swarm through the coordination runtime.
+User escalation is for real product decisions, unresolved blockers, or persistent worker silence after you have already tried to recover the swarm through the active coordination surface.
 
 ## Communication Standard
 
@@ -59,17 +53,17 @@ Prefer:
 - one concrete example of the collision or failure
 - what needs to happen next
 
-Do not hide the real issue behind labels like "reservation conflict", "startup drift", or "runtime blocker" without explaining the practical effect.
+Do not hide the real issue behind labels like `reservation conflict`, `startup drift`, or `runtime blocker` without explaining the practical effect.
 
 ## When to Use
 
 Invoke only if all are true:
 
 - `pulse:validating` has approved execution
-- Current-phase beads are in `open` status and approved for execution
+- current-phase beads are in `open` status and approved for execution
 - `.pulse/tooling-status.json` says `recommended_mode=swarm`
-- the coordination runtime is actually available
-- If `.codex/pulse_status.mjs` exists, run `node .codex/pulse_status.mjs --json` first to confirm onboarding, current phase, and any saved handoff before launching the swarm
+- the active CLI exposes a real native swarm path for this session
+- if `.codex/pulse_status.mjs` exists, run `node .codex/pulse_status.mjs --json` first to confirm onboarding, current phase, reservations, and any saved handoff before launching the swarm
 
 If preflight recommends `single-worker`, do not invoke this skill. Invoke `pulse:executing` directly instead.
 
@@ -98,51 +92,44 @@ Update `.pulse/state.json` and `.pulse/STATE.md` with current swarm intent and e
 
 ---
 
-## Phase 2: Initialize the Coordination Runtime
+## Phase 2: Initialize the Coordination Surface
 
 Use the smallest runtime primitives that preserve these behaviors:
 
-- register the project
-- register the coordinator identity
-- create or reuse the epic thread
-- support worker-to-coordinator messaging
-- support file reservation or an equivalent lock primitive
+- spawn workers
+- deliver startup context
+- observe worker progress
+- send coordinator follow-ups
+- receive worker reports
+- prevent overlapping file edits through the shared reservation helper
+- write and restore owner-scoped handoffs
 
-Canonical architecture terms:
+Adapter mapping:
 
-- `ensure_project`
-- `register_agent`
-- `send_message`
-- `fetch_inbox`
-- `fetch_topic`
-- `file_reservation_paths`
+### Claude Code
 
-If the real runtime uses different names, keep the behavior, not the spelling.
+- use `TeamCreate` when explicit teammate coordination helps
+- use `Agent` to spawn bounded workers
+- use `SendMessage` for coordinator ↔ worker follow-ups
+- use `Task*` only as optional runtime metadata, never as the work graph
 
-Define an epic topic tag:
+### Codex
 
-```
-EPIC_TOPIC="epic-<EPIC_ID>"
-```
+- use the native subagent spawn path
+- use parent-thread follow-ups as the coordination surface
+- keep bead selection and handoffs in the shared Pulse artifacts
 
-Bootstrap the epic coordination thread by sending the first message:
+Shared rules:
 
-```
-send_message(
-  project_key="<project-root-path>",
-  sender_name="<COORDINATOR_AGENT_NAME>",
-  to=["<COORDINATOR_AGENT_NAME>"],
-  subject="[SWARM START] <feature-name>",
-  body_md="Swarm initialized for epic <EPIC_ID> ...",
-  thread_id="<EPIC_ID>",
-  topic="<EPIC_TOPIC>"
-)
-```
+- beads plus `bv` stay the source of truth for work selection
+- `.codex/pulse_reservations.mjs` is the file-coordination layer for every runtime
+- `.pulse/STATE.md`, `.pulse/state.json`, and `.pulse/handoffs/` stay authoritative for pause/resume
+- do not invent extra registration, inbox, or topic mechanics when the runtime does not use them
 
-Template: see `references/message-templates.md` → **Spawn Notification**.
+Post the swarm start notification on the active coordination surface using `references/message-templates.md`.
 
-The epic thread is the coordination surface for:
-- worker startup acknowledgments
+That coordination surface is where workers report:
+- startup acknowledgments
 - completion reports
 - blocker alerts
 - file conflict requests
@@ -155,55 +142,33 @@ The epic thread is the coordination surface for:
 
 Spawn bounded workers that immediately load `pulse:executing`.
 
-```
-Subagent(
-  identity="Worker: <runtime-nickname>",
-  context=<scoped worker context from references/worker-template.md>
-)
-```
-
-`Subagent(...)` is the canonical contract. In an actual runtime, call whatever worker-spawn primitive is available, but preserve the same behavior: the orchestrator stays in control, each worker gets bounded scope by default, and workers report back through the coordination runtime plus the live bead graph.
-
-Worker bootstrap is a two-step runtime handshake:
-
-1. Call the runtime spawn primitive for the worker.
-2. Capture the returned runtime nickname from the spawn result.
-3. Immediately send follow-up startup context to that worker with:
-   - `runtime_nickname`
-   - `project_key`
-   - `epic_id`
-   - `epic_topic`
-   - `feature_name`
-   - `coordinator_agent_name`
-   - optional `startup_hint`
-4. Only after that follow-up arrives may the worker register its session with the coordination runtime.
-
-Do not invent worker names locally. The parent runtime result is the source of truth for the runtime nickname.
-
 Provide each worker:
-- Runtime nickname plus the bootstrap context needed to resolve its Agent Mail identity
-- Feature name / epic ID
-- Instruction to load the `pulse:executing` skill immediately
-- Optional startup hint if there is an urgent ready bead, clearly labeled as a hint rather than an assignment
-- Scoped task-specific context by default; full parent-context inheritance only when explicitly needed
+- `runtime_identity`
+- `coordinator_identity`
+- `adapter_name`
+- `epic_id`
+- `feature_name`
+- optional `startup_hint`
+- scoped task-specific context by default; full parent-context inheritance only when explicitly needed
+
+Do not invent worker identities locally. Use the identity returned by the runtime's worker-spawn primitive.
 
 Do **not** assign workers fixed tracks, fixed waves, or fixed bead lists as the normal case. Workers are expected to:
-1. register
-2. read `AGENTS.md` and project context
-3. post a startup acknowledgment with both identities
-4. fetch inbox updates
-5. call `bv --robot-priority`
-6. reserve files
-7. implement and report
-8. loop
+1. read `AGENTS.md` and project context
+2. load `pulse:executing`
+3. post an `[ONLINE]` acknowledgment
+4. run `bv --robot-priority`
+5. reserve bead paths through `.codex/pulse_reservations.mjs`
+6. implement and report
+7. loop
 
 Mark spawned workers in `.pulse/STATE.md` under `## Active Workers` immediately after each spawn result.
 
 Use one line per worker:
 
-`- Runtime: <runtime-nickname> | Agent Mail: pending | Status: spawned | Current bead: -`
+`- Runtime: <runtime-identity> | Adapter: <adapter-name> | Status: spawned | Current bead: -`
 
-The worker startup acknowledgment will later replace `pending` with the resolved Agent Mail name returned by the coordination runtime session registration.
+The worker startup acknowledgment later updates the same line to `online`.
 
 Use `references/worker-template.md`.
 
@@ -220,23 +185,11 @@ Run a poll-act-repeat loop for as long as any of these are true:
 
 Every loop cycle must do all of the following:
 
-```
-fetch_inbox(
-  project_key="<project-root-path>",
-  agent_name="<COORDINATOR_AGENT_NAME>",
-  topic="<EPIC_TOPIC>"
-)
-fetch_topic(
-  project_key="<project-root-path>",
-  topic_name="<EPIC_TOPIC>"
-)
-```
-
-Then:
-1. Process every new worker message before moving on
+1. Inspect every new worker update on the active coordination surface
 2. Update `.pulse/STATE.md` to reflect the latest worker status
 3. Reply, remind, or coordinate immediately when a worker is blocked or waiting
-4. Re-run the live graph check when a bead closes, a blocker clears, a worker goes silent, or the thread state looks stale
+4. Re-run the live graph check when a bead closes, a blocker clears, a worker goes silent, or the coordination surface looks stale
+5. Refresh reservation state when a conflict, release, or stalled worker could affect file ownership
 
 Use live graph checks for oversight, not assignment:
 
@@ -244,72 +197,73 @@ Use live graph checks for oversight, not assignment:
 bv --robot-triage --graph-root <EPIC_ID>
 ```
 
-Do not park in passive wait mode while the swarm is active. If the thread is quiet, you still keep polling and tending until the swarm is complete or a real human decision is needed.
+Do not park in passive wait mode while the swarm is active. If updates are quiet, you still keep tending until the swarm is complete or a real human decision is needed.
 
 ### Worker Startup Acknowledgments
 
 When a worker posts an online message:
-1. Confirm it joined the correct epic thread
-2. Confirm it reports both the runtime nickname and resolved Agent Mail name
+1. Confirm it joined the correct coordination surface
+2. Confirm it reports the runtime identity
 3. Confirm it explicitly says `AGENTS.md` was read
 4. Confirm it is loading `pulse:executing`
-5. Confirm the worker's next step is `fetch_inbox(...)`, then `bv --robot-priority`
+5. Confirm the worker's next step is `bv --robot-priority`
 6. Update the matching `.pulse/STATE.md` worker entry from:
-   `Runtime: <nickname> | Agent Mail: pending | Status: spawned | Current bead: -`
+   `Runtime: <runtime-identity> | Adapter: <adapter-name> | Status: spawned | Current bead: -`
    to:
-   `Runtime: <nickname> | Agent Mail: <resolved-name> | Status: online | Current bead: -`
+   `Runtime: <runtime-identity> | Adapter: <adapter-name> | Status: online | Current bead: -`
 
 If a worker does not post a startup acknowledgment:
-1. After 2 poll cycles: send a direct reminder telling the worker to re-read `AGENTS.md`, post `[ONLINE]`, and fetch inbox
+1. After 2 poll cycles: send a direct reminder telling the worker to re-read `AGENTS.md`, post `[ONLINE]`, and load `pulse:executing`
 2. After 3 silent poll cycles: mark the worker `stalled-startup` in `.pulse/STATE.md` and send a second reminder
-3. After 5 silent poll cycles with ready work remaining: escalate to the user with the specific worker name, current graph state, and recovery attempts already made
+3. After 5 silent poll cycles with ready work remaining: escalate to the user with the specific worker identity, current graph state, and recovery attempts already made
 
 ### Bead Completion Reports
 
 When a worker posts a completion report:
 1. Verify the bead is actually closed: `br status <bead-id>`
-2. Acknowledge receipt on the thread
-3. Confirm the report includes the bead ID, both worker identities, verification summary, and commit hash
-4. Update `.pulse/STATE.md` using the existing worker entry keyed by runtime nickname
+2. Acknowledge receipt on the active coordination surface
+3. Confirm the report includes the bead ID, worker runtime identity, verification summary, commit hash, and evidence path or paths
+4. Update `.pulse/STATE.md` using the existing worker entry keyed by runtime identity
 5. Re-check the graph to see what newly unblocked
 
 ### Blocker Alerts
 
 When a worker posts a blocker alert:
 1. Assess severity:
-   - **Resolvable with existing context:** reply on the thread
-   - **Needs another worker's status or release:** coordinate via thread
-   - **Needs human judgment:** escalate to user quickly
-   - **Persistent blocker:** invoke `pulse:debugging` to investigate root cause before restarting the worker
+   - **Resolvable with existing context:** reply on the active coordination surface
+   - **Needs another worker's status or release:** coordinate immediately
+   - **Needs human judgment:** escalate to the user quickly
+   - **Persistent blocker:** invoke `pulse:systematic-debug-fix` to investigate root cause before restarting the worker
 2. Do not let workers spin silently on blockers
-3. Record blocker state in `.pulse/STATE.md` on the same worker entry that tracks both names
+3. Record blocker state in `.pulse/STATE.md` on the same worker entry keyed by runtime identity
 
 ### File Conflict Requests
 
-When a worker requests a file another worker holds:
-1. Identify holder and requester
-2. Coordinate one of:
+When a worker requests a path another worker holds:
+1. Inspect the shared reservation state in `.pulse/reservations.json` or through `.codex/pulse_reservations.mjs list --active-only --json`
+2. Identify holder and requester
+3. Coordinate one of:
    - holder releases at a safe checkpoint
    - requester waits
    - requester defers and creates a follow-up bead
-3. Before swarm execution begins from a newly approved phase, capture or refresh a feature checkpoint so resume-brief has a stable freeze-frame for recovery.
-3. Log the resolution in `.pulse/STATE.md` using the existing two-name worker entries
+4. Before swarm execution begins from a newly approved phase, capture or refresh a feature checkpoint so the resume brief has a stable freeze-frame for recovery
+5. Log the resolution in `.pulse/STATE.md` using the runtime-identity worker entries
 
 ### Silence Ladder
 
 Silence is not neutral. Treat it as a coordination problem to resolve.
 
 - After 2 quiet poll cycles from a worker that should have reported: send a reminder
-- After 3 quiet poll cycles from an active worker: send a direct status check telling the worker to fetch inbox, re-read `AGENTS.md` if needed, and report back on the epic thread
+- After 3 quiet poll cycles from an active worker: send a direct status check telling the worker to re-read `AGENTS.md` if needed and report back on the active coordination surface
 - After 5 quiet poll cycles while ready work, in-progress work, or unresolved reservations still exist: mark the worker stalled in `.pulse/STATE.md` and escalate to the user with the concrete status, what you already tried, and why the swarm cannot safely continue unattended
 
 ### Overseer Broadcasts
 
 Use broadcast messages when the swarm needs a shared correction, for example:
-- "re-read AGENTS.md after compaction"
-- "do not touch file X until blocker Y is cleared"
-- "new user decision: D7 is locked, honor it"
-- "fetch inbox now before claiming new work"
+- `re-read AGENTS.md after compaction`
+- `do not touch file X until blocker Y is cleared`
+- `new user decision: D7 is locked, honor it`
+- `refresh reservation state before claiming new work`
 
 ### Worker Monitoring Checklist
 
@@ -327,9 +281,9 @@ After each significant event, estimate your own context budget.
 **If context >65% used:**
 1. Write `.pulse/handoffs/coordinator.json` using the shared handoff envelope from `../using-pulse/references/handoff-contract.md`.
 2. Register it in `.pulse/handoffs/manifest.json` using the same `summary`, `next_action`, and path.
-3. Broadcast a pause notification on the epic thread that includes the rendered handoff summary, resume briefing, and transfer block highlights sourced from that JSON.
+3. Broadcast a pause notification on the active coordination surface that includes the rendered handoff summary, resume briefing, and transfer block highlights sourced from that JSON.
 4. If `.pulse/checkpoints/<feature>/...` is in use, capture or refresh the feature checkpoint before leaving the swarm pause boundary.
-5. Report to user that the orchestrator paused safely and how to resume.
+5. Report to the user that the orchestrator paused safely and how to resume.
 6. Do NOT abandon the swarm without writing the handoff.
 
 The coordinator handoff must follow the same companion contract as planning/executing/validating:
@@ -371,9 +325,9 @@ When no current-phase beads remain `in_progress` and the graph shows no remainin
 
 4. Handoff message:
    - if more phases remain:
-     > "Swarm execution complete for the current phase. Return to pulse:planning to prepare the next phase."
+     > "Swarm execution complete for the current phase. Return to `pulse:planning` to prepare the next phase."
    - if this was the final phase:
-     > "Swarm execution complete for the final phase. Invoke pulse:reviewing skill."
+     > "Swarm execution complete for the final phase. Invoke `pulse:reviewing`."
 
 ---
 
@@ -383,7 +337,7 @@ Stop and diagnose before continuing if you see:
 
 - **Worker implements multiple beads at once** — self-routing does not mean parallelizing within one worker
 - **Orchestrator edits source files** — role violation
-- **Workers are idle but ready beads exist** — fetch inbox, inspect the thread, and recover the swarm instead of waiting for the user
+- **Workers are idle but ready beads exist** — inspect the active coordination surface, inspect the graph, and recover the swarm instead of waiting for the user
 - **No coordination activity for >5 poll cycles while work remains** — workers may be stuck, off-thread, or context-exhausted; run the silence ladder
 - **The same file conflict repeats** — bead decomposition may be too coarse; escalate
 - **Workers stop using `bv --robot-priority` and start freelancing** — re-broadcast the execution contract
@@ -400,5 +354,5 @@ Load when needed:
 |---|---|
 | `references/worker-template.md` | Spawning any worker (Phase 3) |
 | `references/message-templates.md` | Posting or parsing coordination messages |
-| `references/runtime-adapter-spec.md` | Adapting canonical primitives to a concrete runtime |
+| `references/runtime-adapter-spec.md` | Adapting canonical swarm behaviors to a concrete runtime |
 | `references/pressure-scenarios.md` | Re-running RED/GREEN pressure tests for swarm coordination behavior |

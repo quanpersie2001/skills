@@ -9,6 +9,7 @@ export const STATE_SCHEMA_VERSION = "1.0";
 export const CHECKPOINT_SCHEMA_VERSION = "1.0";
 export const CURRENT_FEATURE_SCHEMA_VERSION = "1.0";
 export const RUNTIME_SNAPSHOT_SCHEMA_VERSION = "1.0";
+export const RESERVATION_SCHEMA_VERSION = "1.0";
 
 function utcNow() {
   return new Date().toISOString();
@@ -123,6 +124,27 @@ export function buildDefaultState(overrides = {}) {
   };
 }
 
+export function buildEmptyReservationStore() {
+  return {
+    schema_version: RESERVATION_SCHEMA_VERSION,
+    updated_at: utcNow(),
+    reservations: [],
+  };
+}
+
+export function normalizeReservationStore(store) {
+  if (!store || typeof store !== "object" || Array.isArray(store)) {
+    return buildEmptyReservationStore();
+  }
+
+  return {
+    schema_version: RESERVATION_SCHEMA_VERSION,
+    updated_at:
+      typeof store.updated_at === "string" && store.updated_at ? store.updated_at : utcNow(),
+    reservations: Array.isArray(store.reservations) ? store.reservations : [],
+  };
+}
+
 export function normalizePulseState(state) {
   if (!state || typeof state !== "object" || Array.isArray(state)) {
     return buildDefaultState();
@@ -138,6 +160,7 @@ export function getPulseStatePaths(repoRoot) {
     stateMarkdown: path.join(repoRoot, ".pulse", "STATE.md"),
     currentFeature: path.join(repoRoot, ".pulse", "current-feature.json"),
     runtimeSnapshot: path.join(repoRoot, ".pulse", "runtime-snapshot.json"),
+    reservations: path.join(repoRoot, ".pulse", "reservations.json"),
     handoffManifest: path.join(repoRoot, ".pulse", "handoffs", "manifest.json"),
     checkpointsRoot: path.join(repoRoot, ".pulse", "checkpoints"),
     memoryRoot: path.join(repoRoot, ".pulse", "memory"),
@@ -160,6 +183,43 @@ export function writePulseState(repoRoot, nextState) {
   ensureParent(paths.stateJson);
   fs.writeFileSync(paths.stateJson, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
   return normalized;
+}
+
+export function readReservationStore(repoRoot) {
+  const paths = getPulseStatePaths(repoRoot);
+  return normalizeReservationStore(readJsonIfExists(paths.reservations));
+}
+
+export function writeReservationStore(repoRoot, nextStore) {
+  const paths = getPulseStatePaths(repoRoot);
+  const normalized = normalizeReservationStore(nextStore);
+  ensureParent(paths.reservations);
+  fs.writeFileSync(paths.reservations, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
+  return normalized;
+}
+
+export function ensureReservationStore(repoRoot) {
+  const store = readReservationStore(repoRoot);
+  return writeReservationStore(repoRoot, store);
+}
+
+function summarizeReservations(store) {
+  const reservations = Array.isArray(store?.reservations) ? store.reservations : [];
+  const active = reservations.filter((item) => item?.status === "active");
+  const expired = reservations.filter((item) => item?.status === "expired");
+  const released = reservations.filter((item) => item?.status === "released");
+
+  return {
+    exists: true,
+    schema_version: typeof store?.schema_version === "string" ? store.schema_version : RESERVATION_SCHEMA_VERSION,
+    updated_at: typeof store?.updated_at === "string" ? store.updated_at : "",
+    total: reservations.length,
+    active_count: active.length,
+    expired_count: expired.length,
+    released_count: released.length,
+    active_agents: [...new Set(active.map((item) => item?.agent).filter(Boolean))].sort(),
+    active_reservations: active,
+  };
 }
 
 function firstNonEmptyString(...values) {
@@ -296,6 +356,7 @@ function deriveAndPersistRuntimeArtifacts(repoRoot) {
   const runtimeSnapshot = readJsonIfExists(paths.runtimeSnapshot);
   const toolingStatus = readJsonIfExists(paths.toolingStatus);
   const handoffManifest = readJsonIfExists(paths.handoffManifest);
+  ensureReservationStore(repoRoot);
 
   const draftStatus = {
     repo_root: repoRoot,
@@ -322,6 +383,7 @@ function deriveAndPersistRuntimeArtifacts(repoRoot) {
     },
     current_feature: summarizeCurrentFeature(currentFeature),
     runtime_snapshot: summarizeRuntimeSnapshot(runtimeSnapshot),
+    reservations: summarizeReservations(readReservationStore(repoRoot)),
     handoff_manifest: summarizeHandoffManifest(handoffManifest),
     dependency_health: null,
     gitnexus_readiness: null,
@@ -1762,6 +1824,7 @@ export async function readPulseStatus(repoRoot) {
     state_markdown: stateMarkdownSummary,
     current_feature: currentFeatureSummary,
     runtime_snapshot: runtimeSnapshotSummary,
+    reservations: summarizeReservations(readReservationStore(repoRoot)),
     handoff_manifest: handoffManifestSummary,
     checkpoints,
     history_lifecycle: historyLifecycle,
@@ -2109,6 +2172,9 @@ function renderOperatorSurfaceLines(status) {
   const handoffManifest = status.handoff_manifest && typeof status.handoff_manifest === "object"
     ? status.handoff_manifest
     : { exists: false, active_count: 0, active: [] };
+  const reservations = status.reservations && typeof status.reservations === "object"
+    ? status.reservations
+    : { exists: false, total: 0, active_count: 0, expired_count: 0, released_count: 0, active_agents: [] };
   const checkpoints = status.checkpoints && typeof status.checkpoints === "object"
     ? status.checkpoints
     : { root_exists: false, count: 0, latest: null };
@@ -2160,6 +2226,13 @@ function renderOperatorSurfaceLines(status) {
     lines.push(`  - recommended_mode: ${runtimeSnapshot.recommended_mode || "(unspecified)"}`);
     lines.push(`  - updated_at: ${runtimeSnapshot.updated_at || "(none)"}`);
   }
+
+  lines.push(`- Active reservations: ${reservations.active_count || 0}`);
+  lines.push(`  - reservation_store: ${reservations.exists ? "present" : "missing"}`);
+  lines.push(`  - reservation_count: ${reservations.total || 0}`);
+  lines.push(`  - expired_reservations: ${reservations.expired_count || 0}`);
+  lines.push(`  - released_reservations: ${reservations.released_count || 0}`);
+  lines.push(`  - active_agents: ${(reservations.active_agents || []).length > 0 ? reservations.active_agents.join(", ") : "(none)"}`);
 
   lines.push(`- Active handoffs: ${handoffManifest.active_count || 0}`);
   if (Array.isArray(handoffManifest.active) && handoffManifest.active.length > 0) {

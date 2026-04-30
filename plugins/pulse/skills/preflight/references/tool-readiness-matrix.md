@@ -9,7 +9,8 @@ Use this matrix during `pulse:preflight` to decide whether the run should `PASS`
 | `git` | Every Pulse run | `git rev-parse --show-toplevel` | `FAIL` |
 | `br` | Every Pulse run that uses bead-backed planning/execution | `br --help` | `FAIL` |
 | `bv` | Every Pulse run that prioritizes or validates bead graphs | `bv --help` | `FAIL` |
-| Coordination runtime (Agent Mail or equivalent) | Swarm execution | smallest real health check available | `DEGRADED` to `single-worker`, or `FAIL` if user explicitly requires swarm |
+| Native swarm capability for the active runtime | Swarm execution | smallest real runtime capability check available | `DEGRADED` to `single-worker`, or `FAIL` if the user explicitly requires swarm |
+| `.codex/pulse_reservations.mjs` | Swarm execution | `test -f .codex/pulse_reservations.mjs` | `DEGRADED` to `single-worker`, or `FAIL` if the user explicitly requires swarm |
 | `gitnexus` | Accelerated graph-backed discovery only | verify configured MCP server in the scout/dependency report | continue with fallback |
 | `gh` | PR automation only | `gh --version` | continue without PR automation |
 | docs / web MCP | External research acceleration | runtime-specific health check | continue with local/manual research |
@@ -44,7 +45,8 @@ Use `DEGRADED` when all are true:
 
 Common degraded examples:
 
-- coordination runtime unavailable -> use `single-worker`
+- native swarm capability unavailable -> use `single-worker`
+- reservation helper unavailable -> use `single-worker`
 - `gitnexus` unavailable -> use grep/find/manual discovery
 - `gh` unavailable -> skip PR automation
 
@@ -58,13 +60,21 @@ Use `FAIL` when any are true:
 
 ## Fallback Rules
 
-### No Coordination Runtime
+### No Native Swarm Capability
 
-If coordination runtime is unavailable:
+If the runtime cannot safely support swarming:
 
 - do not launch swarm workers
 - recommend `single-worker`
 - surface the downgrade before continuing
+
+### No Reservation Helper
+
+If `.codex/pulse_reservations.mjs` is unavailable:
+
+- do not launch swarm workers
+- recommend `single-worker`
+- repair onboarding before retrying swarm mode
 
 ### No `gitnexus`
 

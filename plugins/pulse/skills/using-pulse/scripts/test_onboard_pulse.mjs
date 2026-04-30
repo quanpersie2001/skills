@@ -36,13 +36,85 @@ test("applyRepo creates full repo onboarding with node-based hooks", () => {
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "learnings")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "corrections")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "ratchet")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "reservations.json")));
     assert.ok(fs.existsSync(path.join(root, ".codex", "hooks", "pulse_session_start.mjs")));
     assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_state.mjs")));
     assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_status.mjs")));
+    assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_reservations.mjs")));
     assert.match(
       fs.readFileSync(path.join(root, ".codex", "hooks.json"), "utf8"),
       /node \.codex\/hooks\/pulse_session_start\.mjs/,
     );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("installed pulse reservations helper reserves, conflicts, and releases paths", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+    const helperPath = path.join(root, ".codex", "pulse_reservations.mjs");
+
+    const firstReservation = JSON.parse(
+      execFileSync(
+        "node",
+        [
+          helperPath,
+          "reserve",
+          "--agent",
+          "worker-a",
+          "--bead",
+          "BEAD-101",
+          "--path",
+          "src/runtime/adapter.md",
+          "--json",
+        ],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+    const conflict = JSON.parse(
+      execFileSync(
+        "node",
+        [
+          helperPath,
+          "reserve",
+          "--agent",
+          "worker-b",
+          "--bead",
+          "BEAD-102",
+          "--path",
+          "src/runtime/adapter.md",
+          "--json",
+        ],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+    const listed = JSON.parse(
+      execFileSync(
+        "node",
+        [helperPath, "list", "--active-only", "--json"],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+    const released = JSON.parse(
+      execFileSync(
+        "node",
+        [helperPath, "release", "--agent", "worker-a", "--json"],
+        { cwd: root, encoding: "utf8" },
+      ),
+    );
+
+    assert.equal(firstReservation.ok, true);
+    assert.equal(firstReservation.reservation.agent, "worker-a");
+    assert.deepEqual(firstReservation.reservation.paths, ["src/runtime/adapter.md"]);
+    assert.equal(conflict.ok, false);
+    assert.equal(conflict.conflicts.length, 1);
+    assert.equal(conflict.conflicts[0].agent, "worker-a");
+    assert.equal(listed.reservations.length, 1);
+    assert.equal(listed.reservations[0].agent, "worker-a");
+    assert.equal(released.released_count, 1);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -164,6 +236,9 @@ test("pulse status scout renders json for an onboarded repo", async () => {
     assert.equal(payload.memory_recall.root_exists, true);
     assert.equal(payload.memory_recall.critical_patterns, "");
     assert.equal(payload.handoff_manifest.active_count, 0);
+    assert.equal(payload.reservations.exists, true);
+    assert.equal(payload.reservations.total, 0);
+    assert.equal(payload.reservations.active_count, 0);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -276,6 +351,29 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
           state_markdown: ".pulse/STATE.md",
           current_feature: ".pulse/current-feature.json",
         },
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "reservations.json"),
+      `${JSON.stringify({
+        schema_version: "1.0",
+        updated_at: "2026-04-16T10:05:30.000Z",
+        reservations: [
+          {
+            id: "resv-1",
+            agent: "worker-blue-lake",
+            bead_id: "BEAD-014",
+            paths: ["plugins/pulse/skills/swarming/SKILL.md"],
+            created_at: "2026-04-16T10:05:00.000Z",
+            updated_at: "2026-04-16T10:05:30.000Z",
+            ttl_seconds: null,
+            expires_at: null,
+            status: "active",
+            released_at: null,
+            note: "editing swarm contract"
+          }
+        ]
       }, null, 2)}\n`,
       "utf8",
     );
@@ -524,6 +622,10 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
     assert.equal(payload.handoff_manifest.active_count, 2);
     assert.equal(payload.handoff_manifest.active.length, 2);
     assert.equal(payload.handoff_manifest.active[0].owner_id, "planning");
+    assert.equal(payload.reservations.exists, true);
+    assert.equal(payload.reservations.total, 1);
+    assert.equal(payload.reservations.active_count, 1);
+    assert.deepEqual(payload.reservations.active_agents, ["worker-blue-lake"]);
     assert.equal(
       payload.handoff_manifest.active[0].operator_summary,
       "planning | via pulse:planning | feature=operator-surface-foundation | phase=planning/phase-4 | next=Create remaining task beads | summary=Discovery and approach are complete | path=.pulse/handoffs/planning.json",
@@ -648,6 +750,8 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
     assert.match(textStdout, /Current feature snapshot: present/);
     assert.match(textStdout, /Runtime snapshot: present/);
     assert.match(textStdout, /active_feature: snapshot-feature/);
+    assert.match(textStdout, /Active reservations: 1/);
+    assert.match(textStdout, /active_agents: worker-blue-lake/);
     assert.match(textStdout, /Checkpoint root: present/);
     assert.match(textStdout, /checkpoint_count: 1/);
     assert.match(textStdout, /History lifecycle: present/);
@@ -1440,6 +1544,41 @@ test("installed pulse_status text distinguishes missing commands from missing MC
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("packaged swarm contracts use native runtime adapters instead of Agent Mail", () => {
+  const swarmingSkill = fs.readFileSync(
+    path.join(LOCAL_REPO_ROOT, "plugins", "pulse", "skills", "swarming", "SKILL.md"),
+    "utf8",
+  );
+  const executingSkill = fs.readFileSync(
+    path.join(LOCAL_REPO_ROOT, "plugins", "pulse", "skills", "executing", "SKILL.md"),
+    "utf8",
+  );
+  const runtimeAdapter = fs.readFileSync(
+    path.join(LOCAL_REPO_ROOT, "plugins", "pulse", "skills", "swarming", "references", "runtime-adapter-spec.md"),
+    "utf8",
+  );
+  const workerTemplate = fs.readFileSync(
+    path.join(LOCAL_REPO_ROOT, "plugins", "pulse", "skills", "swarming", "references", "worker-template.md"),
+    "utf8",
+  );
+  const messageTemplates = fs.readFileSync(
+    path.join(LOCAL_REPO_ROOT, "plugins", "pulse", "skills", "swarming", "references", "message-templates.md"),
+    "utf8",
+  );
+
+  for (const text of [swarmingSkill, executingSkill, runtimeAdapter, workerTemplate, messageTemplates]) {
+    assert.doesNotMatch(text, /Agent Mail/);
+    assert.doesNotMatch(text, /mcp_agent_mail/);
+  }
+
+  assert.match(runtimeAdapter, /TeamCreate/);
+  assert.match(runtimeAdapter, /SendMessage/);
+  assert.match(runtimeAdapter, /Codex/);
+  assert.match(runtimeAdapter, /pulse_reservations\.mjs/);
+  assert.match(workerTemplate, /pulse:executing/);
+  assert.match(messageTemplates, /Coordinator Event Templates/);
 });
 
 test("packaged Pulse inventory has full dependency coverage", () => {

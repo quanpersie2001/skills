@@ -1,255 +1,190 @@
-# Agent Mail Message Templates
+# Coordinator Event Templates
 
-Standard message formats for swarm coordination. All messages post to the epic thread (`thread_id=<EPIC_ID>`) unless noted otherwise.
-Use a shared epic topic tag in all messages (recommended: `topic="epic-<EPIC_ID>"`).
-Use `<COORDINATOR_AGENT_NAME>` for the coordinator identity, and keep it a valid Agent Mail adjective+noun name.
+Standard message bodies for Pulse swarm coordination. Adapt the delivery primitive to the active runtime.
+
+- Claude Code: use `SendMessage`
+- Codex: use parent-thread follow-up / worker reply flow
+
+Use one shared coordination surface per epic.
 
 ---
 
 ## 1. Spawn Notification
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** After coordination runtime setup is complete, before spawning workers
-**Purpose:** Announces the swarm start and the self-routing execution model
+**Posted by:** coordinator
+**When:** after swarm initialization, before workers begin execution
 
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
-
-```
-Subject: [SWARM START] <feature-name>
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: NORMAL
+```text
+[SWARM START] <feature-name>
 
 Swarm initialized for epic <EPIC_ID>.
 
 Execution model:
 - Workers are self-routing via `bv --robot-priority`
-- File coordination happens through reservations
-- Blockers and course corrections happen in this thread
+- File coordination happens through `.codex/pulse_reservations.mjs`
+- Blockers, completions, and conflicts report here
 
 Workers spawning now:
-- Runtime: <RUNTIME_NICKNAME_1> / Agent Mail: pending
-- Runtime: <RUNTIME_NICKNAME_2> / Agent Mail: pending
-- Runtime: <RUNTIME_NICKNAME_3> / Agent Mail: pending
+- Runtime: <RUNTIME_IDENTITY_1> | Status: spawned
+- Runtime: <RUNTIME_IDENTITY_2> | Status: spawned
+- Runtime: <RUNTIME_IDENTITY_3> | Status: spawned
 
-All workers: join this thread, post startup acknowledgment, then load the pulse:executing skill.
-Coordinator: do not idle after this message. Keep polling `fetch_inbox(...)` and `fetch_topic(...)` until the swarm is complete.
+All workers: post `[ONLINE]`, then load `pulse:executing`.
+Coordinator: keep tending until the swarm is complete.
 ```
 
 ---
 
-## 2. Worker Spawn Acknowledgment
+## 2. Worker Startup Acknowledgment
 
-**Posted by:** Worker
-**When:** Immediately on startup
-**Purpose:** Confirms the worker is live and following the expected loop
+**Posted by:** worker
+**When:** immediately on startup
 
-Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
+```text
+[ONLINE] <RUNTIME_IDENTITY> ready
 
-```
-Subject: [ONLINE] <RUNTIME_NICKNAME> / <AGENT_MAIL_NAME> ready
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: NORMAL
-
-Runtime nickname: <RUNTIME_NICKNAME>
-Agent Mail name: <AGENT_MAIL_NAME>
+Runtime identity: <RUNTIME_IDENTITY>
 AGENTS.md: read
-Status: Loading pulse:executing skill.
-Next step: fetch inbox, then run `bv --robot-priority`, then claim the top executable bead.
+pulse:executing: loading
+Next step: run `bv --robot-priority`, then reserve the selected bead paths.
 ```
 
 ---
 
 ## 3. Completion Report
 
-**Posted by:** Worker
-**When:** After each bead is closed with `br close`
-**Purpose:** Notifies orchestrator of progress
+**Posted by:** worker
+**When:** after `br close`
 
-Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
-
-```
-Subject: [DONE] <bead-id>: <bead-title>
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: NORMAL
+```text
+[DONE] <bead-id>: <bead-title>
 
 Bead closed: <bead-id>
-Title: <bead-title>
-Worker:
-- Runtime nickname: <RUNTIME_NICKNAME>
-- Agent Mail name: <AGENT_MAIL_NAME>
+Worker: <RUNTIME_IDENTITY>
 Commit: <git-commit-hash>
 
 Summary of changes:
-<2-3 sentence description of what was implemented>
+<2-3 sentence implementation summary>
 
 Files modified:
 - <path/to/file1>
 - <path/to/file2>
 
-Verification:
+Verification evidence:
+- <history/<feature>/verification/<bead-id>.md>
 - <command/result summary>
 
 Context budget: ~<XX>% used
-Next action: fetch inbox, then return to `bv --robot-priority`
+Next step: sync with coordinator, then return to `bv --robot-priority`.
 ```
 
 ---
 
 ## 4. Blocker Alert
 
-**Posted by:** Worker
-**When:** Immediately upon discovering a blocking issue
-**Purpose:** Requests orchestrator intervention
+**Posted by:** worker
+**When:** immediately after discovering a blocker
 
-Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
+```text
+[BLOCKED] <bead-id> — <one-line description>
 
-```
-Subject: [BLOCKED] <bead-id> — <one-line description>
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: HIGH
-
-BLOCKED:
-- Runtime nickname: <RUNTIME_NICKNAME>
-- Agent Mail name: <AGENT_MAIL_NAME>
-- Bead: <bead-id>
-
+Worker: <RUNTIME_IDENTITY>
+Bead: <bead-id>
 Blocker type: [MISSING_CONTEXT | DEPENDENCY_NOT_MET | TECHNICAL_FAILURE | AMBIGUITY]
 
 Description:
-<Clear description of what is blocking. Include errors, file names, and relevant details.>
+<clear explanation of the blocker>
 
 What I need to proceed:
-<Specific ask: information, release of a file reservation, user decision, etc.>
+<specific ask>
 
-I am paused on this bead and waiting for a reply on this thread.
-Until a reply arrives, I will keep polling `fetch_inbox(...)` on this topic.
+I am paused on this bead and waiting for coordinator guidance.
 ```
 
 ---
 
 ## 5. File Conflict Request
 
-**Posted by:** Worker
-**When:** Worker needs a file another worker currently holds
-**Purpose:** Coordinates file access without preassigned worker scopes
+**Posted by:** worker
+**When:** reservation helper rejects the requested scope
 
-Runtime call:
-`send_message(project_key=..., sender_name="<AGENT_MAIL_NAME>", to=["<COORDINATOR_AGENT_NAME>"], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
+```text
+[FILE CONFLICT] <path-or-scope>
 
-```
-Subject: [FILE CONFLICT] <path/to/file>
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: HIGH
+Worker: <RUNTIME_IDENTITY>
+Bead: <bead-id>
+Requested paths:
+- <path/to/file>
+- <path/to/file>
 
-File conflict:
-- Runtime nickname: <RUNTIME_NICKNAME>
-- Agent Mail name: <AGENT_MAIL_NAME>
-- Needs a file that is currently reserved.
+Current holder(s):
+- <holder-runtime-identity>
 
-Requested file: <path/to/file>
-Currently reserved by: <AGENT_NAME_holder or "unknown">
-My bead: <bead-id>
-Reason needed: <Why this file is required for this bead>
+Reason needed:
+<why this scope is required>
 
-Awaiting orchestrator decision:
-1. Request holder release at a safe checkpoint
-2. Ask me to wait
-3. Ask me to defer and create a follow-up bead
-
-Until a decision arrives, I will keep polling `fetch_inbox(...)` on this topic.
+Awaiting coordinator decision:
+1. Wait for release
+2. Re-sequence work
+3. Defer into a follow-up bead
 ```
 
 ---
 
 ## 6. File Conflict Resolution
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** Replying to a File Conflict Request
+**Posted by:** coordinator
+**When:** replying to a file conflict
 
-Runtime call:
-`reply_message(project_key=..., message_id=<file-conflict-message-id>, sender_name="<COORDINATOR_AGENT_NAME>", body_md="...")`
+```text
+[CONFLICT DECISION] <path-or-scope>
 
-```
-Subject: Re: [FILE CONFLICT] <path/to/file>
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: NORMAL
+Decision:
+- Requester: <REQUESTER_RUNTIME_IDENTITY>
+- Holder: <HOLDER_RUNTIME_IDENTITY>
+- Action: [WAIT | RELEASE_AT_SAFE_POINT | DEFER]
 
-Decision on file conflict for <path/to/file>:
-
-[Choose one:]
-
-OPTION A — Wait:
-<AGENT_NAME_requester>: wait for <AGENT_NAME_holder> to release the reservation.
-
-OPTION B — Release requested:
-<AGENT_NAME_holder>: please release <path/to/file> when you reach a safe checkpoint.
-<AGENT_NAME_requester>: stand by until release is confirmed.
-
-OPTION C — Defer:
-<AGENT_NAME_requester>: defer this change. Create a follow-up bead and continue with the next executable bead.
+Notes:
+<short resolution notes>
 ```
 
 ---
 
 ## 7. Overseer Broadcast
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** Shared correction or reminder is needed across the swarm
+**Posted by:** coordinator
+**When:** the whole swarm needs the same reminder or correction
 
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=[<worker-list>], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
-
-```
-Subject: [OVERSEER] <short instruction>
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: HIGH
+```text
+[OVERSEER] <short instruction>
 
 Broadcast to all workers:
-
-<Instruction or correction>
+<instruction or correction>
 
 Examples:
-- Re-read AGENTS.md before continuing
-- Fetch inbox before claiming new work
+- Re-read `AGENTS.md` after compaction
 - Do not touch <file/path> until blocker <id> is resolved
-- Decision D7 is now locked; honor it in all remaining work
+- Decision D7 is now locked; honor it in remaining work
+- Refresh reservation state before claiming another bead
 ```
 
 ---
 
 ## 8. Missing Startup Reminder
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** A spawned worker has not posted `[ONLINE]` after 2 poll cycles
-**Purpose:** Forces the worker back onto the thread and back through `AGENTS.md`
+**Posted by:** coordinator
+**When:** a spawned worker has not posted `[ONLINE]` after 2 poll cycles
 
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=["<AGENT_MAIL_NAME-or-runtime-target>"], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
+```text
+[OVERSEER] Startup acknowledgment missing
 
-```
-Subject: [OVERSEER] Startup acknowledgment missing
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: HIGH
-
-You were spawned for epic <EPIC_ID>, but you have not posted your startup acknowledgment yet.
+You were spawned for epic <EPIC_ID>, but you have not posted `[ONLINE]` yet.
 
 Do this now, in order:
 1. Re-read `AGENTS.md`
-2. Post `[ONLINE]` with your runtime nickname and Agent Mail name
+2. Post `[ONLINE]` with your runtime identity
 3. Confirm `AGENTS.md: read`
-4. Run `fetch_inbox(...)`
+4. Load `pulse:executing`
 5. Only then continue into `bv --robot-priority`
 ```
 
@@ -257,79 +192,57 @@ Do this now, in order:
 
 ## 9. Silent Worker Reminder
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** An active worker has gone quiet for 3 poll cycles
-**Purpose:** Pulls an off-thread or drifting worker back into the coordination loop
+**Posted by:** coordinator
+**When:** an active worker has gone quiet for 3 poll cycles
 
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=["<AGENT_MAIL_NAME>"], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
-
-```
-Subject: [OVERSEER] Status update required
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: HIGH
+```text
+[OVERSEER] Status update required
 
 You have gone quiet while the swarm is still active.
 
-Reply on this thread with one of:
-- `[DONE] <bead-id>` if the bead is complete
-- `[BLOCKED] <bead-id>` if you need help
-- `[FILE CONFLICT] <path>` if you are waiting on a reservation
-- `Status: still working on <bead-id>` if you are actively progressing
+Reply with one of:
+- `[DONE] <bead-id>`
+- `[BLOCKED] <bead-id>`
+- `[FILE CONFLICT] <path>`
+- `Status: still working on <bead-id>`
 
-Before replying, re-read `AGENTS.md` if you compacted or drifted, then run `fetch_inbox(...)`.
+If you compacted, re-read `AGENTS.md` before replying.
 ```
 
 ---
 
 ## 10. Coordinator Context Warning
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** Swarm coordinator detects its own context is approaching 65%
-**Purpose:** Warns workers and records the pause using the standard handoff summary/resume briefing/transfer-block vocabulary
+**Posted by:** coordinator
+**When:** coordinator context approaches 65%
 
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=[<worker-list>], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
-
-```
-Subject: [CONTEXT WARNING] Coordinator approaching capacity
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: HIGH
+```text
+[CONTEXT WARNING] Coordinator approaching capacity
 
 Handoff summary:
-Coordinator context is at ~<XX>% and the coordinator is pausing cleanly after saving a swarm handoff.
+Coordinator context is near the limit and the swarm handoff has been saved.
 
 Resume briefing:
-- Next action: Poll the epic thread, then run `bv --robot-triage --graph-root <EPIC_ID>` before sending new coordination instructions.
+- Next action: reopen the coordination surface, then run `bv --robot-triage --graph-root <EPIC_ID>`.
 - Read first: `.pulse/STATE.md`, `.pulse/handoffs/coordinator.json`
 
 Transfer block highlights:
-- Status: Swarm coordinator is paused safely and workers have been left in a known state.
-- Completed: processed thread updates through <mail-id>; recorded latest worker states in `.pulse/STATE.md`
-- In flight: <worker / bead still needing active tending>
-- Blockers: <none or concrete blocker summary>
-- Resume notes: fetch inbox and topic updates before replying; confirm graph counts still match; do not assign new work until blockers/conflicts are reconciled.
-
-Workers: continue the current bead safely, then report status to this thread.
+- Status: coordinator paused safely
+- Completed: recorded latest worker state
+- In flight: <worker / bead still needing attention>
+- Blockers: <none or concrete blocker>
+- Resume notes: refresh reservations before sending new guidance
 ```
 
 ---
 
 ## 11. Swarm Completion Announcement
 
-**Posted by:** Swarm coordinator (`<COORDINATOR_AGENT_NAME>`)
-**When:** All beads are verified closed
+**Posted by:** coordinator
+**When:** all phase beads are verified closed
 
-Runtime call:
-`send_message(project_key=..., sender_name="<COORDINATOR_AGENT_NAME>", to=[<worker-list>], thread_id="<EPIC_ID>", topic="epic-<EPIC_ID>", ...)`
-
-```
-Subject: [SWARM COMPLETE] <feature-name> — all beads closed
-Thread: <EPIC_ID>
-Topic: epic-<EPIC_ID>
-Importance: NORMAL
+```text
+[SWARM COMPLETE] <feature-name>
 
 Swarm complete for epic <EPIC_ID>.
 
@@ -339,88 +252,61 @@ Summary:
 - Build status: PASS
 - Test status: PASS
 
-All workers: your work is complete.
-
-Next step: Invoke the pulse:reviewing skill.
+Next step: invoke `pulse:reviewing`.
 ```
 
 ---
 
-## Handoff JSON Template
+## Coordinator Handoff JSON Template
 
-Write to `.pulse/handoffs/coordinator.json` when the swarm coordinator context exceeds 65%. Register it in `.pulse/handoffs/manifest.json` using the same top-level `summary`, `next_action`, and owner file path.
-
-This template follows the standard handoff summary/resume briefing/transfer block contract from `pulse:using-pulse`.
+Write to `.pulse/handoffs/coordinator.json` when coordinator context exceeds 65%.
 
 ```json
 {
   "schema_version": "2.0",
   "handoff_id": "coordinator-<ISO-8601>",
   "owner_type": "coordinator",
-  "owner_id": "<COORDINATOR_AGENT_NAME>",
+  "owner_id": "<COORDINATOR_IDENTITY>",
   "skill": "pulse:swarming",
   "feature": "<feature-name>",
   "phase": "execution/<EPIC_ID>",
   "status": "ready_to_resume",
-  "paused_at": "<ISO-8601 timestamp>",
+  "paused_at": "<ISO-8601>",
   "reason": "context_critical",
-  "next_action": "Poll the epic thread, then run bv --robot-triage --graph-root <EPIC_ID> before sending new coordination instructions.",
+  "next_action": "Reopen the coordination surface, then run bv --robot-triage --graph-root <EPIC_ID>.",
   "read_first": [
     ".pulse/STATE.md",
     ".pulse/handoffs/coordinator.json"
   ],
-  "summary": "Coordinator paused safely because context is near the limit. Resume by restoring thread state, confirming the live graph still matches the handoff, and then continuing swarm tending.",
+  "summary": "Coordinator paused safely because context is near the limit.",
   "payload": {
     "swarm": {
       "epic_id": "<EPIC_ID>",
       "feature_name": "<feature-name>",
-      "project_key": "<project-root-path>",
-      "epic_topic": "epic-<EPIC_ID>"
+      "adapter": "<claude-code|codex>"
     },
     "graph_status": {
-      "open_beads": ["<bead-id-1>", "<bead-id-2>"],
-      "in_progress_beads": ["<bead-id-3>"],
-      "blocked_beads": ["<bead-id-4>"]
+      "open_beads": ["<bead-id-1>"],
+      "in_progress_beads": ["<bead-id-2>"],
+      "blocked_beads": ["<bead-id-3>"]
     },
     "active_workers": [
       {
-        "runtime_nickname": "<RUNTIME_NICKNAME>",
-        "agent_mail_name": "<AGENT_MAIL_NAME>",
-        "current_bead": "<bead-id-3>",
+        "runtime_identity": "<RUNTIME_IDENTITY>",
+        "current_bead": "<bead-id-2>",
         "status": "in_progress"
       }
     ],
-    "open_blockers": [
-      {
-        "bead_id": "<bead-id>",
-        "worker": {
-          "runtime_nickname": "<RUNTIME_NICKNAME>",
-          "agent_mail_name": "<AGENT_MAIL_NAME>"
-        },
-        "description": "<blocker description>",
-        "thread_message_id": "<mail-id>"
-      }
-    ],
-    "context_snapshot": {
-      "tokens_used_pct": 0.67,
-      "agent_mail_thread": "<EPIC_ID>"
-    },
+    "open_blockers": [],
     "transfer": {
-      "status": "Swarm coordinator is paused safely and workers have been left in a known state.",
-      "completed": [
-        "Processed thread updates through message <mail-id>",
-        "Recorded latest worker states in .pulse/STATE.md"
-      ],
-      "in_flight": [
-        "Need to resume tending worker <AGENT_MAIL_NAME> on bead <bead-id-3>"
-      ],
-      "blockers": [
-        "Worker <AGENT_MAIL_NAME> is blocked on <bead-id-4>: <blocker description>"
-      ],
+      "status": "Coordinator paused safely.",
+      "completed": ["Recorded latest worker state in .pulse/STATE.md"],
+      "in_flight": ["Resume tending worker <RUNTIME_IDENTITY> on <bead-id-2>"],
+      "blockers": [],
       "resume_notes": [
-        "Fetch inbox and topic updates before replying to any worker",
-        "Confirm open/in-progress/blocked counts still match before resuming",
-        "Do not assign new work until file conflicts and blockers are reconciled"
+        "Refresh reservation state before replying",
+        "Confirm graph counts still match",
+        "Do not assign new work until conflicts are reconciled"
       ]
     }
   }

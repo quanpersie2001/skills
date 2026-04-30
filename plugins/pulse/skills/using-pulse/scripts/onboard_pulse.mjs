@@ -35,6 +35,7 @@ const MANAGED_SUPPORT_FILES = {
   "pulse_status.mjs": path.join(USING_PULSE_DIR, "templates", "pulse_status.mjs"),
   "pulse_state.mjs": path.join(USING_PULSE_DIR, "scripts", "pulse_state.mjs"),
   "pulse_dependencies.mjs": path.join(USING_PULSE_DIR, "scripts", "pulse_dependencies.mjs"),
+  "pulse_reservations.mjs": path.join(USING_PULSE_DIR, "scripts", "pulse_reservations.mjs"),
 };
 const LEGACY_HOOK_FILENAMES = [
   "pulse_session_start.py",
