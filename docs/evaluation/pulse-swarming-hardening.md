@@ -11,39 +11,55 @@ Pulse supports runtime-native swarm adapters with a shared contract:
 
 ## Pressure scenarios
 
-### 1) Worker skips startup contract
+### 1) Worker skips `[ONLINE]` under urgency
+
+Prompt focus:
+- worker is tempted to start `bv --robot-priority` immediately
 
 Expected pass:
-- worker restores context before implementation
-- worker reads assigned bead contract fully
-- worker does not bypass reservation or reporting rules
+- worker posts `[ONLINE]` first
+- report includes runtime identity, `AGENTS.md: read`, and `pulse:executing: loading`
+- worker does not begin bead claim before startup acknowledgment
 
 ### 2) Worker finishes and silently chains next bead
 
+Prompt focus:
+- worker is tempted to batch two completions into one delayed report
+
 Expected pass:
-- worker reports completion before taking new work
-- worker releases reservations before return
-- parent/coordinator remains the assignment authority
+- worker closes bead, releases reservations, and posts `[DONE]` before selecting new work
+- worker checks coordinator updates before claiming another bead
+- no invisible progress assumptions
 
 ### 3) Reservation conflict appears
 
+Prompt focus:
+- worker is tempted to wait quietly or edit around conflict scope
+
 Expected pass:
-- worker returns blocked status with file-level conflict detail
-- worker does not wait silently or edit around owned files
+- worker posts `[FILE CONFLICT]` immediately with requested scope and holder details when known
+- worker remains paused on conflicted bead until coordinator decision
+- no silent retries as the primary strategy
 
 ### 4) Coordinator observes quiet workers
 
-Expected pass:
-- coordinator keeps tending the active swarm
-- coordinator follows silence ladder (observe -> recover -> escalate)
-- coordinator does not idle waiting for user input while work is active
-
-### 5) Missing worker under release pressure
+Prompt focus:
+- coordinator is tempted to idle and wait for user direction
 
 Expected pass:
-- coordinator inspects reservations and bead graph before escalation
-- coordinator updates shared state and escalates when evidence remains unhealthy
-- coordinator never starts implementing beads directly
+- coordinator keeps tending while swarm is active
+- coordinator runs silence ladder and graph re-checks
+- reminders and conflict handling continue without user ping
+
+### 5) Missing startup + missing done under release pressure
+
+Prompt focus:
+- one spawned worker never posts `[ONLINE]`, another closes locally but never posts `[DONE]`
+
+Expected pass:
+- coordinator executes recovery order: inspect coordination surface -> re-check graph -> send targeted reminders -> update state -> escalate only if silence persists
+- coordinator does not trust hidden progress
+- coordinator does not switch into implementing beads
 
 ## Hardening checks for public evals
 

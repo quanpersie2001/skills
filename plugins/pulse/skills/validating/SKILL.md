@@ -1,9 +1,9 @@
 ---
 name: validating
 description: |
-  The critical gate between planning and execution in the Pulse ecosystem. Load this skill after planning completes and before execution starts (swarming in multi-worker mode, direct executing in single-worker mode). Verifies the phase contract, story map, and bead graph across 8 structural dimensions, executes time-boxed spikes for HIGH-risk items, polishes beads with bv graph analytics, and requires explicit user approval before any code is written. Prevents executing unclear phases, malformed story breakdowns, unknown blockers, and redundant duplicate work.
+  Critical gate between planning and execution in the Pulse chain. Load after planning and before implementation begins. Validates phase/story/bead integrity across 8 structural dimensions, enforces HIGH-risk spike discipline, and stops all execution until explicit Gate 3 approval. Supports both swarm handoff and direct single-worker execution.
 metadata:
-  version: '1.3'
+  version: '1.4'
   position: 3
   chain: exploring → planning → validating → (swarming | executing)
   dependencies:
@@ -21,487 +21,173 @@ metadata:
 
 # Validating
 
-If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
+If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse`.
 
-> "Don't jump off the wall without checking."
-> — The Pulse principle on verification
+## Purpose
 
-## Why This Skill Exists
+Do not start execution unless the current phase is structurally ready. This skill verifies that:
+- the phase contract is observable and executable
+- story sequencing is coherent
+- beads are schema-valid and implementation-ready
+- HIGH-risk items are proven through spikes
+- execution stays blocked until explicit user approval
 
-The most expensive failure in agentic delivery is not a buggy bead. It is launching execution against a phase that was never clear enough to deserve execution.
+## Non-Negotiable Gates
 
-Pulse now treats a phase as a **bounded, architecture-preserving loop**:
+- **Gate A — Plan approval must already be approved** in `history/<feature>/phase-plan.md`.
+- **Gate B — Bead schema must pass** before structural checking.
+- **Gate C (Gate 3) — Explicit user approval is mandatory before execution.**
 
-- clear entry state
-- clear exit state
-- a credible demo story
-- stories that explain why the internal order makes sense
-- beads that implement those stories without breaking module ownership or final boundaries
+If any gate fails, stop and route back; never “proceed anyway.”
 
-This skill verifies all of that. It is not enough for the bead graph to look tidy. The validator must be able to answer:
-
-- Does this phase close a meaningful loop?
-- If all stories finish, will the exit state be true?
-- If all beads finish, will the stories actually be complete?
-- If the phase fails, will we know whether to debug locally or pivot the larger plan?
-
-Skipping validating is still the fastest path to expensive rework.
-
-## Communication Standard
-
-Validation output must explain risk the way an implementer or user can picture it.
-
-When reporting a failing dimension, spike result, or approval summary:
-
-- state what the current phase is trying to make true
-- describe what is wrong in the current plan or bead set
-- explain why that would fail in a real scenario
-- name the smallest credible repair without weakening the architecture, ownership model, or phase boundaries
-
-Do not stop at labels like "dependency issue", "story order problem", or "risk alignment problem" without translating them into plain language.
-
-## Prerequisites
-
-You need all of these:
+## Required Inputs
 
 - `history/<feature>/CONTEXT.md`
 - `history/<feature>/discovery.md`
 - `history/<feature>/approach.md`
+- `history/<feature>/phase-plan.md`
 - `history/<feature>/phase-<n>-contract.md`
 - `history/<feature>/phase-<n>-story-map.md`
-- `history/<feature>/phase-plan.md`
-- `.beads/` for this epic
+- all `.beads/*.md` for the phase/epic
 
-If any are missing, stop and return to `pulse:planning`.
+If any required artifact is missing, return to `pulse:planning`.
 
-If the bead files do not follow the canonical contract from `pulse:planning/references/bead-template.md`, fix that first.
+## Runtime Flow (Hot Path)
 
----
+### 0) Orient to the active phase (mandatory every run)
 
-## Phase 0: Current Phase Orientation
+Read both:
+- `history/<feature>/phase-plan.md` (approval source of truth)
+- `.pulse/STATE.md` (mirror)
 
-<HARD-GATE>
-Phase 0 orientation is mandatory. Do not run structural verification (Phase 0.5 or Phase 1) without completing Phase 0 first. Phase 0 must be run at the start of every validating session, including resumes — prior completion does not carry forward. "I already know this phase" is not completion. Phase 0 is complete only when the summary below has been presented in full and the approval status has been explicitly confirmed by reading the named approval field in `phase-plan.md`. Skipping or abbreviating it is a Red Flag.
-</HARD-GATE>
+Confirm and present:
+- approval status
+- approved phase index/name
+- story list and practical phase goal
+- mirror status (in sync / out of sync / missing)
 
-Before structural verification, orient the validator.
+If plan approval is not `APPROVED`, stop.
+If plan and mirror disagree, stop and return to planning for sync.
 
-Read from `.pulse/STATE.md` **and** `history/<feature>/phase-plan.md` directly — do not rely on planning session context or user characterization of approval status.
+Use the orientation template from `references/runtime-appendix.md`.
 
-Treat `history/<feature>/phase-plan.md` as the approval source of truth. `.pulse/STATE.md` is only a mirror for quick orientation.
+### 1) Run schema gate (fail fast)
 
-Confirm these fields explicitly before continuing:
-- `Approval status` from `phase-plan.md`
-- `Approved phase to prepare next` from `phase-plan.md`
-- `Plan Gate` / `Approved Phase` from `.pulse/STATE.md` when present
+Before any structural checker:
+- verify every bead has canonical required fields
+- verify `testing_mode: tdd-required` beads include red/green `tdd_steps`
+- verify `verify` and `verification_evidence` are concrete
+- verify file scope is not obviously overbroad
+- verify HIGH-risk beads include meaningful `learning_refs` when prior recall clearly applies
 
-Present a short summary before continuing:
+If schema fails, repair or route back to planning. Do not run plan-checker on malformed beads.
 
-```text
-Validating Phase <n> of <total>: <phase name>
-Approval status: APPROVED | PENDING | REVISE_REQUIRED  ← must be sourced from `phase-plan.md`
-Approval source: history/<feature>/phase-plan.md
-STATE mirror: in sync | out of sync | missing
+Use schema checklist in `references/runtime-appendix.md`.
 
-Stories:
-- Story 1: <name>
-- Story 2: <name>
-- Story 3: <name>
+### 2) Structural verification (max 3 iterations)
 
-Goal of this phase:
-- <one-line practical outcome>
-```
+Run plan-checker against the full artifact set and evaluate all **8 dimensions**:
+1. phase contract clarity
+2. story coverage and ordering
+3. decision coverage
+4. dependency correctness
+5. file scope isolation
+6. context budget
+7. verification completeness
+8. exit-state completeness and risk alignment
 
-If `phase-plan.md` is not `APPROVED`, stop immediately. Do not validate an unapproved phase plan.
+Rules:
+- PASS only if all 8 dimensions pass.
+- On fail, fix exact artifacts and re-run.
+- Maximum 3 iterations. If still failing after 3, escalate and stop.
 
-Handle the mirror state explicitly:
-- if `phase-plan.md` is `APPROVED` and `.pulse/STATE.md` is missing approval fields, stop and send the work back to planning to sync the mirror before validation continues
-- if `phase-plan.md` is `APPROVED` and `.pulse/STATE.md` says pending, revise-required, or a different approved phase, stop and send the work back to planning to resync the artifacts before validation continues
-- if `phase-plan.md` is `PENDING` or `REVISE_REQUIRED` but `.pulse/STATE.md` says approved, stop and send the work back to planning immediately
+Use the plan-checker runtime contract in `references/runtime-appendix.md`.
 
-Do not continue validation when the durable artifact and the mirror disagree.
+### 3) HIGH-risk spike discipline
 
-Phase 0 is complete when this summary has been output. It is not complete until then.
+For each HIGH-risk item from `approach.md`:
+- create one spike bead with a single decisive `spike_question`
+- execute in isolation with a hard 30-minute timebox
+- produce `.spikes/<feature>/<spike-id>/FINDINGS.md`
+- close spike with definitive `YES` or `NO`
 
----
+If timebox expires without decision:
+- present current findings
+- offer: +15m extension (explicit approval), return to planning, or documented mitigation
+- never silently continue beyond the timebox
 
-## Phase 0.5: Schema Gate
+Decision handling:
+- **YES**: propagate constraints into affected beads/story map
+- **NO**: stop, update `approach.md`, return to planning, then re-run validating
 
-Before running the plan-checker, validate the bead schema itself.
+### 4) Bead polishing and readiness
 
-Every bead must have:
+Polish bead graph:
+- `bv --robot-suggest` for dependency completeness
+- `bv --robot-insights` for cycles/bottlenecks/orphans
+- `bv --robot-priority` for foundational ordering
+- deduplicate overlapping same-goal same-scope beads
+- run fresh-eyes bead review and resolve all CRITICAL flags
+- confirm story↔bead mapping coherence both directions
 
-- `dependencies`
-- `files`
-- `verify`
-- `verification_evidence`
-- `testing_mode`
-- `decision_refs`
-- `learning_refs`
+Then run exit-state readiness check:
+- if stories are done, is phase exit state observably true?
+- if beads close, are stories truly done?
+- is demo credible?
+- are architecture boundaries preserved?
+- can executors implement without hidden design guesses?
+- are scopes surgical (no opportunistic cleanup/future-proofing)?
 
-What to do:
+Any “no/not sure” routes back to planning artifacts or bead set; do not approve.
 
-1. scan every bead file for the required fields
-2. if a field is missing, fail fast
-3. normalize the bead immediately or return it to planning for repair
-4. read the `verify` field and confirm it names a concrete proof path, not just a vague action like "run tests"
-5. inspect `files` scope for obvious overbreadth; if the bead spans many files without a tight reason, treat that as a planning defect rather than something execution should sort out ad hoc
+### 5) Final approval gate (Gate 3 hard stop)
 
-If `testing_mode` is `tdd-required`, the bead must also include `tdd_steps` with distinct red and green commands.
+Present validation summary and request explicit approval.
+Use structured question tools when available; otherwise plain text.
 
-Do not let the plan-checker guess from prose when the schema is missing.
-Do not let execution guess what counts as success, which interpretation to implement, or how broad the change is allowed to become.
+Execution is forbidden until approval is explicit.
 
-Additional memory-routing rule:
-- for HIGH-risk beads, `learning_refs` must be meaningfully populated when relevant recall, correction, or ratchet guidance already exists for the same domain, blocker pattern, or file scope
-- if a HIGH-risk bead leaves `learning_refs` empty despite clearly applicable recall guidance, treat that as a structural planning gap and send it back for repair
+On approval:
+- update `.pulse/STATE.md` to validated status
+- hand off by mode:
+  - `recommended_mode=swarm` → invoke `pulse:swarming`
+  - `recommended_mode=single-worker` → invoke `pulse:executing`
 
----
+On rejection:
+- capture concern category and route back precisely (contract/story map/approach/beads)
 
-## Phase 1: Structural Verification
+Use final approval template/options in `references/runtime-appendix.md`.
 
-**Maximum 3 iterations. Nothing advances until this passes.**
+## Execution Mode Compatibility
 
-### Step 1.1 — Spawn plan-checker
+Validating must support both downstream modes:
+- **Swarm mode**: all validations complete, hand off to `pulse:swarming`
+- **Single-worker mode**: all validations complete, hand off to `pulse:executing`
 
-Load `references/plan-checker-prompt.md`. Spawn an isolated subagent with:
-
-```text
-Inputs:
-- all .beads/*.md for this epic
-- history/<feature>/CONTEXT.md
-- history/<feature>/discovery.md
-- history/<feature>/approach.md
-- history/<feature>/phase-<n>-contract.md
-- history/<feature>/phase-<n>-story-map.md
-- history/<feature>/phase-plan.md
-Role: plan-checker
-```
-
-The plan-checker verifies 8 dimensions:
-
-1. **Phase contract clarity** — clear entry state, exit state, demo, unlocks
-2. **Story coverage and ordering** — each story has a job and the order makes sense
-3. **Decision coverage** — locked decisions from `CONTEXT.md` map to stories and beads
-4. **Dependency correctness** — graph is valid and acyclic
-5. **File scope isolation** — parallel-ready beads do not silently collide
-6. **Context budget** — each bead fits in one worker context
-7. **Verification completeness** — stories and beads have explicit done/verify criteria
-8. **Exit-state completeness and risk alignment** — if everything finishes, the phase really reaches its exit state and HIGH-risk items are spiked
-
-### Step 1.2 — Triage results
-
-**If all 8 dimensions PASS:** proceed to Phase 2.
-
-**If any dimension FAILS:**
-
-1. Fix the specific issue in the relevant artifact
-2. Re-run the checker
-3. Count that as the next iteration
-
-### Repair routing
-
-- Phase contract unclear -> revise `phase-<n>-contract.md`
-- Story order or story scope unclear -> revise `phase-<n>-story-map.md`
-- Decision/gap issue -> revise story map and/or beads
-- Dependency/scope/test issue -> revise beads
-- Exit state not convincingly reachable -> revise contract, story map, or approach
-
-After 3 iterations with any FAIL still present:
-
-- stop
-- escalate to the user
-- explain which dimension is still failing and why
-
-Do not attempt iteration 4.
-
----
-
-## Phase 2: Spike Execution
-
-Run this for every HIGH-risk component from `approach.md`.
-
-If no HIGH-risk items exist, skip to Phase 3.
-
-### Step 2.1 — Create spike beads
-
-For every HIGH-risk row in the risk map:
-
-1. read the `component`
-2. read the `spike_question`
-3. read the `affected_beads`
-4. create one spike bead that answers exactly that question
-
-```bash
-br create "Spike: <specific yes/no question>" -t task -p 0
-```
-
-Immediately normalize the spike bead to the canonical schema:
-
-- `type: spike`
-- `spike_question`
-- output file under `.spikes/<feature>/<spike-id>/FINDINGS.md`
-- explicit `verify` entry that requires a definitive `YES` or `NO`
-- `verification_evidence` pointing at `.spikes/<feature>/<spike-id>/FINDINGS.md`
-- `testing_mode: standard`
-
-### Step 2.2 — Execute spikes in isolation
-
-For each spike:
-
-1. Spawn an isolated subagent
-2. Hard time-box: 30 minutes
-3. Write findings to `.spikes/<feature>/<spike-id>/FINDINGS.md`
-4. Close with a definitive YES or NO
-
-```bash
-br close <id> --reason "YES: <validated approach and constraints>"
-# or
-br close <id> --reason "NO: <blocker and why it breaks the approach>"
-```
-
-### Spike Escalation
-
-If the 30-minute time-box expires without a definitive YES or NO:
-
-1. Present findings so far to the user — what was learned and what remains unknown
-2. Offer three options:
-   - Extend by 15 minutes (requires explicit user approval)
-   - Return to `pulse:planning` with an updated risk assessment incorporating what was learned
-   - Proceed with a documented mitigation plan added to the affected beads
-3. Never silently exceed the time-box or treat inconclusive results as YES
-
-### Step 2.3 — Act on spike results
-
-**If YES:**
-
-- add the finding summary to the affected beads
-- update `phase-<n>-story-map.md` if the story now has tighter constraints
-- treat the validated constraint as locked for execution
-
-**If NO:**
-
-- full stop
-- write blocker summary into `approach.md`
-- return to `pulse:planning`
-- re-run validating from Phase 1 after replanning
-
----
-
-## Phase 3: Bead Polishing
-
-Multiple rounds. Quality compounds here.
-
-### Round 1: Dependency completeness
-
-```bash
-bv --robot-suggest
-```
-
-If real structural dependencies are missing, add them and re-run.
-
-### Round 2: Graph health
-
-```bash
-bv --robot-insights
-```
-
-Fix cycles, bottlenecks, disconnected work, and orphaned beads. Re-run if critical findings remain.
-
-### Round 3: Priority sanity
-
-```bash
-bv --robot-priority
-```
-
-Adjust priorities if the graph says foundational work is buried.
-
-### Deduplication
-
-Read all bead titles and descriptions:
-
-- same story + same file scope + same goal -> likely duplicate
-- same outcome expressed as two different beads -> merge or close redundant work
-
-### Fresh-eyes review
-
-Load `references/bead-reviewer-prompt.md` and spawn a subagent with the full bead set.
-
-Use it to catch:
-
-- missing verification evidence
-- `testing_mode: tdd-required` without `tdd_steps`
-- beads that still require outside context to understand
-
-Fix all CRITICAL flags before moving on. MINOR flags are judgment calls but should be considered carefully.
-
-Use `references/bead-reviewer-prompt.md` as the canonical bead-refinement prompt contract.
-
-### Story-to-bead coherence check
-
-Before leaving Phase 3, inspect `history/<feature>/phase-<n>-story-map.md`:
-
-- every story should map to at least one bead
-- every bead should belong to a story
-- if a story has many beads, confirm the decomposition is still coherent and each bead has a clear reason to exist
-- if a bead spans multiple unrelated stories, the decomposition is muddy
-
----
-
-## Phase 4: Exit-State Readiness Review
-
-This is the human-readable readiness check before approval.
-
-Ask these questions explicitly:
-
-1. If all stories reach "Done Looks Like", does the phase exit state hold?
-2. If all beads close successfully, will all stories actually be done?
-3. Is the phase demo story now credible?
-4. Does this phase still make sense in the larger whole plan?
-5. Does this phase preserve the planned ownership boundaries and module interfaces, or is it sneaking in MVP-style temporary structure?
-6. Can an executor implement every bead without making hidden design choices on the fly?
-7. Are the beads scoped tightly enough to support surgical implementation rather than opportunistic cleanup or future-proof refactors?
-
-If any answer is "no" or "not sure", do not approve execution. Route back:
-
-- phase meaning problem -> `phase-<n>-contract.md`
-- story decomposition problem -> `phase-<n>-story-map.md`
-- implementation granularity problem -> `.beads/`
-- architecture/risk problem -> `approach.md` and maybe replanning
-
----
-
-## Phase 5: Final Approval Gate
-
-**This gate is non-negotiable.**
-
-Present a structured summary:
-
-```text
-VALIDATION COMPLETE — APPROVAL REQUIRED BEFORE EXECUTION
-
-Phase Summary:
-- Phase: <Phase n — name>
-- Phase contract: history/<feature>/phase-<n>-contract.md
-- Story map: history/<feature>/phase-<n>-story-map.md
-- Stories: <N>
-- Beads: <N>
-- Demo story: <one line>
-- Execution mode: <swarm | single-worker>
-
-Structural Verification:
-- All 8 dimensions: PASS (after <N> iterations)
-
-Spike Results:
-- HIGH-risk items: <N>
-- Result: <all passed / concerns listed>
-
-Polishing Results:
-- Dependencies added: <N>
-- Graph issues fixed: <N>
-- Priority adjustments: <N>
-- Duplicates removed: <N>
-- Fresh-eyes CRITICAL flags fixed: <N>
-
-Exit-State Readiness:
-- Entry state understood: YES
-- Exit state observable: YES
-- Story sequence coherent: YES
-- Demo credible: YES
-
-Unresolved concerns:
-- <none | list>
-- <note any remaining ambiguity, scope inflation, speculative abstraction, or weak proof criteria explicitly>
-```
-
-If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it for this approval gate with focused options such as:
-- `Approve execution`
-- `Review beads`
-- `Revise plan`
-
-Only fall back to a plain-text approval prompt when no structured question tool exists in the current harness.
-
-### If user approves
-
-Update `.pulse/STATE.md`:
-
-```text
-PHASE: validated
-FEATURE: <feature-name>
-VALIDATED_AT: <timestamp>
-STORIES: <N>
-BEADS: <N>
-```
-
-Handoff:
-
-- `recommended_mode=swarm` -> `Validation complete. Phase contract, story map, and beads all pass. Invoke pulse:swarming skill.`
-- `recommended_mode=single-worker` -> `Validation complete. Phase contract, story map, and beads all pass. Invoke pulse:executing skill.`
-
-### If user rejects
-
-Ask what concerns them specifically and route back. If a structured question tool is available, use it for the rejection routing choices before falling back to plain text:
-
-1. phase meaning / exit state problem
-2. story order or story size problem
-3. risk/spike concern
-4. bead quality problem
-5. fundamental approach problem
-
-Do not guess.
-
----
+The validation standard is identical in both modes.
 
 ## Lightweight Mode
 
-For confirmed LOW-risk single-story, single-bead work:
+Allowed only for confirmed LOW-risk single-story single-bead work:
+- abbreviated structural check on that story/bead
+- skip spikes
+- run `bv --robot-suggest`
+- still require Gate 3 explicit approval
 
-1. abbreviated structural verification on the single story/bead
-2. skip spikes
-3. run `bv --robot-suggest`
-4. still require the final approval gate
-
-If uncertain, use full mode.
-
----
+If uncertain, run full mode.
 
 ## Context Budget
 
-If context exceeds 65%, write a validating-owned handoff using the shared envelope and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path.
-
-Validating handoffs use the same companion blocks as every other Pulse owner:
-
-- `summary` -> short validation-state headline
-- `next_action` + `read_first` -> resume briefing for the next validation turn
-- `payload.transfer` -> the detailed transfer block for what passed, what is still under inspection, and what is blocked
-
-A validating-owned handoff should keep the phase-verification state legible in one read. Include the current phase, the latest gating conclusion, any spike status, and the next proof step inside the transfer block.
-
----
+If context exceeds 65%, write a validating-owned handoff using the shared envelope and register it in `.pulse/handoffs/manifest.json`.
 
 ## Red Flags
 
-- executing any bead before approval
-- skipping Phase 0 orientation and jumping straight to structural verification
-- claiming "Phase 0 was already done this session" to skip re-orientation on resume — Phase 0 runs every time, no exceptions
-- running plan-checker on beads that failed the schema gate
-- validating a bead set that has no phase contract
-- validating a story map that cannot explain "why now" for Story 1
-- a phase exit state that is not observable
-- HIGH-risk items have no concrete `spike_question`
-- a spike returned NO and execution is still being considered
-- a spike answer is not definitive
-- spike findings are not fed back into the affected beads
-- iteration 4 of structural verification
-- a bead's "done" does not clearly connect to any story
-- a story that cannot answer "what does this unlock?"
-- execution starts without explicit approval
-
----
-
-## Reference Files
-
-| File | When to Load |
-|------|-------------|
-| `references/plan-checker-prompt.md` | Phase 1 |
-| `references/bead-reviewer-prompt.md` | Phase 3 fresh-eyes review |
+- any execution before Gate 3 approval
+- skipping phase orientation on resume
+- validating while plan approval is not `APPROVED`
+- validating when `phase-plan.md` and `.pulse/STATE.md` disagree
+- running plan-checker before schema gate passes
+- attempting a 4th structural iteration
+- missing or non-decisive HIGH-risk spike outcomes
+- continuing after a `NO` spike
+- unresolved CRITICAL bead-review flags at approval time

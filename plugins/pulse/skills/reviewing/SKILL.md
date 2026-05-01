@@ -1,8 +1,8 @@
 ---
 name: reviewing
-description: Post-execution quality verification for the Pulse ecosystem. Invoke after the final phase swarm completes. Runs 4 specialist review agents, then a final learnings synthesizer, plus 3-level artifact verification, human UAT, and finishing (PR, cleanup, epic close). Review issues become beads instead of per-finding markdown files; P1 still blocks merge while P2/P3 become non-blocking follow-up beads. Absorbs finishing responsibilities and hands off to compounding.
+description: Post-execution quality verification for the Pulse ecosystem. Invoke after the final phase swarm completes. Uses a 4+1 review model, severity-based review beads, artifact verification, human UAT, and finishing gates. P1 findings hard-block merge and closeout.
 metadata:
-  version: '1.2'
+  version: '1.3'
   ecosystem: pulse
   upstream: swarming
   downstream: compounding
@@ -23,249 +23,56 @@ metadata:
 
 If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
 
-Post-execution quality verification. You are the last automated gate before a feature ships. Your job is to catch what escaped execution — not just confirm tasks are closed, but verify that the work is correct, safe, and complete.
-
-## Communication Standard
-
-Reviewing is where terse technical shorthand is most dangerous. The default tone here is:
-
-- explain the bug in plain language first
-- then show the evidence
-- then give one concrete failure scenario
-- then give the smallest credible fix direction without normalizing temporary architecture, muddy ownership, or broken module boundaries
-
-If a finding makes sense only to someone who already read the diff carefully, it is not written well enough yet.
+Reviewing is the last automated quality gate before shipping. It verifies behavior, safety, and completeness rather than trusting bead closure alone.
 
 ## When to Invoke
 
 - After `pulse:swarming` reports the final phase is complete
-- Manually: when spot-checking any branch or set of changes
-- Flags: `--serial` (always serial), `--skip-uat` (auto mode only, skips Phase 3)
+- Manually when auditing a branch or diff
+- Optional flags: `--serial`, `--skip-uat` (only when human UAT is intentionally omitted and non-interactive evidence is used)
 
-## Prerequisites
+## Required Inputs
 
 Read before starting:
 
-- `.pulse/project-docs.json` when present, plus the smallest relevant listed project docs
-- `history/<feature>/CONTEXT.md` — locked decisions (D1, D2...) and testable deliverables
-- `history/<feature>/approach.md` — planned approach and risk map from planning
-- `history/<feature>/lifecycle-summary.md` when it already exists — durable audit summary from prior review/closeout work
-- `.pulse/STATE.md` — current epic state
-- the git diff or worktree diff
+- `.pulse/project-docs.json` when present, plus minimal relevant listed docs
+- `history/<feature>/CONTEXT.md`
+- `history/<feature>/approach.md`
+- `history/<feature>/lifecycle-summary.md` when present
+- `.pulse/STATE.md`
+- git diff or worktree diff
 
-If `.pulse/project-docs.json` is absent, detect likely project docs (README, architecture, ADR, domain docs) and read the smallest relevant set before finalizing review conclusions.
+If `.pulse/project-docs.json` is absent, detect and read the smallest relevant project docs (README, architecture, ADR, domain docs).
 
-Terminology discipline:
-- Reuse project glossary terms when evaluating correctness.
-- When a user/story term conflicts with project glossary or docs, call it out in the finding and verify behavior against both docs and code before severity assignment.
+## Runtime Contract
 
-## Phase 1: Specialist Review
+All execution-time rules live in `references/runtime-appendix.md`. Treat that file as canonical for:
 
-Pulse uses five review roles. Agents 1-4 are specialist reviewers. Agent 5 is the learnings synthesizer and always runs last.
+- 4+1 review orchestration
+- severity mapping and review bead creation rules
+- Gate 4 hard-block behavior for P1
+- artifact verification contract and severity mapping
+- UAT failure routing
+- finishing checklist and closeout
 
-### Design Note: 4+1 Architecture
+## Minimum Flow
 
-Pulse separates the learnings synthesizer (agent 5) from specialist review (agents 1-4) because the synthesizer needs to see all 4 specialist outputs to identify cross-cutting patterns. Running a combined 5th specialist in parallel would duplicate observations already covered by the other 4. Agent 5 runs after the specialists complete, not truly in parallel with them.
-
-### Dispatch Rules
-
-| Condition | Mode |
-|-----------|------|
-| ≤4 agents active | **Parallel** (default) |
-| 5+ agents active | **Serial** (auto-switch — inform user) |
-| `--serial` flag | Always serial |
-
-With 5 agents, auto-switch to serial mode and tell the user: "Running review agents in serial mode (5 agents). Use --parallel to override."
-
-### Agent Roster
-
-Dispatch agents 1-4 first (parallel or serial per rules above). Agent 5 always runs last regardless of mode.
-
-| Agent | Focus |
-|-------|-------|
-| 1 `code-quality` | Simplicity, readability, DRY, error handling, type safety |
-| 2 `architecture` | Design patterns, coupling, separation of concerns, API design |
-| 3 `security` | OWASP top 10, injection, auth, secrets, data exposure |
-| 4 `test-coverage` | Missing tests, edge cases, integration gaps |
-| 5 `learnings-synthesizer` | Always last — cross-reference `.pulse/memory/`, flag known patterns, suggest compounding entries, and mark repeated failures that may deserve correction or ratchet promotion |
-
-### Isolated Context Per Agent — Critical
-
-Each agent receives only:
-
-1. The git diff (or worktree diff): `git diff <base>..<head>`
-2. `history/<feature>/CONTEXT.md`
-3. `history/<feature>/approach.md`
-
-Do not pass session history, implementation notes, or agent communication logs. Reviewer objectivity depends on seeing only the work product, not the implementer's thought process.
-
-See `references/review-agent-prompts.md` for the exact prompt for each agent.
-
-### Review Bead Rules
-
-Each distinct review issue becomes a bead. The full review write-up lives in the bead body itself: plain-language summary, current behavior, why it matters, concrete failure scenario, evidence, proposed solutions, and acceptance criteria.
-
-Use the bead contract from `references/review-bead-template.md`.
-
-Creation rules:
-
-- **P1** -> create a blocking fix bead on the current review / epic-close path
-- **P2** -> create a non-blocking follow-up bead
-- **P3** -> create a non-blocking follow-up bead
-
-Linkage rules:
-
-- `P1` review beads may stay in the current epic-close path because they are blocking work
-- `P2` / `P3` review beads must not be children of the current epic
-- `P2` / `P3` traceability must use `external_ref=<source-epic-id>` plus labels such as `review`, `review-p2` / `review-p3`, and the source reviewer label
-
-Title pattern:
-
-```
-Resolve Review P1: <problem title>
-Resolve Review P2: <problem title>
-Resolve Review P3: <problem title>
-```
-
-### Severity Rules
-
-| Priority | Label | Criteria | Gate |
-|----------|-------|----------|------|
-| **P1** | CRITICAL | Security vulns, data corruption, breaking changes | Blocks merge — always |
-| **P2** | IMPORTANT | Performance, architecture, reliability | Should fix before merge |
-| **P3** | NICE-TO-HAVE | Minor improvements, cleanup, docs | Record for future |
-
-Calibration rule: Not everything is P1. Severity inflation wastes cycles and trains reviewers to ignore findings. When in doubt, P2.
-
-### Synthesis (After All Agents Complete)
-
-1. Collect the review beads created by agents 1-4
-2. Deduplicate overlapping issues — prefer one surviving review bead per distinct problem; close redundant duplicates with a reason such as `Duplicate of <bead-id>`
-3. Surface `learnings-synthesizer` matches with known-pattern notes on the relevant review bead
-4. When a failure repeats a prior mistake, mark whether it looks like:
-   - a correction candidate (sharp tactical rule)
-   - a ratchet candidate (must-check / non-regression guardrail)
-   - or only a bead-local learning
-5. Count: N P1, N P2, N P3 review beads
-6. Present a summary table to user with bead IDs by severity
-
-When presenting serious findings to the user, do not stop at terse reviewer shorthand. Translate the finding into:
-
-- what the code does today
-- why that breaks the intended behavior
-- one concrete scenario showing the failure
-- the smallest credible fix direction
-
-If P1 review beads exist: HARD-GATE — stop and present. Do not proceed to Phase 2 until user acknowledges. Even in go mode, P1 is always human-gated. Acknowledge means the user has seen the P1 list and directed a fix path. It does not mean permission to merge with P1s open. All P1 review beads must be closed before Phase 4 finishing begins.
-
-## Phase 2: Artifact Verification
-
-Goal-backward check on every artifact named in `CONTEXT.md` and `approach.md`. Task completion does not equal goal achievement — a file existing is not evidence the feature works.
-
-Run this as a subagent with isolated context (diff + CONTEXT.md + approach.md). Use the live bead graph and bead files when you need to verify acceptance criteria coverage.
-
-Use `references/artifact-verification-contract.md` as the canonical Level 1/2/3 verification and severity-mapping contract.
-Use `references/review-bead-template.md` for per-finding bead structure.
-Treat `history/<feature>/verification/` as the canonical evidence surface during execution and review.
-
-## Review Intake
-
-When review beads already exist, resolve them deliberately before finishing:
-
-1. Read every review bead in full before changing code.
-2. Separate clear blockers from unclear feedback; do not guess at ambiguous items.
-3. Verify each review bead against the codebase and the current diff before accepting it as real.
-4. Fix one review item at a time when practical, then re-run the relevant verification.
-5. Re-check the original finding after each fix to confirm the issue is actually gone.
-6. Do not batch opaque review feedback into a blind patch set.
-
-## Phase 3: Human UAT
-
-Walk the user through every testable deliverable from `CONTEXT.md`.
-
-Protocol:
-
-1. Extract all decisions with SEE (visual), CALL (API), or RUN (execution) verification from CONTEXT.md
-2. For each deliverable, present: "Does [X] work as decided in [D-id]?"
-3. Reference the exact decision ID so the user can verify against their original intent
-4. One item at a time — HARD-GATE between each
-
-Example prompt:
-
-```
-UAT Item 3 of 5 — Decision D4:
-"Users can reset their password via email link (D4)."
-Can you navigate to /forgot-password, enter an email, and confirm the reset email arrives?
-[Pass / Fail / Skip]
-```
-
-On failure:
-
-1. Invoke `pulse:systematic-debug-fix` — root-cause the failure
-2. Create a fix bead: `br create "Fix: <description>" -t task -p 0 --parent <epic-id>`
-3. Execute the fix bead (invoke `pulse:executing`)
-4. Re-verify the specific UAT item
-5. Do not proceed until the item passes or user explicitly accepts the failure
-
-On skip: Record in `.pulse/STATE.md` with reason. Do not count as pass.
-
-## Phase 4: Finishing
-
-You are the last step before compounding. Close the loop completely.
-
-Use `references/finishing-checklist.md` as the canonical closeout checklist.
-When creating a PR, include verification status and open P2/P3 follow-up bead lists in the body.
-P2/P3 remain non-blocking, but must stay visible in closeout artifacts.
-
-## Quick Mode
-
-Quick mode still uses review. It only narrows scope for non-feature or tightly bounded work:
-
-- agents 1-4 may run against a smaller diff window
-- UAT may be minimal if the change is non-interactive
-- artifact verification still runs
-- if review reveals new capability, temporary architecture, or ownership-boundary drift, leave quick mode and review against the full feature intent
+1. Run specialist review (4+1 model).
+2. Create review beads by severity and deduplicate overlaps.
+3. Enforce hard gate: if any P1 exists, stop and present; do not continue closeout.
+4. Run artifact verification for all promised deliverables.
+5. Run human UAT unless explicitly skipped under allowed mode.
+6. Execute finishing and update Pulse state artifacts.
+7. Hand off to `pulse:compounding`.
 
 ## Handoff
 
-If review pauses before closeout, write a reviewing-owned handoff using the shared envelope from `../using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path.
+If paused, write a reviewing-owned handoff using `../using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json`.
 
-Review handoffs use the same companion blocks as the rest of Pulse:
-- `summary` -> short review handoff headline
-- `next_action` + `read_first` -> resume briefing for the next review turn
-- `payload.transfer` -> detailed transfer block for findings status, verification progress, and remaining closeout work
-
-If `.pulse/checkpoints/<feature>/...` is in use, treat the pause as a checkpoint trigger boundary and capture or refresh the feature checkpoint before stopping.
-
-After Phase 4 completes:
-
-> "Feature complete. Epic [id] closed. [N] learnings flagged by learnings-synthesizer.
-> Invoke `pulse:compounding` skill to capture patterns, decisions, and failures for future planning cycles."
-
-Update `.pulse/state.json` and `.pulse/STATE.md`:
-
-```
-STATUS: reviewing-complete
-EPIC: <id>
-HANDOFF: compounding
-FLAGGED_LEARNINGS: <count>
-```
-
-## Red Flags
-
-- review skipped because the change looks small, even though it was not routed through an approved lightweight path like `small_change` or Quick Mode
-- agent 5 runs before agents 1-4 finish
-- specialist reviewers are asked to inspect artifacts they were not given
-- P1 findings exist but merge continues
-- P1 review beads created but gate not stopped
-- artifact verification skipped
-- UAT failures marked as pass
-- epic closed with open beads
-- P2/P3 review beads attached as children of the current epic instead of using external_ref + labels
+After finishing completes, report feature completion and explicitly trigger compounding.
 
 ## References
 
+- `references/runtime-appendix.md` — canonical runtime contract
 - `references/review-agent-prompts.md` — exact prompts for all 5 agents
 - `references/review-bead-template.md` — review bead format and creation contract
-- `references/artifact-verification-contract.md` — Level 1/2/3 verification and severity mapping
-- `references/finishing-checklist.md` — canonical review closeout checklist

@@ -1,0 +1,143 @@
+# Reviewing Runtime Appendix (Canonical)
+
+This appendix contains the operational contract for reviewing.
+
+## 1) 4+1 Review Model
+
+Agents 1-4 are specialists. Agent 5 (learnings-synthesizer) always runs after specialist completion.
+
+| Agent | Focus |
+|---|---|
+| 1 `code-quality` | Simplicity, readability, DRY, error handling, type safety |
+| 2 `architecture` | Coupling, boundaries, API design |
+| 3 `security` | OWASP risks, authz/authn, secrets, exposure |
+| 4 `test-coverage` | Missing tests, edge cases, integration gaps |
+| 5 `learnings-synthesizer` | Cross-reference `.pulse/memory/`, repeated failures, compounding candidates |
+
+Dispatch rules:
+
+- `<=4` active agents: parallel by default
+- `>=5` active agents: serial auto-switch (inform user)
+- `--serial`: always serial
+
+Agent 5 never runs in parallel with agents 1-4.
+
+### Isolated context (critical)
+
+Each reviewer gets only:
+
+1. diff (`git diff <base>..<head>`)
+2. `history/<feature>/CONTEXT.md`
+3. `history/<feature>/approach.md`
+
+No session chatter, implementation notes, or agent logs.
+
+## 2) Severity Model and Review Bead Rules
+
+| Priority | Label | Criteria | Gate |
+|---|---|---|---|
+| P1 | CRITICAL | Security vulnerabilities, corruption, breaking behavior | Blocking |
+| P2 | IMPORTANT | Performance, architecture, reliability gaps | Non-blocking follow-up |
+| P3 | NICE-TO-HAVE | Minor improvement/cleanup/docs | Non-blocking follow-up |
+
+Creation + linkage:
+
+- P1 -> blocking fix bead on current review/epic-close path
+- P2/P3 -> non-blocking follow-up beads (`external_ref=<source-epic-id>`, `review` labels)
+- P2/P3 must not be parented under current epic close path
+
+Title pattern:
+
+- `Resolve Review P1: <problem title>`
+- `Resolve Review P2: <problem title>`
+- `Resolve Review P3: <problem title>`
+
+## 3) Gate 4 Blocking Behavior (hard gate)
+
+If any P1 review bead exists:
+
+- stop progression immediately
+- present P1 list with bead IDs and evidence
+- do not proceed to finishing while P1 remains open
+
+User acknowledgment means the user has seen the P1 list and directed a fix path. It never means merge permission with open P1.
+
+## 4) Artifact Verification Contract
+
+Run Level 1 -> Level 2 -> Level 3 for every artifact named in `CONTEXT.md` and `approach.md`:
+
+1. EXISTS
+2. SUBSTANTIVE
+3. WIRED
+
+Use minimal project-appropriate checks and prefer direct evidence.
+
+Severity mapping:
+
+- L1+L2+L3 pass -> no finding
+- L1+L2 only -> P2 review bead
+- L1 only (stub) -> P1 review bead
+- Missing -> P1 review bead
+
+For APIs, config, infra, and CLI flows where human click-through is not applicable, collect non-interactive evidence such as:
+- verification command output
+- before/after behavior or config diff
+- logs proving activation
+- relevant automated test output
+
+Treat `history/<feature>/verification/` as canonical evidence.
+
+## 5) Human UAT and Failure Routing
+
+For each SEE/CALL/RUN deliverable:
+
+- ask one item at a time with decision ID reference
+- collect Pass / Fail / Skip
+
+On failure:
+
+1. invoke `pulse:systematic-debug-fix`
+2. create fix bead
+3. execute fix bead
+4. re-verify failed item
+
+Skip is recorded in `.pulse/STATE.md` and is not a pass.
+
+## 6) Finishing and Closeout
+
+Use this closeout checklist:
+
+- verify epic beads closed (`bv --robot-triage --graph-root <epic-id>`)
+- run final build/test/lint and route failures to blocking review beads
+- present merge options
+- verify canonical evidence in `history/<feature>/verification/`
+- write/refresh `history/<feature>/lifecycle-summary.md`
+- clean worktree if used
+- close epic bead
+- update Pulse state artifacts
+
+P2/P3 remain non-blocking but must be visible in PR and closeout artifacts.
+
+State update after completion:
+
+```text
+STATUS: reviewing-complete
+EPIC: <id>
+HANDOFF: compounding
+FLAGGED_LEARNINGS: <count>
+```
+
+## 7) Red Flags
+
+- skipping review without approved lightweight path
+- running agent 5 before specialists finish
+- bypassing isolated-context contract
+- continuing with open P1
+- skipping artifact verification
+- marking UAT failures as pass
+- closing epic with open blocking beads
+- parenting P2/P3 under current epic instead of external_ref linkage
+
+## 8) Deprecated Finding Files
+
+Per-finding markdown files are retired. The bead body is the canonical review artifact.

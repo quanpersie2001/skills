@@ -360,21 +360,10 @@ node .codex/pulse_reservations.mjs release --agent <runtime_identity> --json
 
 Release **before** sending the completion report so other agents can acquire these files immediately.
 
-### 6e. Send completion report (worker mode) or record completion (standalone)
+### 6e. Report completion
 
-Worker mode: post `[DONE]` on the active coordination surface.
-
-Include:
-- bead ID
-- worker runtime identity
-- commit hash
-- short implementation summary
-- files modified
-- verification status
-- verification evidence path or paths
-- any scoped follow-up that still needs a new bead
-
-Standalone mode: record completion in `.pulse/STATE.md`.
+- worker mode -> post `[DONE]` on the active coordination surface with: bead ID, runtime identity, commit hash, files changed, verify result, evidence paths, and any follow-up bead needed
+- standalone mode -> record equivalent completion details in `.pulse/STATE.md`
 
 ### 6f. Check coordination once after reporting (worker mode)
 
@@ -391,114 +380,19 @@ After each bead:
 
 ### Writing the handoff
 
-Use the standard handoff summary/resume briefing/transfer block contract from `pulse:using-pulse`. Treat this pause boundary as a checkpoint trigger: capture or refresh the feature checkpoint before stopping when the current phase meaningfully changed.
+Use the handoff contract from `pulse:using-pulse` (`../using-pulse/references/history-lifecycle-contract.md`) and write owner-scoped files:
 
-Worker mode handoff payload (write to `.pulse/handoffs/worker-<runtime_identity>.json`):
+- worker mode -> `.pulse/handoffs/worker-<runtime_identity>.json`
+- standalone mode -> `.pulse/handoffs/single-worker.json`
 
-```json
-{
-  "schema_version": "2.0",
-  "handoff_id": "worker-<runtime_identity>-<ISO-8601>",
-  "owner_type": "worker",
-  "owner_id": "worker-<runtime_identity>",
-  "skill": "pulse:executing",
-  "feature": "<feature>",
-  "phase": "execution/<EPIC_ID>",
-  "status": "ready_to_resume",
-  "paused_at": "<ISO timestamp>",
-  "reason": "context_critical",
-  "next_action": "Check the latest coordinator updates, then run bv --robot-priority before claiming more work.",
-  "read_first": [
-    "AGENTS.md",
-    ".pulse/STATE.md",
-    "history/<feature>/CONTEXT.md",
-    ".pulse/handoffs/worker-<runtime_identity>.json"
-  ],
-  "summary": "Worker paused cleanly because context is near the limit. The next turn should restore coordination state, confirm the live graph, and continue from the highest-priority executable bead.",
-  "payload": {
-    "runtime": {
-      "runtime_identity": "<runtime_identity>",
-      "coordinator_identity": "<coordinator_identity>",
-      "adapter_name": "<adapter_name>",
-      "epic_id": "<EPIC_ID>",
-      "feature_name": "<feature_name>"
-    },
-    "context_snapshot": {
-      "tokens_used_pct": 0.67,
-      "last_bead_closed": "<bead-id or null>"
-    },
-    "transfer": {
-      "status": "Worker is paused safely and no longer editing files.",
-      "completed": [
-        "Closed bead <bead-id> and posted the completion report"
-      ],
-      "in_flight": [
-        "No bead currently claimed; resume from the live graph after checking coordination updates"
-      ],
-      "blockers": [],
-      "resume_notes": [
-        "Inspect the active coordination surface before selecting work",
-        "Re-check file reservations before editing any file",
-        "Use bv --robot-priority as the source of truth for the next bead"
-      ]
-    },
-    "verification_evidence_paths": [
-      "history/<feature>/verification/<bead-id>.md"
-    ]
-  }
-}
-```
+Required handoff content:
+- owner identity and mode (`worker` or `single-worker`)
+- paused reason `context_critical`
+- last closed bead (or null) and verification evidence paths
+- transfer block (`completed`, `in_flight`, `blockers`, `resume_notes`)
+- next action that explicitly starts with coordination/state check, then bead selection
 
-Standalone mode handoff payload (write to `.pulse/handoffs/single-worker.json`):
-
-```json
-{
-  "schema_version": "2.0",
-  "handoff_id": "single-worker-<ISO-8601>",
-  "owner_type": "worker",
-  "owner_id": "single-worker",
-  "skill": "pulse:executing",
-  "feature": "<feature>",
-  "phase": "execution/standalone",
-  "status": "ready_to_resume",
-  "paused_at": "<ISO timestamp>",
-  "reason": "context_critical",
-  "next_action": "Re-read state, inspect the next executable bead, and continue the standalone loop.",
-  "read_first": [
-    "AGENTS.md",
-    ".pulse/STATE.md",
-    "history/<feature>/CONTEXT.md",
-    ".pulse/handoffs/single-worker.json"
-  ],
-  "summary": "Single-worker execution paused cleanly because context is near the limit. Resume by restoring state, checking the next bead, and continuing verification discipline.",
-  "payload": {
-    "context_snapshot": {
-      "tokens_used_pct": 0.67,
-      "last_bead_closed": "<bead-id or null>"
-    },
-    "transfer": {
-      "status": "Standalone execution is paused safely.",
-      "completed": [
-        "Closed bead <bead-id> and recorded completion in .pulse/STATE.md"
-      ],
-      "in_flight": [
-        "Next priority hint: <bead-id or short description>"
-      ],
-      "blockers": [],
-      "resume_notes": [
-        "Read the current bead fully with br show before editing",
-        "Keep file edits within the next bead's declared scope",
-        "Update verification evidence before closing another bead"
-      ]
-    },
-    "verification_evidence_paths": [
-      "history/<feature>/verification/<bead-id>.md"
-    ]
-  }
-}
-```
-
-Register the handoff in `.pulse/handoffs/manifest.json` using the same `summary`, `next_action`, and owner file path.
+Register the handoff in `.pulse/handoffs/manifest.json` with matching `summary`, `next_action`, and owner file path.
 
 Worker mode: notify the coordinator after writing the handoff on the active coordination surface.
 

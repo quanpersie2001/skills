@@ -24,15 +24,15 @@ metadata:
 
 # using-pulse
 
-Bootstrap meta-skill. Load this after `pulse:preflight`. It tells you which Pulse skill to invoke next, how the phases chain together, and how Pulse pauses and resumes safely.
+Bootstrap meta-skill. Load this after `pulse:preflight` to route into the correct next Pulse skill and resume safely.
 
-Use this 3-plane model to stay oriented:
+Use this 3-plane model:
 
-- **Operator plane** — what the human is trying to ship right now: the request, approvals, active mode, and next gate.
-- **Cookbook plane** — which Pulse skill to load next: exploring, planning, validating, swarming, executing, reviewing, compounding, or a support skill.
-- **Scout plane** — what the repo already knows: onboarding health, tooling readiness, state files, handoffs, and memory pointers.
+- **Operator plane** — user goal, approvals, active mode, and next gate.
+- **Cookbook plane** — which Pulse skill to invoke next.
+- **Scout plane** — repo truth: onboarding/tooling health, state mirrors, handoffs, and memory pointers.
 
-Think of this skill as the router and scout brief for Pulse. It does not replace the downstream skill instructions; it gets you onto the right path with the right current-state context.
+This skill is a router + scout brief. It does not replace downstream skill contracts.
 
 ## Plugin Onboarding and Migration
 
@@ -86,7 +86,7 @@ If onboarding is not complete, do not continue into the rest of the Pulse workfl
 
 ## Session Scout
 
-This is the scout plane. After onboarding succeeds, use the repo-local scout command as the first quick orientation step whenever it is available:
+After onboarding succeeds, run the repo-local scout first when available:
 
 ```bash
 node .codex/pulse_status.mjs --json
@@ -118,15 +118,14 @@ Recall-pack rules:
 
 ### GitNexus Readiness Is Part of Session Start
 
-Treat `gitnexus` as the preferred graph-backed discovery dependency when it is configured.
+Treat `gitnexus` as the preferred discovery path when configured.
 
-After reading the scout output:
+After scout output:
+- `configured = true`: prefer `pulse:gitnexus`, then confirm with direct file reads.
+- `configured = false`: do not block flow; use grep/file inspection.
+- use `matched_sources` to verify where MCP config came from.
 
-- If `gitnexus readiness` says `configured = true`: prefer `pulse:gitnexus` for architecture/discovery work, then confirm the results with direct file reads.
-- If `configured = false`: do not stall the workflow. Note the fallback and use grep/file inspection.
-- Use `matched_sources` to see where the MCP configuration is coming from instead of guessing whether the repo/session is wired correctly.
-
-Do not invent a fake index-health probe for GitNexus during session start. The scout only tells you whether the MCP server is configured and what discovery path to use next.
+Do not invent index-health checks at session start. Scout readiness is config status, not index quality.
 
 ---
 
@@ -229,34 +228,25 @@ This is the operator-facing language contract for Pulse unless a narrower skill 
 - translate decision IDs, invariants, and architecture terms into plain language
 - prefer "here is what the code does today" over "here is the category of bug"
 
-### What a good response sounds like
+### Response shape
 
-When presenting a plan, finding, blocker, or handoff, the model should usually answer in this order:
+For plans, findings, blockers, and handoffs, answer in this order:
+1. plain-language summary
+2. current behavior/state
+3. why it matters
+4. one concrete scenario
+5. next smallest step
 
-1. **Plain-language summary** -- what is happening or what is proposed
-2. **Current behavior or current state** -- what the system does today
-3. **Why it matters** -- what requirement, decision, or goal this affects
-4. **Concrete scenario** -- one realistic example with values, timestamps, requests, user actions, or ordering
-5. **Next step** -- the smallest credible fix, revision, or decision needed
+### Avoid
 
-### What to avoid
-
-- terse shorthand like "violates D5", "non-monotonic", "race condition", "coverage gap", or "architecture concern" without immediate explanation
-- summaries that assume the reader remembers the diff or the planning session
-- abstract labels with no example of what would actually happen
-- explanations that begin with terminology and only later reveal the user-visible problem
+- shorthand without explanation (for example: "violates D5", "race condition")
+- summaries that assume prior context
+- abstract labels without user-visible impact
+- terminology-first explanations that hide the real behavior
 
 ### Translation rule
 
-If you use technical language, immediately translate it.
-
-Examples:
-
-- Instead of: `This write is non-monotonic.`
-  Say: `An older update can overwrite a newer timestamp, so the system can think the user was last active earlier than they really were.`
-
-- Instead of: `Violates D5.`
-  Say: `Decision D5 says the fallback should use the most recent inbound user message time. Right now the code uses webhook ingest time instead, which can drift from the real message time.`
+If technical language is needed, immediately translate it into user-visible behavior.
 
 ### Scope
 

@@ -8,7 +8,7 @@ description: >-
   phase-plan.md, and then writes current-phase contract/story artifacts plus
   beads for that phase only.
 metadata:
-  version: '2.2'
+  version: '2.3'
   ecosystem: pulse
   dependencies:
     - id: beads-cli
@@ -34,34 +34,12 @@ metadata:
 If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
 
 Planning has two jobs:
+1. Make the whole feature legible in plain language.
+2. Prepare only the next approved phase for validating and execution.
 
-1. Show the whole feature in a way a human can immediately understand.
-2. Prepare only the next phase for execution after the human approves that shape.
-
-If this skill cannot explain the work in plain language with practical examples, it is not done.
-
-## Communication Standard
-
-Planning explanations should sound like a teammate explaining the work at a whiteboard, not like a planner reciting internal categories.
-
-When describing phases or stories:
-
-- start with what becomes true in the product or system
-- explain why the order makes sense using a realistic scenario
-- use technical terms only after the practical meaning is clear
-- avoid vague labels like "foundation", "polish", or "integration layer" unless they are immediately translated into concrete outcomes
-
-Bad:
-
-- `Phase 1 establishes the foundational ingestion abstraction.`
-
-Good:
-
-- `Phase 1 makes one inbound message arrive safely, get normalized, and become visible in the inbox. We do this first because nothing else matters until one real message can get through the system correctly.`
+If this skill cannot explain the work with practical outcomes and realistic examples, it is not done.
 
 ## Core Planning Model
-
-Pulse now plans at five levels:
 
 ```text
 Whole Feature
@@ -72,646 +50,129 @@ Whole Feature
 ```
 
 - **Whole Feature**: the full thing the user asked for
-- **Phase Plan**: the list of meaningful chunks that will get us there
-- **Current Phase**: the chunk we are preparing right now
-- **Story**: why the work inside the current phase happens in this order
-- **Bead**: the worker-sized task
+- **Phase Plan**: meaningful chunks that reach that full result
+- **Current Phase**: the one chunk prepared now
+- **Story**: causal sequence inside the current phase
+- **Bead**: worker-sized executable unit
 
-### Plain-language definitions
+For new feature work, define whole-feature architecture before slicing phases: enduring foundations, ownership boundaries, interfaces, and contracts first.
 
-- **Phase** means: "what becomes true for real people or real systems after this chunk lands?"
-- **Story** means: "what has to happen first, next, and last inside this phase so the result is believable?"
-- **Bead** means: "what one worker can pick up and finish without guessing?"
+## Hot-Path Rules
 
-For new feature work, define the whole-feature architecture before you define phases. Name the enduring foundations, module ownership, interfaces, and cross-module contracts first, then slice execution into phases that preserve those boundaries. Do not treat a phase as an MVP version of the feature.
+- `history/<feature>/CONTEXT.md` is the source of truth; planning reads but never overrides locked decisions.
+- Read `.pulse/project-docs.json` first when present, then listed docs before relying only on feature history artifacts.
+- Gate 2 is mandatory: do not prepare current-phase artifacts or beads before explicit phase-plan approval.
+- Plan the full feature first, but create beads only for the approved current phase.
+- Keep phase descriptions outcome-first and scenario-first, not layer-jargon-first.
+- Carry relevant corrections/ratchets from learnings into bead `learning_refs`.
 
-If a phase sounds like a bucket of chores, or a story sounds like an implementation layer, revise it before moving on.
-
-## Worked Example
-
-Keep phase and story explanations scenario-first. For concrete examples and expansion patterns, use:
-- `references/phase-plan-template.md`
-- `references/story-map-template.md`
-
-The standard remains unchanged: Phase 1 must be obviously first, story order must be causally justified, and each phase must describe a real observable outcome.
-
-## Pipeline Overview
+## Pipeline
 
 ```text
-CONTEXT.md (from exploring)
-  |
-Phase 0: Learnings Retrieval        -> institutional knowledge
-Phase 1: Discovery                  -> history/<feature>/discovery.md
-Phase 2: Synthesis                  -> history/<feature>/approach.md
-Phase 3: Whole Feature Phase Plan   -> history/<feature>/phase-plan.md
-  - create Approval Summary with `Approval status: PENDING`
-HARD-GATE: user approves phase plan before current-phase prep
-  - after approval, update `phase-plan.md` to `Approval status: APPROVED`
-  - if revision is requested, keep or set `Approval status: REVISE_REQUIRED`
-Phase 4: Current Phase Contract     -> history/<feature>/phase-<n>-contract.md
-Phase 5: Current Phase Story Map    -> history/<feature>/phase-<n>-story-map.md
-Phase 6: Multi-Perspective Check    -> refine current phase artifacts (HIGH-stakes only)
-Phase 7: Current Phase Bead Creation -> .beads/* for this phase only
-  |
-Handoff: "Invoke pulse:validating skill for Phase <n>."
+CONTEXT.md
+  -> Phase 0 Learnings Retrieval
+  -> Phase 1 Discovery                 (history/<feature>/discovery.md)
+  -> Phase 2 Synthesis                 (history/<feature>/approach.md)
+  -> Phase 3 Whole Feature Phase Plan  (history/<feature>/phase-plan.md)
+  -> HARD-GATE (Gate 2): human approval required
+  -> Phase 4 Current Phase Contract    (history/<feature>/phase-<n>-contract.md)
+  -> Phase 5 Current Phase Story Map   (history/<feature>/phase-<n>-story-map.md)
+  -> Phase 6 Multi-Perspective Check   (HIGH-stakes only)
+  -> Phase 7 Current Phase Bead Creation (.beads/* via br)
+  -> Handoff: invoke pulse:validating for Phase <n>
 ```
 
-## Before You Start
+## Phase Execution Contract
 
-If `.codex/pulse_status.mjs` exists, run `node .codex/pulse_status.mjs --json` first so you start from the latest onboarding/state/handoff snapshot instead of inferring it from memory.
+### Before you start
 
-**Read CONTEXT.md first.** It is the single source of truth. Every research decision, every phase, every story, and every bead must honor the locked decisions inside it.
+1. If `.codex/pulse_status.mjs` exists, run `node .codex/pulse_status.mjs --json`.
+2. Read `history/<feature>/CONTEXT.md`; if missing, stop and ask user to run `pulse:exploring`.
+3. Stop if `.pulse/tooling-status.json` reports `blocked`.
+4. Read project docs first (`.pulse/project-docs.json` when present; otherwise minimal relevant docs set).
 
-```bash
-cat history/<feature>/CONTEXT.md
-```
+### Phase 0: Learnings Retrieval (mandatory)
 
-If `CONTEXT.md` does not exist, stop. Tell the user: "Run the pulse:exploring skill first to lock decisions before planning."
+1. Read `.pulse/memory/critical-patterns.md`.
+2. Check staleness via `.pulse/STATE.md`; if last compounding is missing or >3 completed features old, warn and continue.
+3. Use recall-pack pointers first (corrections -> ratchets -> learnings), then targeted grep only if needed.
+4. Record `Institutional Learnings` at top of `history/<feature>/discovery.md`.
 
-If `.pulse/tooling-status.json` says `blocked`, stop and clear preflight blockers before planning further.
+### Phase 1: Discovery
 
-If a larger roadmap or whole-feature document exists, read it too. The phase plan should show how the feature unfolds from a foundation-first, production-worthy opening phase to finished capability. Plan the whole-feature architecture before you slice execution into phases.
+- Explore architecture topology, existing patterns, constraints, and external references only when novel.
+- Prefer GitNexus when configured; explicitly document fallback when unavailable.
+- Write `history/<feature>/discovery.md` using `references/planning-reference.md`.
 
-Project docs first:
-- Read `.pulse/project-docs.json` first when present, then read the listed docs before relying only on feature-history artifacts.
-- If `.pulse/project-docs.json` is absent, detect and read the smallest relevant project docs set (README, architecture, ADR, domain docs).
-- Reuse existing glossary terms; if terminology conflicts with `CONTEXT.md` wording, surface it and resolve the meaning before phase slicing.
+### Phase 2: Synthesis
 
----
+- Read `CONTEXT.md` + `discovery.md`.
+- Write `history/<feature>/approach.md` using `references/planning-reference.md`.
+- Include gap analysis, recommended approach, alternatives, risk map, proposed structure, learnings applied.
+- For every HIGH risk define: component, reason, validating owner, YES/NO spike question, affected beads, decision gate options, and `testing_mode` expectation.
 
-## Phase 0: Learnings Retrieval
+### Phase 3: Whole Feature Phase Plan (Gate 2 setup)
 
-Institutional knowledge prevents re-solving solved problems. This phase is mandatory.
+- Write `history/<feature>/phase-plan.md` using `references/planning-reference.md`.
+- Must define foundation-first architecture baseline and 2-4 meaningful phases with observable outcomes.
+- Set `Approval status: PENDING` and stop for user approval.
+- If revised, set or keep `REVISE_REQUIRED`; only set `APPROVED` after explicit approval.
 
-### Step 0.1: Always read critical patterns
+Approval sync checklist before moving forward:
+1. Update `history/<feature>/phase-plan.md` approval state.
+2. Sync same state into `.pulse/STATE.md`.
+3. Confirm both artifacts name the same approved phase.
 
-```bash
-cat .pulse/memory/critical-patterns.md
-```
+### Phase 4: Current Phase Contract
 
-### Step 0.1.1: Check institutional memory staleness
+- Select first unprepared phase from `.pulse/STATE.md` unless user chooses another.
+- Write `history/<feature>/phase-<n>-contract.md` using `references/planning-reference.md`.
+- Must lock entry/exit states, demo walkthrough, unlocks, non-goals, assumptions, and success criteria.
 
-After reading `critical-patterns.md`, read `.pulse/STATE.md` and look for the `last_compounding_run` field or any record of the last feature where compounding completed.
+### Phase 5: Current Phase Story Map
 
-Count how many features have completed (reached reviewing/compounding) since that record. If the count is greater than 3, or if `STATE.md` has no `last_compounding_run` record at all, emit this warning before continuing:
+- Write `history/<feature>/phase-<n>-story-map.md` using `references/planning-reference.md`.
+- Stories must state what happens, why now, serial/parallel safety, shared-collision risk, done criteria, and testing discipline hints.
 
-> ⚠️ Institutional memory may be stale — consider running pulse:compounding after this feature completes.
+### Phase 6: Multi-Perspective Check (HIGH-stakes only)
 
-This is a warning only. Do not block planning. Continue immediately after surfacing it.
+Run only for high-stakes phases (core architecture/auth/data model/high blast radius). Iterate 1-2 rounds across phase plan, contract, and story map until changes are incremental.
 
-### Step 0.2: Use targeted recall before broad memory search
+### Phase 7: Current Phase Bead Creation
 
-If the scout output is available, read its recall pointers first.
+- Create real beads with `br create`; never pseudo-beads in markdown.
+- Create epic first if missing, then current-phase task beads only.
+- Normalize every bead immediately with required schema fields:
+  - `dependencies`, `files`, `verify`, `verification_evidence`, `testing_mode`, `decision_refs`, `learning_refs`
+- Use `references/bead-template.md` for bead schema details.
+- Fill Story-To-Bead Mapping in `phase-<n>-story-map.md` after bead creation.
 
-Priority order:
-1. recall-pack corrections that match the current feature, blockers, or file scope
-2. recall-pack ratchet rules that look like non-regression checks for this phase
-3. recall-pack learnings that match the current domain
-4. only then run broader manual searches if the recall pack is too thin
+## STATE + Handoff
 
-Treat the recall pack as metadata-ranked guidance, not just filename heuristics. When a correction or ratchet clearly applies, carry that exact path into bead `learning_refs` instead of assuming a later worker will rediscover it.
+After major transitions, update `.pulse/STATE.md` as a mirror of durable artifacts (source of truth remains history files).
 
-The point is to start from the smallest credible planning input set, not to grep the whole memory plane by default. This is a research-efficiency rule, not permission to minimize the feature shape or defer architectural thinking.
+If context exceeds 65% at a phase boundary:
+- write `.pulse/handoffs/planning.json` with the shared envelope from `../using-pulse/references/handoff-contract.md`
+- register it in `.pulse/handoffs/manifest.json`
+- keep payload concise and phase-specific (`completed_through`, `artifacts_written`, `beads_created`, `open_questions`, `stories_defined`)
 
-### Step 0.3: Search for additional domain-relevant learnings only if needed
+## Completion Handoff
 
-Extract 3-5 keywords from the feature name and `CONTEXT.md`, then run focused searches only when the recall pack did not already surface enough context:
+On success:
+- discovery, approach, phase-plan, phase-contract, and story-map are written
+- Gate 2 approval is recorded and synced
+- only current-phase beads are created and normalized
+- HIGH-risk components are flagged for validating
 
-```bash
-grep -r "tags:.*<keyword1>" .pulse/memory/learnings/ -l -i
-grep -r "tags:.*<keyword2>" .pulse/memory/learnings/ -l -i
-grep -r "<ComponentName>" .pulse/memory/learnings/ -l -i
-```
-
-### Step 0.4: Score and include
-
-- Strong match -> read full file, include its insight
-- Weak match -> skip
-- Corrections -> treat as "what must not be repeated", not as general inspiration
-- Ratchet rules -> treat as must-check constraints for current planning and later validation
-
-### Step 0.5: Document what you found
-
-At the top of `history/<feature>/discovery.md`, add an `Institutional Learnings` section. If nothing relevant exists, write: `No prior learnings for this domain.`
-
-When corrections or ratchet rules are relevant, name them explicitly so downstream validating and debugging can see the propagation path.
-
----
-
-## Phase 1: Discovery
-
-Map the codebase, identify constraints, and research external patterns to the depth the feature requires.
-
-### Discovery areas
-
-Always explore:
-
-1. **Architecture topology** — where this feature will live in the codebase
-2. **Existing patterns** — what should be reused or modeled after
-3. **Technical constraints** — runtime, dependencies, build/test requirements
-
-Explore if relevant:
-
-4. **External research** — only when the feature introduces a novel library, integration, or pattern
-
-### Parallelization guidance
-
-- **Standard feature**: 2-3 agents covering architecture, patterns, constraints
-- **New integration/library**: 3-4 agents including external research
-- **Pure refactor**: 1-2 agents focused on existing patterns and constraints
-- **Architecture change**: go deep on topology and replacement risk
-
-If the scout reports GitNexus configured, treat `pulse:gitnexus` as the preferred discovery path.
-
-- `gitnexus_readiness.configured = true` means use GitNexus first for architecture snapshot, pattern search, symbol context, and blast-radius evidence.
-- `gitnexus_readiness.configured = false` means document the fallback and continue with `rg` and file inspection instead of stalling.
-
-When GitNexus is configured, use its MCP tools for discovery before falling back to ad hoc grep.
-If GitNexus is unavailable for this repo/session, say that explicitly in `discovery.md` before the fallback findings.
-
-### Output
-
-All discovery findings go to:
-
-`history/<feature>/discovery.md`
-
-Use `plugins/pulse/skills/planning/references/discovery-template.md`.
-
----
-
-## Phase 2: Synthesis
-
-Close the gap between codebase reality and the feature requirements.
-
-Read:
-
-- `history/<feature>/CONTEXT.md`
-- `history/<feature>/discovery.md`
-
-Write:
-
-- `history/<feature>/approach.md`
-
-The synthesis result must produce:
-
-1. **Gap Analysis**
-2. **Recommended Approach**
-3. **Alternatives Considered**
-4. **Risk Map**
-5. **Proposed File Structure**
-6. **Institutional Learnings Applied**
-
-Use `plugins/pulse/skills/planning/references/approach-template.md`.
-
-### Risk classification
-
-| Level | Criteria | Action |
-|-------|----------|--------|
-| LOW | Pattern exists in codebase | Proceed |
-| MEDIUM | Variation of existing pattern | Interface sketch optional |
-| HIGH | Novel, external dep, blast radius >5 files | Flag for validating to spike |
-
-For every HIGH-risk item, planning must define:
-
-- `component`
-- `reason`
-- `validation_owner` = `validating`
-- `spike_question` that can be answered `YES` or `NO`
-- `affected_beads`
-- a short decision gate with 2-3 concrete options and the recommendation
-- whether the affected beads should use `testing_mode: tdd-required`
-
-Planning does not create spike beads.
-
----
-
-## Phase 3: Whole Feature Phase Plan
-
-Now turn the feature into an understandable sequence of phases before preparing any execution work.
-
-Write:
-
-- `history/<feature>/phase-plan.md`
-
-Use `plugins/pulse/skills/planning/references/phase-plan-template.md`.
-
-### What phase planning must answer
-
-For the whole feature:
-
-1. What durable architecture baseline must every phase preserve?
-2. What are the 2-4 meaningful phases?
-3. What changes for real users or systems after each phase?
-4. Why does Phase 1 come before Phase 2?
-5. What is the simplest believable demo for each phase?
-6. Which phase should be prepared first?
-
-### Rules for a good phase plan
-
-- Every phase must describe a real, observable capability slice
-- A reader should understand the phase without reading implementation files
-- Phases must preserve the defined ownership boundaries and contracts instead of quietly collapsing them
-- Phase 1 must feel obviously first
-- If a phase has 5+ stories, it is probably too large
-- If a phase can only be described with architecture jargon, rewrite it in practical language
-
-### HARD-GATE: approval before current-phase prep
-
-After writing `phase-plan.md`, stop and present:
-
-- feature summary in 2-4 sentences
-- phases in order
-- stories inside each phase
-- which phase will be prepared next
-
-Use handoff wording like:
-
-> "Planning has broken the feature into phases and stories.
-> Review `history/<feature>/phase-plan.md`.
-> If you approve this shape, planning will prepare Phase <n> for validating.
-> Do not create beads before this approval."
-
-If the user asks for revisions, update `phase-plan.md` first and keep or set `Approval status: REVISE_REQUIRED` until a new approval is given.
-
-Approval sync checklist before current-phase prep:
-1. update `history/<feature>/phase-plan.md` to the correct approval state
-2. sync the same approval state into `.pulse/STATE.md`
-3. confirm both artifacts name the same approved phase
-4. only then move forward
-
-Do not move forward until the phase plan is approved.
-
----
-
-## Phase 4: Current Phase Contract
-
-Only after `phase-plan.md` is approved, prepare the current phase.
-
-### Select the current phase
-
-- Default to the first phase not yet prepared or completed in `.pulse/STATE.md`
-- If no state exists, start with Phase 1
-- If the user explicitly chooses a later phase, honor that and record it in `.pulse/STATE.md`
-
-Write:
-
-- `history/<feature>/phase-<n>-contract.md`
-
-Use `plugins/pulse/skills/planning/references/phase-contract-template.md`.
-
-The current phase contract must answer, in plain language:
-
-1. What changes in real life when this phase lands
-2. What the **entry state** is
-3. What the **exit state** is
-4. What the simplest **demo walkthrough** is
-5. What this phase unlocks next
-6. What is explicitly out of scope
-7. What signals would force a pivot
-8. Which assumptions are locked already vs which ambiguity still requires clarification before execution
-9. What concrete success criteria would let a validator or executor prove the phase is done without guessing
-
-### Rules for a good current-phase contract
-
-- The exit state must be observable, not aspirational
-- The phase must close a meaningful small loop by itself
-- The demo walkthrough must prove the phase is real
-- If the phase fails, the team should know whether to debug locally or rethink the larger plan
-- Hidden assumptions should be surfaced explicitly instead of left for workers to infer under pressure
-- Non-goals should be concrete enough to block opportunistic cleanup and speculative architecture during execution
-- Success criteria should be specific enough that validating can reject the phase if execution would otherwise require guessing
-
-If you cannot explain the phase in 3-5 simple sentences, revise the phase plan or approach before moving on.
-
----
-
-## Phase 5: Current Phase Story Map
-
-Now break the current phase into stories.
-
-Write:
-
-- `history/<feature>/phase-<n>-story-map.md`
-
-Use `plugins/pulse/skills/planning/references/story-map-template.md`.
-
-### Story rules
-
-Every story must state:
-
-- what happens in this story
-- why it happens now
-- whether it runs serially or in parallel and why that is safe
-- what part of the phase exit state it advances
-- what it creates
-- what it unlocks next
-- what shared files or shared context create coordination risk
-- what "done looks like"
-- what testing discipline downstream beads should likely inherit when risk is higher
-
-### Story quality checks
-
-- Story 1 must have an obvious reason to exist first
-- Every story must unlock or de-risk a later story, or directly close part of the exit state
-- Any claimed parallel path must name collision risks and coordination intent
-- If all stories complete, the phase exit state should hold
-- If a story cannot answer "what becomes possible after this?" it is probably not a real story
-
-### Story count guidance
-
-- **Typical current phase**: 2-4 stories
-- **Small current phase**: 1-2 stories
-- **Large current phase**: split the phase before creating beads
-
-Stories are the human-readable explanation. Beads come after.
-
----
-
-## Phase 6: Multi-Perspective Check
-
-**Only for HIGH-stakes current phases**: multiple HIGH-risk components, core architecture, auth flows, data model changes, or anything with a large blast radius.
-
-For standard current phases, skip to Phase 7.
-
-Review these artifacts together:
-
-- `history/<feature>/phase-plan.md`
-- `history/<feature>/phase-<n>-contract.md`
-- `history/<feature>/phase-<n>-story-map.md`
-
-Prompt the reviewer to look for:
-
-1. Does this phase still fit the full feature plan?
-2. Does the phase contract close a small believable loop?
-3. Do the stories make sense in this order?
-4. Which story is too large, vague, or poorly ordered?
-5. What would make an executor regret this phase design later?
-6. Did the plan define enduring foundations, ownership boundaries, interfaces, and contracts before slicing execution?
-7. Is this sequencing a whole-feature architecture, or accidentally reframing the feature as an MVP?
-
-Iterate 1-2 rounds. Stop when changes become incremental.
-
----
-
-## Phase 7: Current Phase Bead Creation
-
-Only now convert the current phase story map into executable beads using `br create`.
-
-When asking a model to perform the bead-creation pass, use this prompt:
-
-```text
-Take the approved phase artifacts and create the smallest complete set of execution-ready beads for this phase. Keep each bead scoped to one clear outcome, one tight file boundary, and one concrete verification path. Include only the planning context an executor needs to act without guessing. Do not add speculative abstractions, unrelated cleanup, or "future self" commentary that does not change execution quality. Use the `br` tool repeatedly to create the actual beads. Use /effort max.
-```
-
-### Non-negotiable rule
-
-Never write pseudo-beads in Markdown. Create the real graph with `br`.
-
-### Bead requirements
-
-Every bead must include:
-
-- clear title
-- description with enough context for a fresh worker
-- file scope
-- dependencies
-- verification criteria
-- explicit phase association
-- explicit story association
-
-### Canonical bead fields
-
-Every task bead must explicitly include:
-
-- `dependencies`
-- `files`
-- `verify`
-- `verification_evidence`
-- `testing_mode`
-- `decision_refs`
-- `learning_refs`
-
-If the CLI cannot create these fields inline, create the bead first and update the bead file immediately after creation. Do not leave the contract implicit in prose alone.
-
-Use `plugins/pulse/skills/planning/references/bead-template.md`.
-
-### Create epic first if missing, then current-phase task beads
-
-```bash
-br create "<Feature Name>" -t epic -p 1
-# -> br-<epic-id>
-
-br create "Phase <n> / Story <m>: <Action>" -t task --blocks br-<epic-id>
-# -> br-<id>
-
-br dep add br-<id2> br-<id1>
-```
-
-### Story-to-bead decomposition rules
-
-- Use as many beads as the story genuinely needs; there is no fixed numeric cap
-- A bead should not span multiple unrelated stories
-- If a story breaks into many beads, confirm the decomposition still reflects one coherent story and each bead has a distinct purpose
-- The story order should still be visible after decomposition
-- Do not create beads for later phases yet
-- Prefer the smallest executable slice that can be implemented and verified without dragging adjacent cleanup into scope
-- If a bead exists mainly to future-proof the codebase or introduce flexibility that the current phase does not need, reshape it before creation
-
-### Embed phase and story context in each bead
-
-For every bead, include:
-
-```markdown
-## Phase Context
-
-Phase: Phase <n> - <Phase Name>
-What Changes: <what becomes true after this phase>
-Unlocks Next: <next phase or capability>
-
-## Story Context
-
-Story: Story <m> - <Story Name>
-What Happens: <what this story makes true>
-Contributes To: <phase exit-state statement>
-Unlocks: <what the next story can now do>
-
-## Planning Context
-
-From approach.md: <specific decision that applies here>
-
-## Institutional Learnings
-
-From .pulse/memory/learnings/<file>:
-- <key gotcha or pattern>
-```
-
-### Post-Create Normalization Loop
-
-After each `br create`:
-
-1. open the bead file immediately
-2. add or normalize the canonical fields
-3. replace prose-only scope or verification text with structured fields
-4. save only when the bead satisfies the schema gate below
-
-Do not batch-create 20 beads and promise to normalize them later. Normalize each bead while planning context is still fresh.
-
-### Schema Gate
-
-A bead is not considered "created" in Pulse until all of these are true:
-
-- `dependencies` exists, even if empty
-- `files` exists, even if empty
-- `verify` exists, even if empty
-- `verification_evidence` exists, even if empty
-- `testing_mode` exists
-- `decision_refs` exists, even if empty
-- `learning_refs` exists, even if empty
-- the body contains a bounded goal and done criteria
-
-If any field is missing, that is an incomplete planning artifact, not a valid bead.
-
-### Decomposition principles
-
-- One bead = one agent, one context window, ~30-90 minutes
-- Never create a bead that requires reading 10+ files
-- File scope must be tight enough for reservation planning
-- Verification must be runnable and concrete
-- `verification_evidence` should point to `history/<feature>/verification/<bead-id>.md` as the canonical evidence record, or another explicit evidence record path when the bead intentionally writes elsewhere
-- `testing_mode: tdd-required` for bugfixes, stateful logic, contract changes, or other high-risk behavior changes unless the approach explicitly says otherwise
-- Shared files require explicit dependencies
-- Story closure matters more than layer purity
-- Any relevant learnings from Phase 0 must be embedded directly into the bead
-- Any referenced locked decisions from `CONTEXT.md` must be carried into the bead
-- A worker should be able to say what success looks like before writing code; if not, the bead is under-specified
-- Multi-step beads should carry a brief step plan tied to their verification path; single-step beads should stay lean
-- Do not use bead text to justify unrelated refactors, broad cleanup, or speculative abstractions outside the current phase need
-
-### What belongs in the bead body
-
-- what must be implemented
-- why it exists
-- constraints from the plan
-- relevant learnings or gotchas
-- verification expectations
-- the chosen testing mode and why it applies
-- the evidence artifact or verification record the worker should produce
-
-Do not force workers to rediscover planning context from scratch.
-
-### Complete the story map
-
-After bead creation, fill the `Story-To-Bead Mapping` section in `history/<feature>/phase-<n>-story-map.md`.
-
-The validator must be able to trace:
-
-`feature -> phase -> story -> bead`
-
----
-
-## Update STATE.md
-
-After major planning transitions, update `.pulse/STATE.md` as a mirror of the durable planning artifacts, not as the source of truth. Record approval in `history/<feature>/phase-plan.md` first, then sync the same state into `.pulse/STATE.md`.
-
-```markdown
-## Current State
-
-Skill: planning
-Feature: <feature-name>
-Plan Gate: pending | approved | revise-required
-Approved Phase Plan: yes | no
-Approved Phase: Phase <n> - <phase name> | none
-Approval Source: history/<feature>/phase-plan.md
-Approval Last Synced At: <ISO-8601 timestamp>
-Current Phase: Phase <n> - <phase name>
-
-## Artifacts Written
-
-- history/<feature>/discovery.md
-- history/<feature>/approach.md
-- history/<feature>/phase-plan.md
-- history/<feature>/phase-<n>-contract.md
-- history/<feature>/phase-<n>-story-map.md
-- .beads/*.md
-
-## Story Summary
-
-Stories: <N>
-Current Phase Beads: <br-id>, <br-id>
-
-## Risk Summary
-
-HIGH-risk components in current phase: [list] -> flagged for validating to spike
-```
-
----
-
-## Context Budget
-
-If context exceeds 65% at any phase transition, write `.pulse/handoffs/planning.json` using the shared envelope in `../using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json` with the same top-level `summary`, `next_action`, and owner file path. Treat this pause point as a checkpoint trigger boundary as well: if `.pulse/checkpoints/<feature>/...` is in use, capture a checkpoint before leaving the phase.
-
-Planning handoffs use the same companion blocks as every other Pulse owner:
-
-- `summary` -> short planning handoff headline
-- `next_action` + `read_first` -> resume briefing for the next planning turn
-- `payload.transfer` -> detailed transfer block for what is finished, in flight, blocked, and worth reloading
-
-Planning payload should still include:
-
-- `completed_through`
-- `artifacts_written`
-- `beads_created`
-- `open_questions`
-- `stories_defined`
-
-Use the canonical handoff envelope and companion blocks from `../using-pulse/references/handoff-contract.md`. Keep planning handoff payloads concise and phase-specific; do not inline large example JSON in the hot path.
-
----
-
-## Handoff
-
-On successful completion:
-
-> **Phase plan approved in `history/<feature>/phase-plan.md` and current phase prepared.**
->
-> - Discovery: `history/<feature>/discovery.md`
-> - Approach: `history/<feature>/approach.md`
-> - Phase Plan: `history/<feature>/phase-plan.md`
-> - Current Phase Contract: `history/<feature>/phase-<n>-contract.md`
-> - Current Phase Story Map: `history/<feature>/phase-<n>-story-map.md`
-> - HIGH-risk components flagged for this phase: [list or "none"]
->
-> **Invoke pulse:validating skill for Phase <n> before execution.**
-
-HARD-GATE: do not hand off to swarming directly.
-
----
-
-## Boundary Clarifications
-
-**Planning READS** `CONTEXT.md` — it does not override locked decisions.
-
-**Planning DEFINES** the whole feature phase plan before it prepares the current phase.
-
-**Planning CREATES** beads only for the current approved phase.
-
-**Planning does the research** that exploring deliberately avoided.
-
-**Planning does NOT run spikes** — validating owns spike execution.
-
----
+Then hand off with: **Invoke `pulse:validating` for Phase <n> before execution.**
 
 ## Red Flags
 
-- Skipping learnings retrieval
-- Ignoring `CONTEXT.md`
-- Creating current-phase beads before the user approves `phase-plan.md`
-- Creating later-phase beads early
-- Stories with no clear unlock or contribution
-- Exit states that are vague or non-observable
-- Writing pseudo-beads in Markdown
-- Treating a prose-only bead as valid without the canonical schema fields
-- Beads without `files`, `dependencies`, `verify`, `verification_evidence`, `testing_mode`, `decision_refs`, or `learning_refs`
-- HIGH-risk items without a concrete `spike_question`
-- Missing dependencies between beads
-- Workers needing to read half the repo because planning failed to embed context
+- Skipping learnings retrieval or ignoring `CONTEXT.md`
+- Proceeding past phase plan without approval
+- Treating phases as technical buckets instead of real outcomes
+- Creating beads for later phases
+- Vague, non-observable exit states
+- Prose-only bead scope/verification or missing canonical fields
+- HIGH-risk items without concrete YES/NO spike questions
+- Missing dependencies across shared files/contexts

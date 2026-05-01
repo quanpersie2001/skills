@@ -20,9 +20,8 @@ metadata:
 
 If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
 
-Research shows that 5–10 minutes spent extracting decisions before any planning begins
-prevents hours of back-and-forth caused by planner assumptions ([GSD README](https://github.com/gsd-build/get-shit-done)).
-This skill is that conversation. Teams who skip it get reasonable defaults; teams who use it get their vision.
+Spend 5–10 minutes extracting decisions before planning. It prevents hours of rework from planner assumptions ([GSD README](https://github.com/gsd-build/get-shit-done)).
+This skill captures those decisions so downstream agents build what the user actually wants.
 
 ## When to Use This Skill
 
@@ -88,29 +87,21 @@ Does the request describe multiple independent subsystems? If yes:
 
 **Step 0.4 — Step-back move for decision framing**
 
-Before domain classification, decide whether the request needs one brief step-back pass.
-This is not a new phase and not a substitute for Socratic questioning. It is a short framing
-move to make sure you are locking the right decisions.
+Before domain classification, decide whether you need one brief step-back pass. This is optional framing, not a new phase and not a replacement for Socratic questioning.
 
-Use it only when one of these is true:
-- the request is clear about the desired change but unclear about the decision surface
-- several gray areas look similar and you need to separate outcome decisions from implementation details
-- the conversation is drifting toward components, libraries, or architecture before the user-facing or system-facing behavior is framed
-- you are about to ask a question whose answer would not materially change planning assumptions
+Use it only when:
+- the request is clear but the decision surface is unclear
+- gray areas are blending together and outcome vs implementation is not separated
+- discussion drifts into libraries/components before behavior is framed
+- the next question would not change planning assumptions
 
-If you use the move, do it once and keep it short:
-1. restate the practical outcome the feature must make true
-2. name 2–4 decision axes that will shape planning
-3. name what does not belong in exploring yet
-4. turn that frame into the next single question
+If used, do it once:
+1. restate the required outcome
+2. name 2–4 decision axes
+3. name what is out of exploring scope
+4. ask the next single question
 
-Keep the result internal unless a short external framing statement will help the user confirm the direction.
-Do not let the move become a mini-plan, a deep architecture discussion, or a bundled set of questions.
-
-Example internal frame:
-- Outcome: "A caller can do X reliably."
-- Decision axes: actor, success path, boundary conditions, out-of-scope behaviors
-- Not yet: library choice, internal module layout, optimization work
+Keep it short and internal unless a brief external framing line helps alignment. Never let it become a mini-plan, architecture review, or bundled questions.
 
 ---
 
@@ -235,17 +226,15 @@ The ONLY valid next step is the user invoking the pulse:planning skill.
 
 ## What This Skill Does NOT Do
 
-The planner reads CONTEXT.md and does these things — not you:
+Planning owns the work below, not exploring:
 
-- Research external patterns or library options (that is planning's job)
-- Analyze the codebase deeply (only quick grep here)
-- Write code, pseudocode, or implementation sketches
-- Create beads or suggest implementation approaches
-- Propose architecture or technical solutions
+- external pattern/library research
+- deep codebase analysis (only quick grep here)
+- code, pseudocode, or implementation sketches
+- bead creation or implementation approach proposals
+- architecture or technical solution design
 
-Researchers and planners downstream read CONTEXT.md to know what to investigate and
-what choices are already locked. Your job is to capture decisions clearly enough that
-they can act without asking the user again.
+Your output is locked decisions in CONTEXT.md so downstream agents can proceed without re-asking the user.
 
 ---
 

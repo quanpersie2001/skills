@@ -126,15 +126,9 @@ Shared rules:
 - `.pulse/STATE.md`, `.pulse/state.json`, and `.pulse/handoffs/` stay authoritative for pause/resume
 - do not invent extra registration, inbox, or topic mechanics when the runtime does not use them
 
-Post the swarm start notification on the active coordination surface using `references/message-templates.md`.
+Post the swarm start notification on the active coordination surface using `references/swarming-appendix.md`.
 
-That coordination surface is where workers report:
-- startup acknowledgments
-- completion reports
-- blocker alerts
-- file conflict requests
-- context handoffs
-- overseer broadcasts
+That coordination surface is where workers report startup acknowledgments, completions, blockers, conflicts, handoffs, and receive overseer broadcasts.
 
 ---
 
@@ -170,7 +164,7 @@ Use one line per worker:
 
 The worker startup acknowledgment later updates the same line to `online`.
 
-Use `references/worker-template.md`.
+Use the worker prompt template in `references/swarming-appendix.md`.
 
 ---
 
@@ -201,26 +195,14 @@ Do not park in passive wait mode while the swarm is active. If updates are quiet
 
 ### Worker Event Handling
 
-Treat worker events as protocol-driven, not ad hoc. Use `references/message-templates.md` as the canonical event contract for:
-- `[ONLINE]` startup acknowledgments
-- `[DONE]` completion reports
-- `[BLOCKED]` blocker alerts
-- `[FILE CONFLICT]` reservation collisions
-- coordinator reminders, broadcasts, and completion notices
+Treat worker events as protocol-driven, not ad hoc. The canonical protocol, required fields, and coordinator message bodies are in `references/swarming-appendix.md`.
 
 Minimum coordinator obligations per cycle:
-1. Validate incoming event shape against the message contract.
+1. Validate incoming event shape against the contract.
 2. Update the worker entry in `.pulse/STATE.md` keyed by runtime identity.
 3. Verify bead-state transitions in `br`/`bv` before acknowledging completion.
 4. Resolve reservations through `.codex/pulse_reservations.mjs` before permitting overlapping edits.
-5. Escalate to the user when blockers require product judgment or a worker stays silent through the silence ladder.
-
-Silence ladder (authoritative thresholds):
-- 2 quiet cycles -> reminder
-- 3 quiet cycles -> direct status check + stalled marker when appropriate
-- 5 quiet cycles with active work remaining -> escalate to user
-
-Keep examples and exact message bodies in `references/message-templates.md` to avoid inflating hot-path skill context.
+5. Escalate to the user when blockers require product judgment or a worker stays silent through the appendix silence ladder.
 
 ### Context Checkpoint
 
@@ -300,7 +282,6 @@ Load when needed:
 
 | File | Load When |
 |---|---|
-| `references/worker-template.md` | Spawning any worker (Phase 3) |
-| `references/message-templates.md` | Posting or parsing coordination messages |
+| `references/swarming-appendix.md` | Worker startup template, message protocol, silence ladder, and coordinator handoff contract |
 | `references/runtime-adapter-spec.md` | Adapting canonical swarm behaviors to a concrete runtime |
-| `references/pressure-scenarios.md` | Re-running RED/GREEN pressure tests for swarm coordination behavior |
+| `docs/evaluation/pulse-swarming-hardening.md` | Re-running RED/GREEN pressure tests for swarm coordination behavior |

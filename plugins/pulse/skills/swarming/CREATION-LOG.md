@@ -103,3 +103,5 @@ Tradeoff chosen:
 Created: 2026-03-31
 Mode: RED targets -> GREEN edits -> REFACTOR tightening
 Ported from Khuym upstream to Pulse ecosystem
+
+Compaction update (2026-05-01): runtime protocol, worker prompt template, and coordinator message bodies were consolidated into `references/swarming-appendix.md`; pressure scenarios were moved to `docs/evaluation/pulse-swarming-hardening.md`.
