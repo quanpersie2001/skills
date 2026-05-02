@@ -79,7 +79,7 @@ Pulse is downstream of everal strong agentic-development systems and distills th
 
 ```bash
 /plugin marketplace add quanpersie2001/pulse
-/plugin install pulse@pulse-dev
+/plugin install pulse@pulse
 ```
 
 ### Codex
