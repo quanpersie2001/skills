@@ -45,7 +45,7 @@ This is the shortest concrete example of what a normal Pulse run is supposed to 
 Before resuming or planning deeper work on an onboarded repo:
 
 ```bash
-node .codex/pulse_status.mjs --json
+node .pulse/scripts/pulse_status.mjs --json
 ```
 
 Use the scout output to decide which deeper artifacts to open next.

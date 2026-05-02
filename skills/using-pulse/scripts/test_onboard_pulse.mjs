@@ -15,7 +15,7 @@ import { syncPulseRuntimeArtifacts } from "./pulse_state.mjs";
 const LOCAL_USING_PULSE_SKILL_PATH = fileURLToPath(new URL("../SKILL.md", import.meta.url));
 const LOCAL_REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 
-test("applyRepo creates full repo onboarding with node-based hooks", () => {
+test("applyRepo creates repo-local Pulse helpers under .pulse/scripts", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 
   try {
@@ -27,7 +27,7 @@ test("applyRepo creates full repo onboarding with node-based hooks", () => {
     assert.ok(fs.existsSync(path.join(root, "AGENTS.md")));
     assert.match(fs.readFileSync(path.join(root, "AGENTS.md"), "utf8"), /Pulse Workflow/);
     assert.ok(fs.existsSync(path.join(root, ".codex", "config.toml")));
-    assert.ok(fs.existsSync(path.join(root, ".codex", "hooks.json")));
+    assert.equal(fs.existsSync(path.join(root, ".codex", "hooks.json")), false);
     assert.ok(fs.existsSync(path.join(root, ".pulse", "onboarding.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "state.json")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "current-feature.json")));
@@ -37,14 +37,168 @@ test("applyRepo creates full repo onboarding with node-based hooks", () => {
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "corrections")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "memory", "ratchet")));
     assert.ok(fs.existsSync(path.join(root, ".pulse", "reservations.json")));
-    assert.ok(fs.existsSync(path.join(root, ".codex", "hooks", "pulse_session_start.mjs")));
-    assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_state.mjs")));
-    assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_status.mjs")));
-    assert.ok(fs.existsSync(path.join(root, ".codex", "pulse_reservations.mjs")));
-    assert.match(
-      fs.readFileSync(path.join(root, ".codex", "hooks.json"), "utf8"),
-      /node \.codex\/hooks\/pulse_session_start\.mjs/,
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "scripts", "pulse_session_context.mjs")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "scripts", "pulse_state.mjs")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "scripts", "pulse_status.mjs")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "scripts", "pulse_dependencies.mjs")));
+    assert.ok(fs.existsSync(path.join(root, ".pulse", "scripts", "pulse_reservations.mjs")));
+    assert.equal(fs.existsSync(path.join(root, ".codex", "pulse_session_context.mjs")), false);
+    assert.equal(fs.existsSync(path.join(root, ".codex", "pulse_state.mjs")), false);
+    assert.equal(fs.existsSync(path.join(root, ".codex", "pulse_status.mjs")), false);
+    assert.equal(fs.existsSync(path.join(root, ".codex", "pulse_dependencies.mjs")), false);
+    assert.equal(fs.existsSync(path.join(root, ".codex", "pulse_reservations.mjs")), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("packaged Codex hook assets are present and point at packaged hook scripts", () => {
+  const pluginManifest = JSON.parse(
+    fs.readFileSync(path.join(LOCAL_REPO_ROOT, ".codex-plugin", "plugin.json"), "utf8"),
+  );
+  const hooksConfig = JSON.parse(
+    fs.readFileSync(path.join(LOCAL_REPO_ROOT, "hooks", "codex-hooks.json"), "utf8"),
+  );
+
+  assert.equal(pluginManifest.hooks, "./hooks/codex-hooks.json");
+  assert.ok(Array.isArray(hooksConfig.hooks?.SessionStart));
+  assert.equal(hooksConfig.hooks.SessionStart[0]?.matcher, "startup|resume");
+  assert.equal(
+    hooksConfig.hooks.SessionStart[0]?.hooks?.[0]?.command,
+    'node "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/hooks/session-start.mjs"',
+  );
+  assert.equal(
+    hooksConfig.hooks.PreToolUse[0]?.hooks?.[0]?.command,
+    'node "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/hooks/pre-tool-use.mjs"',
+  );
+  assert.equal(
+    hooksConfig.hooks.Stop[0]?.hooks?.[0]?.command,
+    'node "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/hooks/stop.mjs"',
+  );
+});
+
+test("packaged Codex hook commands execute packaged hook scripts", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+  const hooksConfig = JSON.parse(
+    fs.readFileSync(path.join(LOCAL_REPO_ROOT, "hooks", "codex-hooks.json"), "utf8"),
+  );
+
+  try {
+    applyRepo(root, false);
+    fs.cpSync(path.join(LOCAL_REPO_ROOT, "hooks"), path.join(root, "hooks"), { recursive: true });
+    fs.mkdirSync(path.join(root, "skills", "using-pulse", "scripts"), { recursive: true });
+    fs.copyFileSync(
+      path.join(LOCAL_REPO_ROOT, "skills", "using-pulse", "scripts", "pulse_session_context.mjs"),
+      path.join(root, "skills", "using-pulse", "scripts", "pulse_session_context.mjs"),
     );
+
+    const sessionStart = JSON.parse(
+      execFileSync("sh", ["-lc", hooksConfig.hooks.SessionStart[0].hooks[0].command], {
+        cwd: root,
+        input: JSON.stringify({ cwd: root }),
+        encoding: "utf8",
+      }),
+    );
+    const preToolUse = JSON.parse(
+      execFileSync("sh", ["-lc", hooksConfig.hooks.PreToolUse[0].hooks[0].command], {
+        cwd: root,
+        input: JSON.stringify({ tool_input: { command: "bv" } }),
+        encoding: "utf8",
+      }),
+    );
+    const stop = JSON.parse(
+      execFileSync("sh", ["-lc", hooksConfig.hooks.Stop[0].hooks[0].command], {
+        cwd: root,
+        input: JSON.stringify({}),
+        encoding: "utf8",
+      }),
+    );
+
+    assert.equal(sessionStart.hookSpecificOutput?.hookEventName, "SessionStart");
+    assert.match(sessionStart.hookSpecificOutput?.additionalContext || "", /Pulse repo notes:/);
+    assert.equal(preToolUse.continue, true);
+    assert.match(preToolUse.systemMessage || "", /Pulse expects `bv` only with `--robot-\*` flags/);
+    assert.equal(stop.continue, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("packaged Claude hook assets are present and register SessionStart bootstrap", () => {
+  const hooksConfig = JSON.parse(
+    fs.readFileSync(path.join(LOCAL_REPO_ROOT, "hooks", "hooks.json"), "utf8"),
+  );
+
+  assert.ok(fs.existsSync(path.join(LOCAL_REPO_ROOT, "hooks", "session-start.mjs")));
+  assert.ok(Array.isArray(hooksConfig.hooks?.SessionStart));
+  assert.equal(hooksConfig.hooks.SessionStart[0]?.matcher, "startup|clear|compact");
+  assert.equal(
+    hooksConfig.hooks.SessionStart[0]?.hooks?.[0]?.command,
+    'node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs"',
+  );
+  assert.equal(hooksConfig.hooks.SessionStart[0]?.hooks?.[0]?.async, false);
+});
+
+test("packaged Claude SessionStart hook prefers repo-local helper context in onboarded repos", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+
+    const stdout = execFileSync(
+      "node",
+      [path.join(LOCAL_REPO_ROOT, "hooks", "session-start.mjs")],
+      {
+        cwd: root,
+        input: JSON.stringify({ cwd: root }),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_ROOT: LOCAL_REPO_ROOT,
+        },
+      },
+    );
+
+    const payload = JSON.parse(stdout);
+    const additionalContext = payload.hookSpecificOutput?.additionalContext || "";
+
+    assert.equal(payload.hookSpecificOutput?.hookEventName, "SessionStart");
+    assert.doesNotMatch(additionalContext, /You have Pulse\./);
+    assert.match(additionalContext, /Pulse repo notes:/);
+    assert.match(additionalContext, /Pulse onboarding is installed for this repo\./);
+    assert.match(additionalContext, /node \.pulse\/scripts\/pulse_status\.mjs --json/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("packaged Claude SessionStart hook falls back to using-pulse bootstrap before onboarding", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    const stdout = execFileSync(
+      "node",
+      [path.join(LOCAL_REPO_ROOT, "hooks", "session-start.mjs")],
+      {
+        cwd: root,
+        input: JSON.stringify({ cwd: root }),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          CLAUDE_PLUGIN_ROOT: LOCAL_REPO_ROOT,
+        },
+      },
+    );
+
+    const payload = JSON.parse(stdout);
+    const additionalContext = payload.hookSpecificOutput?.additionalContext || "";
+
+    assert.equal(payload.hookSpecificOutput?.hookEventName, "SessionStart");
+    assert.match(additionalContext, /You have Pulse\./);
+    assert.match(additionalContext, /# using-pulse/);
+    assert.match(additionalContext, /pulse:preflight/);
+    assert.match(additionalContext, /Pulse repo notes:/);
+    assert.match(additionalContext, /Pulse onboarding is missing in this repo\./);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -55,7 +209,7 @@ test("installed pulse reservations helper reserves, conflicts, and releases path
 
   try {
     applyRepo(root, false);
-    const helperPath = path.join(root, ".codex", "pulse_reservations.mjs");
+    const helperPath = path.join(root, ".pulse", "scripts", "pulse_reservations.mjs");
 
     const firstReservation = JSON.parse(
       execFileSync(
@@ -156,7 +310,7 @@ test("applyRepo preserves an existing compact_prompt without explicit replace", 
   }
 });
 
-test("checkRepo flags stale python hook commands and legacy hook files", () => {
+test("checkRepo flags legacy repo-local Pulse hook config and stale python hook files", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 
   try {
@@ -192,8 +346,71 @@ test("checkRepo flags stale python hook commands and legacy hook files", () => {
     const result = checkRepo(root);
 
     assert.equal(result.status, "needs_onboarding");
-    assert.ok(result.actions.includes("install_pulse_hook_entries"));
-    assert.ok(result.actions.includes("sync_pulse_hook_scripts"));
+    assert.ok(result.actions.includes("remove_legacy_pulse_hook_entries"));
+    assert.ok(result.actions.includes("remove_legacy_pulse_hook_scripts"));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("applyRepo removes legacy Pulse hook entries without taking ownership of runtime hook files", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    fs.mkdirSync(path.join(root, ".codex", "hooks"), { recursive: true });
+    fs.writeFileSync(path.join(root, ".codex", "hooks", "pulse_session_start.mjs"), "// stale\n", "utf8");
+    fs.writeFileSync(path.join(root, ".codex", "hooks", "pulse_session_start.py"), "# legacy\n", "utf8");
+    fs.writeFileSync(
+      path.join(root, ".codex", "hooks.json"),
+      `${JSON.stringify(
+        {
+          hooks: {
+            SessionStart: [
+              {
+                matcher: "startup|resume",
+                hooks: [
+                  {
+                    type: "command",
+                    command: 'node "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.codex/hooks/pulse_session_start.mjs"',
+                    statusMessage: "Pulse: session bootstrap",
+                  },
+                ],
+              },
+            ],
+            PreToolUse: [
+              {
+                matcher: "Write",
+                hooks: [
+                  {
+                    type: "command",
+                    command: "node ./custom-hook.mjs",
+                    statusMessage: "Custom hook",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+
+    const result = applyRepo(root, false);
+    const hooksConfig = JSON.parse(fs.readFileSync(path.join(root, ".codex", "hooks.json"), "utf8"));
+    const runtimeHook = fs.readFileSync(
+      path.join(root, ".codex", "hooks", "pulse_session_start.mjs"),
+      "utf8",
+    );
+
+    assert.equal(result.status, "up_to_date");
+    assert.deepEqual(result.result.managed_assets.legacy_hook_cleanup, ["remove_legacy_pulse_hooks_SessionStart"]);
+    assert.deepEqual(result.result.managed_assets.legacy_hook_scripts_removed, [".codex/hooks/pulse_session_start.py"]);
+    assert.equal(hooksConfig.hooks.SessionStart, undefined);
+    assert.equal(hooksConfig.hooks.PreToolUse[0].hooks[0].statusMessage, "Custom hook");
+    assert.equal(fs.existsSync(path.join(root, ".codex", "hooks", "pulse_session_start.py")), false);
+    assert.equal(runtimeHook, "// stale\n");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -207,7 +424,7 @@ test("pulse status scout renders json for an onboarded repo", async () => {
     fs.rmSync(path.join(root, ".pulse", "current-feature.json"), { force: true });
     fs.rmSync(path.join(root, ".pulse", "runtime-snapshot.json"), { force: true });
 
-    const stdout = execFileSync("node", [path.join(root, ".codex", "pulse_status.mjs"), "--json"], {
+    const stdout = execFileSync("node", [path.join(root, ".pulse", "scripts", "pulse_status.mjs"), "--json"], {
       cwd: root,
       encoding: "utf8",
     });
@@ -598,13 +815,13 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
 
     const jsonStdout = execFileSync(
       "node",
-      [path.join(root, ".codex", "pulse_status.mjs"), "--json"],
+      [path.join(root, ".pulse", "scripts", "pulse_status.mjs"), "--json"],
       {
         cwd: root,
         encoding: "utf8",
       },
     );
-    const textStdout = execFileSync("node", [path.join(root, ".codex", "pulse_status.mjs")], {
+    const textStdout = execFileSync("node", [path.join(root, ".pulse", "scripts", "pulse_status.mjs")], {
       cwd: root,
       encoding: "utf8",
     });
@@ -875,7 +1092,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
       execFileSync(
         "node",
         [
-          path.join(root, ".codex", "pulse_status.mjs"),
+          path.join(root, ".pulse", "scripts", "pulse_status.mjs"),
           "checkpoint",
           "save",
           "--json",
@@ -891,7 +1108,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
       execFileSync(
         "node",
         [
-          path.join(root, ".codex", "pulse_status.mjs"),
+          path.join(root, ".pulse", "scripts", "pulse_status.mjs"),
           "checkpoint",
           "save",
           "--json",
@@ -907,7 +1124,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
     const listPayload = JSON.parse(
       execFileSync(
         "node",
-        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "list", "--json"],
+        [path.join(root, ".pulse", "scripts", "pulse_status.mjs"), "checkpoint", "list", "--json"],
         { cwd: root, encoding: "utf8" },
       ),
     );
@@ -915,7 +1132,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
       execFileSync(
         "node",
         [
-          path.join(root, ".codex", "pulse_status.mjs"),
+          path.join(root, ".pulse", "scripts", "pulse_status.mjs"),
           "checkpoint",
           "show",
           "--json",
@@ -929,7 +1146,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
       execFileSync(
         "node",
         [
-          path.join(root, ".codex", "pulse_status.mjs"),
+          path.join(root, ".pulse", "scripts", "pulse_status.mjs"),
           "checkpoint",
           "diff",
           "--json",
@@ -945,7 +1162,7 @@ test("checkpoint commands save, list, show, diff, and resume-brief through insta
       execFileSync(
         "node",
         [
-          path.join(root, ".codex", "pulse_status.mjs"),
+          path.join(root, ".pulse", "scripts", "pulse_status.mjs"),
           "checkpoint",
           "resume-brief",
           "--json",
@@ -1019,7 +1236,7 @@ test("checkpoint commands prefer canonical history verification paths and fall b
     const saveHistoryPreferred = JSON.parse(
       execFileSync(
         "node",
-        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
+        [path.join(root, ".pulse", "scripts", "pulse_status.mjs"), "checkpoint", "save", "--json"],
         { cwd: root, encoding: "utf8" },
       ),
     );
@@ -1033,7 +1250,7 @@ test("checkpoint commands prefer canonical history verification paths and fall b
     const saveLegacyFallback = JSON.parse(
       execFileSync(
         "node",
-        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
+        [path.join(root, ".pulse", "scripts", "pulse_status.mjs"), "checkpoint", "save", "--json"],
         { cwd: root, encoding: "utf8" },
       ),
     );
@@ -1046,7 +1263,7 @@ test("checkpoint commands prefer canonical history verification paths and fall b
   }
 });
 
-test("applyRepo migrates legacy verification into canonical history while preserving legacy fallback for unmigrated repos", () => {
+test("onboarding ignores legacy migration artifacts instead of moving them", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 
   try {
@@ -1061,67 +1278,28 @@ test("applyRepo migrates legacy verification into canonical history while preser
     fs.mkdirSync(path.join(root, "history", "learning", "learnings"), { recursive: true });
     fs.writeFileSync(
       path.join(root, "history", "learning", "learnings", "legacy-note.md"),
-      "# Learning: Legacy Note\n\nKeep this migrated.\n",
-      "utf8",
-    );
-    fs.writeFileSync(
-      path.join(root, ".pulse", "current-feature.json"),
-      `${JSON.stringify({
-        feature_key: "legacy-only",
-        phase: "reviewing",
-        gate: "GATE 4",
-        status: "active",
-        updated_at: "2026-04-16T12:00:00.000Z",
-      }, null, 2)}\n`,
+      "# Learning: Legacy Note\n\nKeep this where it is.\n",
       "utf8",
     );
 
-    const migrated = applyRepo(root, false);
-    assert.equal(migrated.status, "up_to_date");
+    const checked = checkRepo(root);
+    assert.equal(checked.status, "up_to_date");
+    assert.equal(checked.actions.includes("migrate_legacy_learning_memory"), false);
+    assert.equal(checked.actions.includes("migrate_legacy_critical_patterns"), false);
+    assert.equal(checked.actions.includes("migrate_legacy_verification_artifacts"), false);
+
+    const reapplied = applyRepo(root, false);
+    assert.equal(reapplied.status, "up_to_date");
+    assert.equal("migration_summary" in reapplied.result.managed_assets, false);
     assert.equal(
-      fs.readFileSync(path.join(root, "history", "legacy-only", "verification", "final-review.md"), "utf8"),
+      fs.readFileSync(path.join(root, ".pulse", "verification", "legacy-only", "final-review.md"), "utf8"),
       "# Final Review\nlegacy only\n",
     );
-
-    const saveCanonical = JSON.parse(
-      execFileSync(
-        "node",
-        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
-        { cwd: root, encoding: "utf8" },
-      ),
+    assert.equal(
+      fs.readFileSync(path.join(root, "history", "learning", "learnings", "legacy-note.md"), "utf8"),
+      "# Learning: Legacy Note\n\nKeep this where it is.\n",
     );
-    assert.equal(saveCanonical.checkpoint.links.verification, "history/legacy-only/verification/");
-
-    const fallbackRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
-    applyRepo(fallbackRoot, false);
-    fs.mkdirSync(path.join(fallbackRoot, ".pulse", "runs", "legacy-fallback", "verification"), { recursive: true });
-    fs.writeFileSync(
-      path.join(fallbackRoot, ".pulse", "runs", "legacy-fallback", "verification", "final-review.md"),
-      "# Final Review\nlegacy fallback\n",
-      "utf8",
-    );
-    fs.writeFileSync(
-      path.join(fallbackRoot, ".pulse", "current-feature.json"),
-      `${JSON.stringify({
-        feature_key: "legacy-fallback",
-        phase: "reviewing",
-        gate: "GATE 4",
-        status: "active",
-        updated_at: "2026-04-16T12:00:00.000Z",
-      }, null, 2)}\n`,
-      "utf8",
-    );
-
-    const saveLegacy = JSON.parse(
-      execFileSync(
-        "node",
-        [path.join(fallbackRoot, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
-        { cwd: fallbackRoot, encoding: "utf8" },
-      ),
-    );
-    assert.equal(saveLegacy.checkpoint.links.verification, ".pulse/runs/legacy-fallback/verification/");
-
-    fs.rmSync(fallbackRoot, { recursive: true, force: true });
+    assert.equal(fs.existsSync(path.join(root, "history", "legacy-only", "verification", "final-review.md")), false);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -1189,18 +1367,18 @@ test("checkpoint commands fail soft for malformed entries, missing selectors, an
     const listPayload = JSON.parse(
       execFileSync(
         "node",
-        [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "list", "--json"],
+        [path.join(root, ".pulse", "scripts", "pulse_status.mjs"), "checkpoint", "list", "--json"],
         { cwd: root, encoding: "utf8" },
       ),
     );
     const listText = execFileSync(
       "node",
-      [path.join(root, ".codex", "pulse_status.mjs"), "checkpoint", "list"],
+      [path.join(root, ".pulse", "scripts", "pulse_status.mjs"), "checkpoint", "list"],
       { cwd: root, encoding: "utf8" },
     );
     const statusText = execFileSync(
       "node",
-      [path.join(root, ".codex", "pulse_status.mjs")],
+      [path.join(root, ".pulse", "scripts", "pulse_status.mjs")],
       { cwd: root, encoding: "utf8" },
     );
 
@@ -1210,7 +1388,7 @@ test("checkpoint commands fail soft for malformed entries, missing selectors, an
       showStdout = execFileSync(
         "node",
         [
-          path.join(root, ".codex", "pulse_status.mjs"),
+          path.join(root, ".pulse", "scripts", "pulse_status.mjs"),
           "checkpoint",
           "show",
           "--json",
@@ -1230,7 +1408,7 @@ test("checkpoint commands fail soft for malformed entries, missing selectors, an
       invalidSaveStdout = execFileSync(
         "node",
         [
-          path.join(root, ".codex", "pulse_status.mjs"),
+          path.join(root, ".pulse", "scripts", "pulse_status.mjs"),
           "checkpoint",
           "save",
           "--json",
@@ -1255,7 +1433,12 @@ test("checkpoint commands fail soft for malformed entries, missing selectors, an
       try {
         missingFeatureSaveStdout = execFileSync(
           "node",
-          [path.join(missingFeatureRoot, ".codex", "pulse_status.mjs"), "checkpoint", "save", "--json"],
+          [
+            path.join(missingFeatureRoot, ".pulse", "scripts", "pulse_status.mjs"),
+            "checkpoint",
+            "save",
+            "--json",
+          ],
           { cwd: missingFeatureRoot, encoding: "utf8" },
         );
       } catch (error) {
@@ -1535,7 +1718,7 @@ test("installed pulse_status text distinguishes missing commands from missing MC
       "utf8",
     );
 
-    const stdout = execFileSync("node", [path.join(root, ".codex", "pulse_status.mjs")], {
+    const stdout = execFileSync("node", [path.join(root, ".pulse", "scripts", "pulse_status.mjs")], {
       cwd: root,
       encoding: "utf8",
     });

@@ -33,7 +33,7 @@ You are a bounded worker in the Pulse swarm.
 
 ## Startup Contract
 1. Read `AGENTS.md`.
-2. If present, run `node .codex/pulse_status.mjs --json`.
+2. If present, run `node .pulse/scripts/pulse_status.mjs --json`.
 3. Load `pulse:executing`.
 4. Post `[ONLINE]` on the active coordination surface with:
    - runtime identity
@@ -48,12 +48,12 @@ You are a bounded worker in the Pulse swarm.
 
 ## Reservation Contract
 Reserve before editing:
-node .codex/pulse_reservations.mjs reserve --agent <RUNTIME_IDENTITY> --bead <BEAD_ID> --path <glob> --json
+node .pulse/scripts/pulse_reservations.mjs reserve --agent <RUNTIME_IDENTITY> --bead <BEAD_ID> --path <glob> --json
 
 If reserve fails, post `[FILE CONFLICT]` immediately and wait for coordinator resolution.
 
 Release before `[DONE]`:
-node .codex/pulse_reservations.mjs release --agent <RUNTIME_IDENTITY> --json
+node .pulse/scripts/pulse_reservations.mjs release --agent <RUNTIME_IDENTITY> --json
 
 ## Work Selection Contract
 - Use `bv --robot-priority` plus bead graph state.

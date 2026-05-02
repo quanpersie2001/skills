@@ -30,7 +30,7 @@ Do not start by guessing CLI subcommands or assuming GitNexus is configured in t
 Run:
 
 ```bash
-node .codex/pulse_status.mjs --json
+node .pulse/scripts/pulse_status.mjs --json
 ```
 
 Use the scout output as the source of truth for this repo/session:

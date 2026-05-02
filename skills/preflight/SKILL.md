@@ -89,7 +89,7 @@ node skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <project_root>
 Interpret the result:
 
 - `status = "up_to_date"` — Pulse onboarding is current. Set `onboarding = PASS`.
-- `status = "needs_onboarding"` — the repo needs Pulse onboarding or remediation updates before normal bootstrap can continue. Use `actions` plus any relevant `details` to explain whether this is missing repo-local assets, legacy Python hooks, legacy verification/memory layout, or a partial Pulse install.
+- `status = "needs_onboarding"` — the repo needs Pulse onboarding or remediation updates before normal bootstrap can continue. Use `actions` plus any relevant `details` to explain whether this is missing repo-local assets, missing or stale `.codex/hooks/*` Pulse hook scripts, stale `.codex/hooks.json` Pulse entries, legacy Python hook files, legacy verification/memory layout, or a partial Pulse install.
 - `status = "missing_runtime"` — Node.js 18+ is not available, so onboarding cannot run. Set `onboarding = NEEDS_SETUP`.
 
 For `needs_onboarding`:
@@ -145,7 +145,7 @@ Examples vary by runtime:
 
 - Claude Code: confirm teammate primitives needed for swarming are available in this session
 - Codex: confirm native subagent flow is available in this session
-- reservation helper: confirm onboarding installed `.codex/pulse_reservations.mjs`
+- reservation helper: confirm onboarding installed `.pulse/scripts/pulse_reservations.mjs`
 
 If no real health-check primitive exists, mark swarm capability as unavailable.
 Do not infer readiness from environment variables alone.
@@ -210,7 +210,7 @@ Write `.pulse/tooling-status.json` with this shape:
     "br": { "status": "ready", "check": "br --help" },
     "bv": { "status": "ready", "check": "bv --help" },
     "swarm_runtime": { "status": "unavailable", "check": "<actual runtime capability probe or 'none available'>" },
-    "reservations": { "status": "ready", "check": "test -f .codex/pulse_reservations.mjs" }
+    "reservations": { "status": "ready", "check": "test -f .pulse/scripts/pulse_reservations.mjs" }
   },
   "blockers": [],
   "degradations": [

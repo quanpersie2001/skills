@@ -66,7 +66,7 @@ Do not invent extra registration, inbox, or topic mechanics if the active runtim
 ### 1b. Read Project Context (in this order)
 
 1. **AGENTS.md** — project operating manual (mandatory; skip nothing)
-2. If present, run **`node .codex/pulse_status.mjs --json`** — quick onboarding/state/handoff/reservation scout
+2. If present, run **`node .pulse/scripts/pulse_status.mjs --json`** — quick onboarding/state/handoff/reservation scout
 3. **.pulse/state.json** — machine-readable routing snapshot
 4. **.pulse/STATE.md** — current project focus, decisions, active blockers
 5. **history/<feature>/CONTEXT.md** — locked decisions that MUST be honored
@@ -182,7 +182,7 @@ In worker mode, reserve all listed files before editing with the shared repo-loc
 Repeat `--path` for every declared file or glob you need to claim:
 
 ```bash
-node .codex/pulse_reservations.mjs reserve --agent <runtime_identity> --bead <bead-id> --path "src/foo.ts" --path "src/bar.ts" --json
+node .pulse/scripts/pulse_reservations.mjs reserve --agent <runtime_identity> --bead <bead-id> --path "src/foo.ts" --path "src/bar.ts" --json
 ```
 
 In standalone mode, there is no cross-worker race, but still treat the bead's `files` list as a hard scope boundary. Do not blend multiple beads into one ad hoc change, and do not sneak in temporary cross-module structure that was not planned.
@@ -353,7 +353,7 @@ Do not batch multiple beads into one commit. Do not commit unrelated changes.
 ### 6d. Release file reservations (worker mode)
 
 ```bash
-node .codex/pulse_reservations.mjs release --agent <runtime_identity> --json
+node .pulse/scripts/pulse_reservations.mjs release --agent <runtime_identity> --json
 ```
 
 Release **before** sending the completion report so other agents can acquire these files immediately.
@@ -408,7 +408,7 @@ Re-read in this exact order before any further action:
 2. `history/<feature>/CONTEXT.md`
 3. the current bead you were working on: `br show <bead-id>`
 4. if the bead qualifies as non-trivial under Step 2, re-read `history/<feature>/phase-<n>-contract.md` and `history/<feature>/phase-<n>-story-map.md`, plus `history/<feature>/approach.md` when boundary-sensitive or HIGH-risk
-5. your active file reservations: `node .codex/pulse_reservations.mjs list --active-only --json`
+5. your active file reservations: `node .pulse/scripts/pulse_reservations.mjs list --active-only --json`
 6. the latest relevant coordinator updates on the active coordination surface
 
 Only after re-reading all applicable items may you continue.
@@ -448,9 +448,9 @@ Stop and reassess if you notice any of these:
 |--------|------|
 | Get priority bead | `bv --robot-priority` |
 | Read bead | `br show <id>` |
-| Reserve files | `node .codex/pulse_reservations.mjs reserve --agent <runtime_identity> --bead <bead-id> --path "..." --json` |
-| Release files | `node .codex/pulse_reservations.mjs release --agent <runtime_identity> --json` |
-| Inspect reservations | `node .codex/pulse_reservations.mjs list --active-only --json` |
+| Reserve files | `node .pulse/scripts/pulse_reservations.mjs reserve --agent <runtime_identity> --bead <bead-id> --path "..." --json` |
+| Release files | `node .pulse/scripts/pulse_reservations.mjs release --agent <runtime_identity> --json` |
+| Inspect reservations | `node .pulse/scripts/pulse_reservations.mjs list --active-only --json` |
 | Close bead | `br close <id> --reason "..."` |
 | Send `[ONLINE]` / `[DONE]` / `[BLOCKED]` / `[FILE CONFLICT]` / `[HANDOFF]` | active coordination surface |
 

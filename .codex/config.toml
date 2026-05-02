@@ -7,7 +7,7 @@ MANDATORY: Pulse context compaction recovery.
 
 STOP. Before doing anything else:
 1. Read AGENTS.md completely.
-2. If present, run `node .codex/pulse_status.mjs --json` for a quick Pulse status snapshot.
+2. If present, run `node .pulse/scripts/pulse_status.mjs --json` for a quick Pulse status snapshot.
 3. Read .pulse/tooling-status.json, .pulse/state.json, and .pulse/STATE.md if they exist.
 4. Read .pulse/handoffs/manifest.json and any active owner handoff you are resuming.
 5. Re-open the active feature CONTEXT.md before more planning or edits.

@@ -10,7 +10,7 @@ Use this matrix during `pulse:preflight` to decide whether the run should `PASS`
 | `br` | Every Pulse run that uses bead-backed planning/execution | `br --help` | `FAIL` |
 | `bv` | Every Pulse run that prioritizes or validates bead graphs | `bv --help` | `FAIL` |
 | Native swarm capability for the active runtime | Swarm execution | smallest real runtime capability check available | `DEGRADED` to `single-worker`, or `FAIL` if the user explicitly requires swarm |
-| `.codex/pulse_reservations.mjs` | Swarm execution | `test -f .codex/pulse_reservations.mjs` | `DEGRADED` to `single-worker`, or `FAIL` if the user explicitly requires swarm |
+| `.pulse/scripts/pulse_reservations.mjs` | Swarm execution | `test -f .pulse/scripts/pulse_reservations.mjs` | `DEGRADED` to `single-worker`, or `FAIL` if the user explicitly requires swarm |
 | `gitnexus` | Accelerated graph-backed discovery only | verify configured MCP server in the scout/dependency report | continue with fallback |
 | `gh` | PR automation only | `gh --version` | continue without PR automation |
 | docs / web MCP | External research acceleration | runtime-specific health check | continue with local/manual research |
@@ -70,7 +70,7 @@ If the runtime cannot safely support swarming:
 
 ### No Reservation Helper
 
-If `.codex/pulse_reservations.mjs` is unavailable:
+If `.pulse/scripts/pulse_reservations.mjs` is unavailable:
 
 - do not launch swarm workers
 - recommend `single-worker`

@@ -76,7 +76,7 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 - `br` — beads CLI (create/update/close work items)
 - `bv` — beads viewer (graph analytics, priority routing)
 - native swarm adapters — Claude Code teammates or Codex subagents in swarm mode
-- `.codex/pulse_reservations.mjs` — shared local file reservations for swarm safety
+- `.pulse/scripts/pulse_reservations.mjs` — shared local file reservations for swarm safety
 - `gitnexus` — graph-backed codebase intelligence (optional)
 - CASS/CM — session search, cognitive memory (optional)
 
@@ -125,7 +125,7 @@ Pulse keeps one swarm contract and adapts it to the active runtime.
 
 - **Claude Code** — use teammate primitives such as `TeamCreate`, `Agent`, and `SendMessage` when swarm mode is active.
 - **Codex** — use native subagents and parent-thread follow-ups.
-- **Shared reservation layer** — every runtime uses `.codex/pulse_reservations.mjs` and `.pulse/reservations.json` to prevent overlapping edits.
+- **Shared reservation layer** — every runtime uses `.pulse/scripts/pulse_reservations.mjs` and `.pulse/reservations.json` to prevent overlapping edits.
 
 ### Same Repository Workflow
 
@@ -144,8 +144,8 @@ When multiple agents operate in the same repository:
 
 ### Quick Reads
 
-- Scout: `node .codex/pulse_status.mjs --json`
-- Reservations: `node .codex/pulse_reservations.mjs list --active-only --json`
+- Scout: `node .pulse/scripts/pulse_status.mjs --json`
+- Reservations: `node .pulse/scripts/pulse_reservations.mjs list --active-only --json`
 - Graph: `bv --robot-triage --graph-root <EPIC_ID>`
 
 ### Macros vs Granular Tools
@@ -188,7 +188,7 @@ br sync --flush-only  # Flush bead changes to disk (does NOT run git)
 
 ### Workflow Pattern
 
-1. **Scout**: Run `node .codex/pulse_status.mjs --json` when available, then `br ready` to find actionable work
+1. **Scout**: Run `node .pulse/scripts/pulse_status.mjs --json` when available, then `br ready` to find actionable work
 2. **Claim**: Use `br update <id> --status=in_progress`
 3. **Work**: Implement the task
 4. **Complete**: Use `br close <id>`
@@ -336,7 +336,7 @@ bv --robot-triage | jq '.[] | select(.blockers | length > 0) | {id, blockers}'
 
 1. Run `pulse:preflight`.
 2. Run `pulse:using-pulse`.
-3. Use `node .codex/pulse_status.mjs --json` when available for a read-only scout pass.
+3. Use `node .pulse/scripts/pulse_status.mjs --json` when available for a read-only scout pass.
 4. Open only the artifacts the scout points at: usually `.pulse/state.json`, `.pulse/STATE.md`, `.pulse/handoffs/manifest.json`, `history/<feature>/CONTEXT.md`, and `phase-plan.md`.
 
 ### Resume safely
@@ -499,7 +499,7 @@ Pulse is not a license to skip `CONTEXT.md`, validating, review gates, or human 
 
 1. Read this file at session start and again after any context compaction.
 2. If `.pulse/onboarding.json` is missing or outdated, stop and run `pulse:using-pulse` before continuing.
-3. If `.codex/pulse_status.mjs` exists, use `node .codex/pulse_status.mjs --json` for a fast read-only status snapshot.
+3. If `.pulse/scripts/pulse_status.mjs` exists, use `node .pulse/scripts/pulse_status.mjs --json` for a fast read-only status snapshot.
 4. If `.pulse/handoffs/manifest.json` exists, do not auto-resume. Surface the saved state and wait for user confirmation.
 5. If `.pulse/memory/critical-patterns.md` exists, read it before planning or execution work.
 
@@ -523,14 +523,14 @@ pulse:preflight
 2. `CONTEXT.md` is the source of truth for locked decisions.
 3. If context usage passes roughly 65%, write `.pulse/handoffs/manifest.json` and pause cleanly.
 4. Treat `.pulse/state.json` as the routing mirror and `.pulse/STATE.md` as the human-readable narrative; keep them aligned.
-5. After compaction, re-read `AGENTS.md`, run `node .codex/pulse_status.mjs --json` if present, then re-open `.pulse/handoffs/manifest.json`, `.pulse/state.json`, `.pulse/STATE.md`, and the active feature context before more work.
+5. After compaction, re-read `AGENTS.md`, run `node .pulse/scripts/pulse_status.mjs --json` if present, then re-open `.pulse/handoffs/manifest.json`, `.pulse/state.json`, `.pulse/STATE.md`, and the active feature context before more work.
 6. P1 review findings block merge.
 
 ## 3-Plane Model
 
 1. **Control plane — `.pulse/`**: live workflow state, routing mirrors, handoffs, and operator surfaces.
 2. **Memory plane — `.pulse/memory/`**: shared root for reusable cross-feature memory, including critical patterns, learnings, corrections, and ratchet artifacts.
-3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, canonical verification evidence, and durable audit narrative.
+3. **Feature record plane — `history/`**: feature-specific decisions, plans, contracts, story maps, and durable narrative.
 
 ## Working Files
 
@@ -551,7 +551,6 @@ history/<feature>/
   CONTEXT.md          ← locked decisions
   discovery.md        ← research findings
   approach.md         ← approach + risk map
-  verification/       ← canonical verification evidence for the feature
 
 .beads/               ← bead/task files when beads are in use
 .spikes/              ← spike outputs when validation requires them
@@ -562,7 +561,7 @@ history/<feature>/
 ### Startup scout
 
 1. Run `pulse:using-pulse` if onboarding is missing or stale.
-2. Run `node .codex/pulse_status.mjs --json` when available.
+2. Run `node .pulse/scripts/pulse_status.mjs --json` when available.
 3. Use the scout to choose the next artifact instead of opening everything at once.
 
 ### Resume scout
@@ -580,7 +579,7 @@ history/<feature>/
 ## Codex Guardrails
 
 - Repo-local `.codex/` files installed by Pulse are workflow guardrails, not optional decoration.
-- Use `node .codex/pulse_status.mjs --json` as the preferred quick scout step when it is available.
+- Use `node .pulse/scripts/pulse_status.mjs --json` as the preferred quick scout step when it is available.
 - Treat `compact_prompt` recovery instructions as mandatory.
 - Use `bv` only with `--robot-*` flags. Bare `bv` launches the TUI and should be avoided in agent sessions.
 - If the repo is only partially onboarded, stay in bootstrap/planning mode and surface what is missing before implementation.
@@ -597,7 +596,7 @@ Before ending a substantial Pulse work chunk:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **pulse** (2658 symbols, 3869 relationships, 147 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **pulse** (2638 symbols, 3942 relationships, 156 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

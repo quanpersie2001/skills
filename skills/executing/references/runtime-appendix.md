@@ -45,9 +45,9 @@ For `tdd-required`, also include:
 |--------|------|
 | Get priority bead | `bv --robot-priority` |
 | Read bead | `br show <id>` |
-| Reserve files | `node .codex/pulse_reservations.mjs reserve --agent <runtime_identity> --bead <bead-id> --path "..." --json` |
-| Release files | `node .codex/pulse_reservations.mjs release --agent <runtime_identity> --json` |
-| Inspect reservations | `node .codex/pulse_reservations.mjs list --active-only --json` |
+| Reserve files | `node .pulse/scripts/pulse_reservations.mjs reserve --agent <runtime_identity> --bead <bead-id> --path "..." --json` |
+| Release files | `node .pulse/scripts/pulse_reservations.mjs release --agent <runtime_identity> --json` |
+| Inspect reservations | `node .pulse/scripts/pulse_reservations.mjs list --active-only --json` |
 | Close bead | `br close <id> --reason "..."` |
 | Send `[ONLINE]` / `[DONE]` / `[BLOCKED]` / `[FILE CONFLICT]` / `[HANDOFF]` | active coordination surface |
 
@@ -70,7 +70,7 @@ If you detect context compaction, stop and re-read before further implementation
 2. `history/<feature>/CONTEXT.md`
 3. `br show <bead-id>`
 4. If non-trivial, phase contract/story map and boundary-relevant `approach.md`
-5. `node .codex/pulse_reservations.mjs list --active-only --json`
+5. `node .pulse/scripts/pulse_reservations.mjs list --active-only --json`
 6. latest coordinator updates on the active coordination surface
 
 ## Red flags

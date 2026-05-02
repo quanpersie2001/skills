@@ -82,7 +82,7 @@ CONTEXT.md
 
 ### Before you start
 
-1. If `.codex/pulse_status.mjs` exists, run `node .codex/pulse_status.mjs --json`.
+1. If `.pulse/scripts/pulse_status.mjs` exists, run `node .pulse/scripts/pulse_status.mjs --json`.
 2. Read `history/<feature>/CONTEXT.md`; if missing, stop and ask user to run `pulse:exploring`.
 3. Stop if `.pulse/tooling-status.json` reports `blocked`.
 4. Read project docs first (`.pulse/project-docs.json` when present; otherwise minimal relevant docs set).

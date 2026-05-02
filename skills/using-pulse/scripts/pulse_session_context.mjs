@@ -3,14 +3,18 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import {
   readDependencyHealthSafe,
   normalizeDependencyTarget,
   uniqueSorted,
-} from "../pulse_dependencies.mjs";
-import { readGitNexusReadiness, syncPulseRuntimeArtifacts } from "../pulse_state.mjs";
+} from "./pulse_dependencies.mjs";
+import { readGitNexusReadiness, syncPulseRuntimeArtifacts } from "./pulse_state.mjs";
 
-function findRepoRoot(start) {
+const SCRIPT_PATH = fileURLToPath(import.meta.url);
+const SCRIPT_DIR = path.dirname(SCRIPT_PATH);
+
+export function findPulseRepoRoot(start) {
   let candidate = path.resolve(start || ".");
   while (true) {
     if (fs.existsSync(path.join(candidate, ".pulse", "onboarding.json"))) {
@@ -27,16 +31,16 @@ function findRepoRoot(start) {
   }
 }
 
-async function readPayload() {
+export async function readHookPayload(stream = process.stdin) {
   const chunks = [];
-  for await (const chunk of process.stdin) {
+  for await (const chunk of stream) {
     chunks.push(chunk);
   }
   const raw = Buffer.concat(chunks).toString("utf8");
   return JSON.parse(raw || "{}");
 }
 
-function buildSessionDependencyWarning(repoRoot) {
+export function buildPulseSessionDependencyWarning(repoRoot) {
   const dependencyHealth = readDependencyHealthSafe(repoRoot);
 
   const missingDependencies = Array.isArray(dependencyHealth?.missing_dependencies)
@@ -75,24 +79,61 @@ function buildSessionDependencyWarning(repoRoot) {
   );
 }
 
-export async function main() {
-  const payload = await readPayload();
-  const repoRoot = findRepoRoot(payload.cwd || ".");
+function readUsingPulseSkillText() {
+  const candidates = [
+    process.env.CLAUDE_PLUGIN_ROOT
+      ? path.join(process.env.CLAUDE_PLUGIN_ROOT, "skills", "using-pulse", "SKILL.md")
+      : "",
+    path.resolve(SCRIPT_DIR, "..", "SKILL.md"),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return fs.readFileSync(candidate, "utf8").trim();
+    }
+  }
+
+  return "";
+}
+
+function buildUsingPulseBootstrapBlock() {
+  const skillText = readUsingPulseSkillText();
+  if (!skillText) {
+    return "";
+  }
+
+  return [
+    "<EXTREMELY_IMPORTANT>",
+    "You have Pulse.",
+    "",
+    "Below is the full content of your `pulse:using-pulse` bootstrap skill. Use it to route safely before loading downstream Pulse skills:",
+    "",
+    skillText,
+    "</EXTREMELY_IMPORTANT>",
+  ].join("\n");
+}
+
+export async function collectPulseSessionStartNotes(repoRoot, options = {}) {
+  const { syncRuntimeArtifactsIfOnboarded = true } = options;
   const onboardingPath = path.join(repoRoot, ".pulse", "onboarding.json");
   const criticalPatterns = path.join(repoRoot, ".pulse", "memory", "critical-patterns.md");
 
   const notes = [];
   if (fs.existsSync(onboardingPath)) {
-    syncPulseRuntimeArtifacts(repoRoot);
+    if (syncRuntimeArtifactsIfOnboarded) {
+      syncPulseRuntimeArtifacts(repoRoot);
+    }
     notes.push(
-      "Pulse onboarding is installed for this repo. Read AGENTS.md, then run node .codex/pulse_status.mjs --json for a quick scout before substantive work.",
+      "Pulse onboarding is installed for this repo. Read AGENTS.md, then run node .pulse/scripts/pulse_status.mjs --json for a quick scout before substantive work.",
     );
   } else {
     notes.push("Pulse onboarding is missing in this repo. Load pulse:using-pulse before continuing.");
   }
 
   if (fs.existsSync(criticalPatterns)) {
-    notes.push("If you move into planning, start with .pulse/memory/critical-patterns.md and then use pulse_status recall pointers for narrower learnings, corrections, and ratchet rules.");
+    notes.push(
+      "If you move into planning, start with .pulse/memory/critical-patterns.md and then use pulse_status recall pointers for narrower learnings, corrections, and ratchet rules.",
+    );
   }
 
   const gitNexusReadiness = await readGitNexusReadiness(repoRoot);
@@ -104,40 +145,34 @@ export async function main() {
     );
   }
 
-  const dependencyWarning = buildSessionDependencyWarning(repoRoot);
+  const dependencyWarning = buildPulseSessionDependencyWarning(repoRoot);
   if (dependencyWarning) {
     notes.push(dependencyWarning);
   }
 
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "SessionStart",
-        additionalContext: notes.join(" "),
-      },
-    }),
-  );
-  return 0;
+  return notes;
 }
 
-function isDirectExecution() {
-  if (!process.argv[1]) {
-    return false;
+export async function buildPulseSessionStartContext(repoRoot, options = {}) {
+  const {
+    includeBootstrapSkill = false,
+    syncRuntimeArtifactsIfOnboarded = true,
+  } = options;
+
+  const notes = await collectPulseSessionStartNotes(repoRoot, {
+    syncRuntimeArtifactsIfOnboarded,
+  });
+
+  const sections = [];
+  if (includeBootstrapSkill) {
+    const bootstrap = buildUsingPulseBootstrapBlock();
+    if (bootstrap) {
+      sections.push(bootstrap);
+    }
+  }
+  if (notes.length > 0) {
+    sections.push(`Pulse repo notes: ${notes.join(" ")}`);
   }
 
-  const argvPath = path.resolve(process.argv[1]);
-  const selfPath = fileURLToPath(import.meta.url);
-  if (argvPath === selfPath) {
-    return true;
-  }
-
-  try {
-    return fs.realpathSync.native(argvPath) === fs.realpathSync.native(selfPath);
-  } catch {
-    return false;
-  }
-}
-
-if (isDirectExecution()) {
-  process.exitCode = await main();
+  return sections.join("\n\n").trim();
 }

@@ -153,48 +153,9 @@ Pulse is downstream of everal strong agentic-development systems and distills th
 
 ## The Delivery Chain
 
-```mermaid
-flowchart TD
-    PF["`**pulse:preflight**
-    validate tooling`"]
-    UP["`**pulse:using-pulse**
-    route the session`"]
-    BR["`**pulse:brainstorming**
-    design spec *(optional)*`"]
-    EX["`**pulse:exploring**
-    lock decisions → CONTEXT.md`"]
-    PL["`**pulse:planning**
-    research + phase plan + beads`"]
-    VA["`**pulse:validating**
-    8-dim check + spikes`"]
-    SW["`**pulse:swarming**
-    launch N workers`"]
-    WK["`**pulse:executing**
-    implement bead-by-bead`"]
-    RV["`**pulse:reviewing**
-    4 specialists + UAT`"]
-    CP["`**pulse:compounding**
-    capture learnings`"]
-
-    PF --> UP
-    UP -->|idea unclear| BR
-    UP -->|intent clear| EX
-    BR --> EX
-
-    EX -->|"🔒 GATE 1 — approve CONTEXT.md"| PL
-    PL -->|"🔒 GATE 2 — approve phase plan"| VA
-    VA -->|"🔒 GATE 3 — approve execution (swarm)"| SW
-    VA -->|"🔒 GATE 3 — approve execution (single)"| WK
-    SW -->|spawns| WK
-    WK -->|more phases| PL
-    WK -->|final phase| RV
-    SW -->|final phase| RV
-    RV -->|"🔒 GATE 4 — approve merge"| CP
-
-    style BR stroke-dasharray:5 5
-    style SW fill:#fef3c7
-    style WK fill:#fef3c7
-```
+<p align="center">
+  <img src="assets/delivery-chain.png" alt="Pulse delivery chain showing preflight, using-pulse, brainstorming, exploring, planning, validating, swarming, executing, reviewing, and compounding with Gates 1-4 approvals." width="1100" />
+</p>
 
 ### The 4 Human Gates
 
@@ -343,6 +304,8 @@ Run `pulse:preflight` to check your environment before starting.
 /plugin install pulse@pulse
 ```
 
+The Claude package now ships a packaged `SessionStart` hook at `hooks/hooks.json`, so a fresh Claude session gets Pulse bootstrap context automatically before you manually load deeper skills.
+
 Or install individual skills:
 
 ```bash
@@ -357,6 +320,8 @@ Or install individual skills:
 1. Clone this repo
 2. Register `.agents/plugins/marketplace.json` as a local marketplace in Codex
 3. Install the `pulse` plugin — skills are auto-discovered from `skills/`
+
+The Codex package manifest now declares lifecycle config through `hooks/codex-hooks.json`, and those packaged hook entries execute the packaged scripts in `hooks/` via git-root-resolved commands. Onboarding still manages Pulse runtime helpers such as `.pulse/scripts/` and repo-local state, while legacy `.codex/hooks.json` Pulse entries remain a remediation path for older installs.
 
 ---
 
@@ -390,7 +355,7 @@ Use the full chain when the work is ambiguous, multi-file, high-cost, or coordin
 On onboarded repos, Pulse installs a read-only scout command:
 
 ```bash
-node .codex/pulse_status.mjs --json
+node .pulse/scripts/pulse_status.mjs --json
 ```
 
 It summarizes onboarding health plus `.pulse/state.json`, `.pulse/STATE.md`, and `.pulse/handoffs/manifest.json` so humans and agents can orient quickly before opening deeper artifacts.
@@ -445,7 +410,9 @@ The benchmark plan lives in [`.plugin-eval/benchmark.json`](.plugin-eval/benchma
 Pulse intentionally keeps different packaged manifests for Claude Code and Codex:
 
 - Claude manifest (`.claude-plugin/plugin.json`) declares `skills` and `mcpServers`.
-- Codex manifest (`.codex-plugin/plugin.json`) remains minimal and does not declare `mcpServers`.
+- Shared packaged hook sources live under `hooks/`; Claude bootstrap uses `hooks/hooks.json` and `hooks/session-start.mjs`.
+- Codex manifest (`.codex-plugin/plugin.json`) declares packaged lifecycle config at `hooks/codex-hooks.json` and also declares `mcpServers`.
+- Codex packaged lifecycle config executes the packaged scripts in `hooks/` via git-root-resolved commands; repo-local `.codex/` remains for Pulse runtime helpers and legacy `.codex/hooks.json` cleanup.
 
 This is by design for runtime compatibility and should not be normalized unless the target runtime contract changes.
 

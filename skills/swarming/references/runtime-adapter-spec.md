@@ -31,10 +31,10 @@ These are the required behaviors every swarm-capable runtime must preserve:
 Both adapters use the same repo-local reservation helper:
 
 ```bash
-node .codex/pulse_reservations.mjs reserve --agent <worker-id> --bead <bead-id> --path <glob> --json
-node .codex/pulse_reservations.mjs list --active-only --json
-node .codex/pulse_reservations.mjs release --agent <worker-id> --json
-node .codex/pulse_reservations.mjs sweep --json
+node .pulse/scripts/pulse_reservations.mjs reserve --agent <worker-id> --bead <bead-id> --path <glob> --json
+node .pulse/scripts/pulse_reservations.mjs list --active-only --json
+node .pulse/scripts/pulse_reservations.mjs release --agent <worker-id> --json
+node .pulse/scripts/pulse_reservations.mjs sweep --json
 ```
 
 Behavioral requirements:

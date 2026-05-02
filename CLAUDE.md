@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-Pulse is a packaged skill plugin for Claude Code and Codex. Its workflow contract lives primarily in `SKILL.md` files, while repo-local Node scripts handle onboarding, state sync, dependency checks, and other control-plane behavior. The repo ships 21 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+Pulse is a packaged skill plugin for Claude Code and Codex. Its workflow contract lives primarily in `SKILL.md` files, while repo-local Node scripts handle onboarding, state sync, dependency checks, and other control-plane behavior. The repo ships 20 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ## Repository Layout
 
@@ -87,7 +87,7 @@ git push                # Push to remote
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **pulse** (2658 symbols, 3869 relationships, 147 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **pulse** (2638 symbols, 3942 relationships, 156 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

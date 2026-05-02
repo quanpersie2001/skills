@@ -65,7 +65,7 @@ This stage no longer checks for headless `claude` or `codex` execution, because 
 
 ## Scout stage
 
-`scout` and `run` read Pulse readiness through `readPulseStatus()` from `.codex/pulse_state.mjs`.
+`scout` and `run` read Pulse readiness through `readPulseStatus()` from `.pulse/scripts/pulse_state.mjs`.
 
 The scout surfaces:
 

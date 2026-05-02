@@ -102,7 +102,7 @@ No skill crosses these without explicit user approval:
 Sole authority for onboarding, tool-health, and readiness before any Pulse work begins.
 
 - Checks that `git`, `br`, and `bv` are available and reports versions
-- Runs `node skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root>` to assess repo onboarding/remediation state for `AGENTS.md`, `.codex/` hooks, and `.pulse/onboarding.json`
+- Runs `node skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root>` to assess repo onboarding/remediation state for `AGENTS.md`, repo-local Pulse runtime helpers under `.codex/`, repo-local Codex hook scripts under `.codex/hooks/`, legacy `.codex/hooks.json` cleanup, and `.pulse/onboarding.json`
 - Applies onboarding or remediation changes only after explicit approval, using `--apply` when remediation is needed
 - Checks native runtime swarm capability and reservation-helper readiness (determines swarm vs single-worker capability)
 - Writes `.pulse/tooling-status.json` with outcome and `recommended_mode`
@@ -119,7 +119,7 @@ Sole authority for onboarding, tool-health, and readiness before any Pulse work 
 Router/scout only. Loaded after preflight on every session.
 
 - Reads `tooling-status.json` and `STATE.md` to understand current context
-- Uses `node .codex/pulse_status.mjs --json` as a fast read-only scout when the repo is onboarded
+- Uses `node .pulse/scripts/pulse_status.mjs --json` as a fast read-only scout when the repo is onboarded
 - Defers to `pulse:preflight` whenever onboarding/readiness artifacts are missing, stale, or contradictory
 - Presents the skill catalog and routes the user's intent to the correct first skill
 - Manages go-mode (full pipeline, 4 gates), working modes (`small_change` / `standard_feature` / `high_risk_feature`), micro mode (single-file trivial tasks)
@@ -194,7 +194,7 @@ Rules:
 - `state.json` is a convenience mirror, not the source of truth for planning artifacts
 - `STATE.md` remains the narrative status file
 - handoff manifests remain owner-scoped and are not replaced by a global handoff file
-- `node .codex/pulse_status.mjs --json` is a read-only scout, not a workflow gate
+- `node .pulse/scripts/pulse_status.mjs --json` is a read-only scout, not a workflow gate
 - if readiness/onboarding status is unclear, control returns to `pulse:preflight` rather than being inferred by `pulse:using-pulse`
 
 ---
@@ -254,7 +254,7 @@ Orchestrates parallel worker agents. Runs only when `recommended_mode=swarm`.
 - Adapts the shared swarm contract to the active runtime: Claude Code teammates or Codex native subagents
 - Spawns bounded workers — each loads `pulse:executing`
 - Runs a continuous monitor loop over the active coordination surface plus the live bead graph
-- Resolves file conflicts through `.codex/pulse_reservations.mjs` and shared Pulse state
+- Resolves file conflicts through `.pulse/scripts/pulse_reservations.mjs` and shared Pulse state
 - Implements a silence ladder for idle workers (remind → recover → escalate)
 - **Hard rule:** Never implements beads directly. The coordinator only orchestrates.
 
@@ -416,7 +416,7 @@ Root-cause-first bug fixing for blocked work, test failures, runtime breakage, a
 ### `pulse:gitnexus`
 Codebase intelligence via scout-first GitNexus MCP discovery (or `rg` fallback).
 
-- Checks `node .codex/pulse_status.mjs --json` before discovery work
+- Checks `node .pulse/scripts/pulse_status.mjs --json` before discovery work
 - Uses MCP tools like `query`, `context`, `impact`, `api_impact`, and `route_map` as the primary path
 - Treats graph results as acceleration, not as a replacement for direct file reads
 - Falls back to `rg` + file reads when GitNexus is unavailable, and documents the fallback
@@ -619,7 +619,7 @@ history/<feature>/
 On normal Pulse sessions:
 
 1. Read `AGENTS.md`
-2. If present, run `node .codex/pulse_status.mjs --json`
+2. If present, run `node .pulse/scripts/pulse_status.mjs --json`
 3. Read `.pulse/handoffs/manifest.json` if resuming
 4. Read `.pulse/state.json`
 5. Read `.pulse/STATE.md`

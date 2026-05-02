@@ -50,7 +50,7 @@ Do not run `onboard_pulse.mjs --apply` from this skill. Any onboarding or remedi
 ## Before Anything Else
 
 1. Read `.pulse/tooling-status.json`.
-2. If `.codex/pulse_status.mjs` exists, run `node .codex/pulse_status.mjs --json`.
+2. If `.pulse/scripts/pulse_status.mjs` exists, run `node .pulse/scripts/pulse_status.mjs --json`.
 3. If the scout script is missing, or onboarding/status artifacts are missing or stale, run `pulse:preflight` first.
 4. Respect `recommended_mode` from preflight:
    - `swarm` → `pulse:swarming` allowed
@@ -63,7 +63,7 @@ Do not run `onboard_pulse.mjs --apply` from this skill. Any onboarding or remedi
 After onboarding, run:
 
 ```bash
-node .codex/pulse_status.mjs --json
+node .pulse/scripts/pulse_status.mjs --json
 ```
 
 Scout is read-only orientation. It summarizes onboarding, dependency health, state mirrors, handoffs, advisory checkpoints, project-doc routing hints, and targeted memory recall.

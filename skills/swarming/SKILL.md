@@ -63,7 +63,7 @@ Invoke only if all are true:
 - current-phase beads are in `open` status and approved for execution
 - `.pulse/tooling-status.json` says `recommended_mode=swarm`
 - the active CLI exposes a real native swarm path for this session
-- if `.codex/pulse_status.mjs` exists, run `node .codex/pulse_status.mjs --json` first to confirm onboarding, current phase, reservations, and any saved handoff before launching the swarm
+- if `.pulse/scripts/pulse_status.mjs` exists, run `node .pulse/scripts/pulse_status.mjs --json` first to confirm onboarding, current phase, reservations, and any saved handoff before launching the swarm
 
 If preflight recommends `single-worker`, do not invoke this skill. Invoke `pulse:executing` directly instead.
 
@@ -122,7 +122,7 @@ Adapter mapping:
 Shared rules:
 
 - beads plus `bv` stay the source of truth for work selection
-- `.codex/pulse_reservations.mjs` is the file-coordination layer for every runtime
+- `.pulse/scripts/pulse_reservations.mjs` is the file-coordination layer for every runtime
 - `.pulse/STATE.md`, `.pulse/state.json`, and `.pulse/handoffs/` stay authoritative for pause/resume
 - do not invent extra registration, inbox, or topic mechanics when the runtime does not use them
 
@@ -152,7 +152,7 @@ Do **not** assign workers fixed tracks, fixed waves, or fixed bead lists as the 
 2. load `pulse:executing`
 3. post an `[ONLINE]` acknowledgment
 4. run `bv --robot-priority`
-5. reserve bead paths through `.codex/pulse_reservations.mjs`
+5. reserve bead paths through `.pulse/scripts/pulse_reservations.mjs`
 6. implement and report
 7. loop
 
@@ -201,7 +201,7 @@ Minimum coordinator obligations per cycle:
 1. Validate incoming event shape against the contract.
 2. Update the worker entry in `.pulse/STATE.md` keyed by runtime identity.
 3. Verify bead-state transitions in `br`/`bv` before acknowledging completion.
-4. Resolve reservations through `.codex/pulse_reservations.mjs` before permitting overlapping edits.
+4. Resolve reservations through `.pulse/scripts/pulse_reservations.mjs` before permitting overlapping edits.
 5. Escalate to the user when blockers require product judgment or a worker stays silent through the appendix silence ladder.
 
 ### Context Checkpoint

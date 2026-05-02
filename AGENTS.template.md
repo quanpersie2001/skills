@@ -22,7 +22,7 @@ Pulse is not a license to skip `CONTEXT.md`, validating, review gates, or human 
 
 1. Read this file at session start and again after any context compaction.
 2. If `.pulse/onboarding.json` is missing or outdated, stop and run `pulse:using-pulse` before continuing.
-3. If `.codex/pulse_status.mjs` exists, use `node .codex/pulse_status.mjs --json` for a fast read-only status snapshot.
+3. If `.pulse/scripts/pulse_status.mjs` exists, use `node .pulse/scripts/pulse_status.mjs --json` for a fast read-only status snapshot.
 4. If `.pulse/handoffs/manifest.json` exists, do not auto-resume. Surface the saved state and wait for user confirmation.
 5. If `.pulse/memory/critical-patterns.md` exists, read it before planning or execution work.
 
@@ -46,7 +46,7 @@ pulse:preflight
 2. `CONTEXT.md` is the source of truth for locked decisions.
 3. If context usage passes roughly 65%, write `.pulse/handoffs/manifest.json` and pause cleanly.
 4. Treat `.pulse/state.json` as the routing mirror and `.pulse/STATE.md` as the human-readable narrative; keep them aligned.
-5. After compaction, re-read `AGENTS.md`, run `node .codex/pulse_status.mjs --json` if present, then re-open `.pulse/handoffs/manifest.json`, `.pulse/state.json`, `.pulse/STATE.md`, and the active feature context before more work.
+5. After compaction, re-read `AGENTS.md`, run `node .pulse/scripts/pulse_status.mjs --json` if present, then re-open `.pulse/handoffs/manifest.json`, `.pulse/state.json`, `.pulse/STATE.md`, and the active feature context before more work.
 6. P1 review findings block merge.
 
 ## 3-Plane Model
@@ -84,7 +84,7 @@ history/<feature>/
 ### Startup scout
 
 1. Run `pulse:using-pulse` if onboarding is missing or stale.
-2. Run `node .codex/pulse_status.mjs --json` when available.
+2. Run `node .pulse/scripts/pulse_status.mjs --json` when available.
 3. Use the scout to choose the next artifact instead of opening everything at once.
 
 ### Resume scout
@@ -102,7 +102,7 @@ history/<feature>/
 ## Codex Guardrails
 
 - Repo-local `.codex/` files installed by Pulse are workflow guardrails, not optional decoration.
-- Use `node .codex/pulse_status.mjs --json` as the preferred quick scout step when it is available.
+- Use `node .pulse/scripts/pulse_status.mjs --json` as the preferred quick scout step when it is available.
 - Treat `compact_prompt` recovery instructions as mandatory.
 - Use `bv` only with `--robot-*` flags. Bare `bv` launches the TUI and should be avoided in agent sessions.
 - If the repo is only partially onboarded, stay in bootstrap/planning mode and surface what is missing before implementation.

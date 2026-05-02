@@ -631,10 +631,10 @@ function parseArgs(argv) {
       process.stdout.write(
         [
           "Usage:",
-          "  node .codex/pulse_reservations.mjs reserve --agent <name> --bead <id> --path <glob> [--ttl <seconds>] [--note <text>] [--json]",
-          "  node .codex/pulse_reservations.mjs release --agent <name> [--bead <id>] [--path <glob>] [--id <reservation-id>] [--json]",
-          "  node .codex/pulse_reservations.mjs list [--active-only] [--agent <name>] [--path <glob>] [--status active|released|expired] [--json]",
-          "  node .codex/pulse_reservations.mjs sweep [--json]",
+          "  node .pulse/scripts/pulse_reservations.mjs reserve --agent <name> --bead <id> --path <glob> [--ttl <seconds>] [--note <text>] [--json]",
+          "  node .pulse/scripts/pulse_reservations.mjs release --agent <name> [--bead <id>] [--path <glob>] [--id <reservation-id>] [--json]",
+          "  node .pulse/scripts/pulse_reservations.mjs list [--active-only] [--agent <name>] [--path <glob>] [--status active|released|expired] [--json]",
+          "  node .pulse/scripts/pulse_reservations.mjs sweep [--json]",
         ].join("\n"),
       );
       process.exit(0);

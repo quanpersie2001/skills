@@ -5,7 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { readPulseStatus } from "../.codex/pulse_state.mjs";
+import { readPulseStatus } from "../.pulse/scripts/pulse_state.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -741,11 +741,24 @@ function runStaticChecks(results) {
   const pluginManifestPath = path.join(repoRoot, ".codex-plugin/plugin.json");
   const claudePluginPath = path.join(repoRoot, ".claude-plugin/plugin.json");
   const claudeMarketplacePath = path.join(repoRoot, ".claude-plugin/marketplace.json");
+  const claudeHooksPath = path.join(repoRoot, "hooks", "hooks.json");
+  const codexHooksPath = path.join(repoRoot, "hooks", "codex-hooks.json");
+  const claudeSessionStartHookPath = path.join(repoRoot, "hooks", "session-start.mjs");
   const marketplacePath = path.join(repoRoot, ".agents/plugins/marketplace.json");
   const mcpPath = path.join(repoRoot, ".mcp.json");
   const skillsRoot = path.join(repoRoot, "skills");
 
-  const required = [pluginManifestPath, claudePluginPath, claudeMarketplacePath, marketplacePath, mcpPath, skillsRoot];
+  const required = [
+    pluginManifestPath,
+    claudePluginPath,
+    claudeMarketplacePath,
+    claudeHooksPath,
+    codexHooksPath,
+    claudeSessionStartHookPath,
+    marketplacePath,
+    mcpPath,
+    skillsRoot,
+  ];
   for (const targetPath of required) {
     addResult(results, "static", `exists:${relativeToRepo(targetPath)}`, exists(targetPath) ? "PASS" : "FAIL", "");
   }
@@ -755,6 +768,8 @@ function runStaticChecks(results) {
   const manifest = readJson(pluginManifestPath);
   const claudePlugin = readJson(claudePluginPath);
   const claudeMarketplace = readJson(claudeMarketplacePath);
+  const claudeHooks = readJson(claudeHooksPath);
+  const codexHooks = readJson(codexHooksPath);
   const marketplace = readJson(marketplacePath);
   const mcp = readJson(mcpPath);
 
@@ -775,9 +790,75 @@ function runStaticChecks(results) {
   addResult(
     results,
     "static",
+    "codex-plugin-hook-declaration",
+    manifest?.hooks === "./hooks/codex-hooks.json" ? "PASS" : "WARN",
+    `hooks=${manifest?.hooks ?? "n/a"}`,
+  );
+  const codexSessionStartEntries = Array.isArray(codexHooks?.hooks?.SessionStart)
+    ? codexHooks.hooks.SessionStart
+    : [];
+  const codexPreToolUseEntries = Array.isArray(codexHooks?.hooks?.PreToolUse)
+    ? codexHooks.hooks.PreToolUse
+    : [];
+  const codexStopEntries = Array.isArray(codexHooks?.hooks?.Stop)
+    ? codexHooks.hooks.Stop
+    : [];
+  const codexSessionStartHook = codexSessionStartEntries[0]?.hooks?.[0] || null;
+  const codexPreToolUseHook = codexPreToolUseEntries[0]?.hooks?.[0] || null;
+  const codexStopHook = codexStopEntries[0]?.hooks?.[0] || null;
+  addResult(
+    results,
+    "static",
+    "codex-hook-registration",
+    codexSessionStartEntries[0]?.matcher === "startup|resume"
+      && codexPreToolUseEntries[0]?.matcher === "Bash"
+      && codexStopEntries.length > 0
+      ? "PASS"
+      : "WARN",
+    `SessionStart=${codexSessionStartEntries[0]?.matcher ?? "n/a"}, PreToolUse=${codexPreToolUseEntries[0]?.matcher ?? "n/a"}, Stop=${codexStopEntries.length > 0 ? "present" : "missing"}`,
+  );
+  addResult(
+    results,
+    "static",
+    "codex-hook-command-contract",
+    codexSessionStartHook?.command
+        === 'node "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/hooks/session-start.mjs"'
+      && codexPreToolUseHook?.command
+        === 'node "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/hooks/pre-tool-use.mjs"'
+      && codexStopHook?.command
+        === 'node "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/hooks/stop.mjs"'
+      ? "PASS"
+      : "WARN",
+    `SessionStart=${codexSessionStartHook?.command ?? "n/a"}, PreToolUse=${codexPreToolUseHook?.command ?? "n/a"}, Stop=${codexStopHook?.command ?? "n/a"}`,
+  );
+  addResult(
+    results,
+    "static",
     "claude-plugin-path-contract",
     claudePlugin?.skills === "./skills/" && claudePlugin?.mcpServers === "./.mcp.json" ? "PASS" : "WARN",
     `skills=${claudePlugin?.skills ?? "n/a"}, mcpServers=${claudePlugin?.mcpServers ?? "n/a"}`,
+  );
+  const claudeSessionStartEntries = Array.isArray(claudeHooks?.hooks?.SessionStart)
+    ? claudeHooks.hooks.SessionStart
+    : [];
+  const claudeSessionStartHook = claudeSessionStartEntries[0]?.hooks?.[0] || null;
+  addResult(
+    results,
+    "static",
+    "claude-hook-registration",
+    claudeSessionStartEntries.length > 0 && claudeSessionStartEntries[0]?.matcher === "startup|clear|compact"
+      ? "PASS"
+      : "WARN",
+    `matcher=${claudeSessionStartEntries[0]?.matcher ?? "n/a"}`,
+  );
+  addResult(
+    results,
+    "static",
+    "claude-hook-command-contract",
+    claudeSessionStartHook?.command === 'node "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs"' && claudeSessionStartHook?.async === false
+      ? "PASS"
+      : "WARN",
+    `command=${claudeSessionStartHook?.command ?? "n/a"}, async=${claudeSessionStartHook?.async ?? "n/a"}`,
   );
   addResult(
     results,
