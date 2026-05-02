@@ -778,7 +778,12 @@ function runStaticChecks(results) {
   const marketplaceVersion = marketplace?.plugins?.find((entry) => entry.name === "pulse")?.version;
   const claudeMarketplaceSource = claudeMarketplace?.plugins?.find((entry) => entry.name === "pulse")?.source;
   const marketplaceSourceRaw = marketplace?.plugins?.find((entry) => entry.name === "pulse")?.source;
-  const marketplaceSource = typeof marketplaceSourceRaw === "string" ? marketplaceSourceRaw : marketplaceSourceRaw?.path;
+  const marketplaceSource =
+    typeof marketplaceSourceRaw === "string"
+      ? marketplaceSourceRaw
+      : marketplaceSourceRaw?.source === "url"
+        ? marketplaceSourceRaw?.url
+        : marketplaceSourceRaw?.path;
 
   addResult(
     results,
@@ -871,7 +876,7 @@ function runStaticChecks(results) {
     results,
     "static",
     "codex-marketplace-source",
-    marketplaceSource === "." || marketplaceSource === "./" ? "PASS" : "WARN",
+    marketplaceSource === "https://github.com/quanpersie2001/pulse.git" ? "PASS" : "WARN",
     `source=${marketplaceSource ?? "n/a"}`,
   );
 
