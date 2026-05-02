@@ -2,83 +2,168 @@
 
 This runbook defines the maintainer entrypoint for Pulse plugin evaluation.
 
-## Primary command
+It assumes the canonical workflow model in [`../ARCHITECTURE.md`](../ARCHITECTURE.md) and the live operator rules in [`../../AGENTS.md`](../../AGENTS.md). This file owns evaluator behavior only.
 
-Run the first-class evaluator from repo root:
+## Primary commands
+
+Run the evaluator from repo root:
 
 ```bash
-node scripts/pulse-plugin-eval.mjs
+node scripts/pulse-plugin-eval.mjs run
+node scripts/pulse-plugin-eval.mjs analyze
+node scripts/pulse-plugin-eval.mjs scout
+node scripts/pulse-plugin-eval.mjs benchmark
 ```
 
-The runner executes three gates in order:
-1. **Static plugin health** (manifest/marketplace/skills contracts)
-2. **Runtime/dependency health** (`git`, `br`, `bv`, optional command execution)
-3. **Scenario/benchmark health** (`pulse-eval-workspace` matrix + latest iteration artifacts)
+`run` is the default when no subcommand is provided.
 
-## Gate 1 — Static plugin health
+## Stage map
 
-Covered by default runner checks:
-- `.codex-plugin/plugin.json` exists and parses
-- `.claude-plugin/plugin.json` exists and parses
-- `.agents/plugins/marketplace.json` exists and parses
-- `.mcp.json` exists and parses
-- manifest/marketplace/plugin versions are in sync
-- `skills/*/SKILL.md` contract is intact
+| Command | Stages | Purpose |
+|---|---|---|
+| `run` | `static` → `runtime` → `scout` → `benchmark` | Full maintainer pass plus chat-benchmark preparation/finalization |
+| `analyze` | `static` → `runtime` | Structural and local dependency checks only |
+| `scout` | `scout` | Read Pulse readiness state without touching benchmark artifacts |
+| `benchmark` | `benchmark` (+ `scenarios` after finalization) | Prepare packet/template for an interactive chat run, or compile final artifacts from filled evidence |
 
-## Gate 2 — Runtime/dependency health
+Use `--json` with any command for machine-readable output.
 
-Covered by default runner checks:
-- `git`, `br`, `bv` are available on PATH
-- optional scenario execution command can be run via `--run-cmd`
+## Inputs
+
+The evaluator reads from two canonical inputs:
+
+- [`.plugin-eval/benchmark.json`](../../.plugin-eval/benchmark.json) — pilot scenario IDs, shared verifier commands, and chat-run benchmark notes
+- [`pulse-eval-workspace/evals.json`](../../pulse-eval-workspace/evals.json) — canonical scenario library
+
+The benchmark config selects which scenario IDs to run. The scenario library remains the source of truth for prompt content and expectation checklists.
+
+## Static stage
+
+`analyze` and `run` both check:
+
+- `.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`, `.agents/plugins/marketplace.json`, and `.mcp.json` parse cleanly
+- plugin and marketplace versions stay aligned
+- every `skills/*/SKILL.md` contract exists
+- skill-catalog generation still matches the repo state
+- packaged memory-oriented skills keep their boundary markers intact
+
+## Runtime stage
+
+`analyze` and `run` both check local prerequisites:
+
+- `git`, `br`, and `bv` on PATH
+- optional repo-local verification via `--run-cmd`
 
 Example:
 
 ```bash
-node scripts/pulse-plugin-eval.mjs --run-cmd "node skills/using-pulse/scripts/test_onboard_pulse.mjs"
+node scripts/pulse-plugin-eval.mjs analyze \
+  --run-cmd "node skills/using-pulse/scripts/test_onboard_pulse.mjs"
 ```
 
-If runtime dependencies are degraded, report which scenario conclusions are dependency-sensitive.
+This stage no longer checks for headless `claude` or `codex` execution, because benchmark scenarios are now run in the current interactive chat instead.
 
-## Gate 3 — Scenario/benchmark health
+## Scout stage
 
-Covered by default runner checks:
-- `pulse-eval-workspace/evals.json` exists and is readable
-- review artifact exists at `pulse-eval-workspace/pulse-eval-review.html`
-- latest `iteration-*` is detected (or explicit `--iteration`)
-- `benchmark.json` and `benchmark.md` are present for the selected iteration
-- benchmark summary and discrimination signal are extractable
+`scout` and `run` read Pulse readiness through `readPulseStatus()` from `.codex/pulse_state.mjs`.
 
-Useful options:
+The scout surfaces:
+
+- onboarding status and plugin version
+- tooling status and `recommended_mode`
+- GitNexus readiness and fallback guidance
+
+This stage is read-only. It tells you whether benchmark conclusions are being collected in a healthy Pulse runtime or in a degraded repo state.
+
+## Benchmark stage
+
+The benchmark stage now works in two steps.
+
+### Step 1 — prepare chat-run artifacts
+
+Run `benchmark` without `--evidence` to create the packet and template for the current chat session:
 
 ```bash
-# Select iteration explicitly
-node scripts/pulse-plugin-eval.mjs --iteration 6
-
-# Require a scenario subset to exist in evals.json
-node scripts/pulse-plugin-eval.mjs --eval-ids 7,8,19
-
-# Emit machine-readable output
-node scripts/pulse-plugin-eval.mjs --json
-
-# Treat warnings as failures
-node scripts/pulse-plugin-eval.mjs --strict
+node scripts/pulse-plugin-eval.mjs benchmark --iteration 8 --eval-ids 21,2
 ```
+
+This writes:
+
+- `pulse-eval-workspace/iteration-8/benchmark-packet.md`
+- `pulse-eval-workspace/iteration-8/benchmark-evidence.json`
+
+`benchmark-packet.md` is the scenario packet to use in chat. `benchmark-evidence.json` is the template you fill with:
+
+- the assistant response for each scenario
+- the manual verdict from the same interactive session
+
+The evaluator intentionally stops here with a warning-level reminder telling you to run the selected scenarios in chat and rerun with `--evidence`.
+
+### Step 2 — finalize from filled evidence
+
+After the chat run, compile the final benchmark artifacts:
+
+```bash
+node scripts/pulse-plugin-eval.mjs benchmark \
+  --iteration 8 \
+  --eval-ids 21,2 \
+  --evidence pulse-eval-workspace/iteration-8/benchmark-evidence.json \
+  --json
+```
+
+This reads the filled evidence file, runs shared verifier commands, and writes:
+
+- `pulse-eval-workspace/iteration-8/benchmark.json`
+- `pulse-eval-workspace/iteration-8/benchmark.md`
+- `pulse-eval-workspace/pulse-eval-review.html`
+
+After finalization, the evaluator also runs the `scenarios` checks against the generated benchmark artifacts.
+
+## Scenario validation stage
+
+After a finalized benchmark run, the evaluator checks:
+
+- `pulse-eval-workspace/evals.json` exists and contains the requested IDs
+- `pulse-eval-workspace/pulse-eval-review.html` exists
+- the selected `iteration-*` exists
+- `benchmark-packet.md` and `benchmark-evidence.json` exist
+- `benchmark.json` and `benchmark.md` were written
+- `benchmark.json` exposes summary data plus a discrimination note
+
+## Generated artifacts
+
+Prepare step:
+
+- `pulse-eval-workspace/iteration-*/benchmark-packet.md`
+- `pulse-eval-workspace/iteration-*/benchmark-evidence.json`
+
+Finalize step:
+
+- `pulse-eval-workspace/iteration-*/benchmark.json`
+- `pulse-eval-workspace/iteration-*/benchmark.md`
+- `pulse-eval-workspace/pulse-eval-review.html`
+
+Treat all of these as generated artifacts, not hand-maintained source files.
 
 ## Fix-first triage order
 
 Use this order when reading failures:
 
-1. manifest/metadata integrity
-2. runtime/dependency readiness
-3. gate-contract failures (Gates 1-4)
-4. operator-path drift (docs claim vs actual behavior)
-5. scenario-level behavioral misses
+1. static contract failures
+2. local dependency failures (`git`, `br`, `bv`, or `--run-cmd`)
+3. scout readiness warnings that explain degraded results
+4. missing or malformed benchmark packet/evidence artifacts
+5. incomplete scenario evidence in `benchmark-evidence.json`
+6. judged behavioral misses in completed scenarios
+7. doc drift between this runbook and generated artifacts
 
 ## Public reporting requirements
 
 Every published evaluation summary should include:
-- tested scenario IDs
-- pass/fail counts
-- dependency caveats
-- discriminating/non-discriminating assessment
-- links to benchmark artifacts and scenario source
+
+- scenario IDs tested
+- whether the run was prepared only or fully finalized
+- completed / passed / failed / incomplete counts
+- readiness or dependency caveats from scout/runtime checks
+- links to `benchmark-packet.md`, `benchmark-evidence.json`, `benchmark.json`, and `benchmark.md`
+- whether the discrimination note is still only a placeholder for this run

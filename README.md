@@ -420,16 +420,25 @@ For a full walkthrough, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [
 Run evaluations through the canonical entrypoint:
 
 ```bash
-node scripts/pulse-plugin-eval.mjs
+node scripts/pulse-plugin-eval.mjs run
+```
+
+Useful maintainer commands:
+
+```bash
+node scripts/pulse-plugin-eval.mjs analyze --json
+node scripts/pulse-plugin-eval.mjs scout --json
+node scripts/pulse-plugin-eval.mjs benchmark --iteration 8 --eval-ids 21,2
+node scripts/pulse-plugin-eval.mjs benchmark --iteration 8 --eval-ids 21,2 --evidence pulse-eval-workspace/iteration-8/benchmark-evidence.json --json
 ```
 
 Pulse evaluation guidance lives in:
 
-- [`docs/evaluation/pulse-plugin-eval.md`](docs/evaluation/pulse-plugin-eval.md) — gate-based plugin evaluation runbook
+- [`docs/evaluation/pulse-plugin-eval.md`](docs/evaluation/pulse-plugin-eval.md) — evaluator runbook and stage map
 - [`docs/evaluation/pulse-swarming-hardening.md`](docs/evaluation/pulse-swarming-hardening.md) — swarming pressure scenarios and expected coordinator/worker behavior
-- [`docs/evaluation/how-to-read-results.md`](docs/evaluation/how-to-read-results.md) — how to interpret benchmark and scenario output using the release reporting categories (runtime, quality, safety, docs, tests)
+- [`docs/evaluation/how-to-read-results.md`](docs/evaluation/how-to-read-results.md) — how to interpret packet, evidence, and finalized benchmark artifacts
 
-The scenario source of truth is [`pulse-eval-workspace/evals.json`](pulse-eval-workspace/evals.json). `pulse-eval-workspace/iteration-*` and `pulse-eval-workspace/pulse-eval-review.html` are archival benchmark/history artifacts.
+The benchmark plan lives in [`.plugin-eval/benchmark.json`](.plugin-eval/benchmark.json). The canonical scenario source is [`pulse-eval-workspace/evals.json`](pulse-eval-workspace/evals.json). `benchmark-packet.md`, `benchmark-evidence.json`, `benchmark.json`, `benchmark.md`, and `pulse-eval-review.html` are generated benchmark/history artifacts.
 
 ## Manifest Asymmetry (Intentional)
 

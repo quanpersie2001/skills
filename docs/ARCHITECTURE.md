@@ -688,16 +688,28 @@ On resume, `pulse:using-pulse` reads the manifest and presents active handoffs f
 Canonical evaluation entrypoint:
 
 ```bash
-node scripts/pulse-plugin-eval.mjs
+node scripts/pulse-plugin-eval.mjs run
 ```
+
+The evaluator exposes four maintainer-facing commands:
+
+- `run` — full pass across `static`, `runtime`, `scout`, and chat-benchmark preparation/finalization
+- `analyze` — structural and local runtime checks only
+- `scout` — Pulse readiness snapshot only
+- `benchmark` — prepare packet/template for the current chat, or finalize artifacts from filled evidence
 
 Public evaluation contracts and interpretation guides:
 
 - [`docs/evaluation/pulse-plugin-eval.md`](evaluation/pulse-plugin-eval.md)
 - [`docs/evaluation/pulse-swarming-hardening.md`](evaluation/pulse-swarming-hardening.md)
-- [`docs/evaluation/how-to-read-results.md`](evaluation/how-to-read-results.md) — release reporting categories: runtime, quality, safety, docs, tests
+- [`docs/evaluation/how-to-read-results.md`](evaluation/how-to-read-results.md)
 
-Machine scenario source of truth is `pulse-eval-workspace/evals.json`. `pulse-eval-workspace/iteration-*` and `pulse-eval-workspace/pulse-eval-review.html` are archival benchmark/history artifacts.
+Benchmark planning and artifact ownership:
+
+- `.plugin-eval/benchmark.json` selects pilot scenario IDs and shared verifier commands
+- `pulse-eval-workspace/evals.json` is the canonical scenario source
+- `pulse-eval-workspace/iteration-*/benchmark-packet.md` and `benchmark-evidence.json` are chat-run preparation artifacts
+- `pulse-eval-workspace/iteration-*/benchmark.json`, `benchmark.md`, and `pulse-eval-review.html` are finalized generated benchmark artifacts
 
 ## Verification Expectations
 

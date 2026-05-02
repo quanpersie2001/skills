@@ -1,12 +1,44 @@
 # pulse-eval-workspace
 
-This workspace stores Pulse evaluation artifacts and benchmark history.
+This workspace stores Pulse evaluation inputs and generated benchmark artifacts.
 
-## Current source of truth
+## Source of truth
 
-- `evals.json` is the canonical machine-readable index for current eval definitions and outcomes.
+- `evals.json` is the canonical scenario library.
+- The benchmark runner reads pilot scenario IDs and shared verifier commands from [`.plugin-eval/benchmark.json`](../.plugin-eval/benchmark.json).
 
-## Historical benchmark iterations
+## Chat-run benchmark flow
 
-- `iteration-*` directories and `pulse-eval-review.html` are historical experiment snapshots kept for comparison and audit context.
-- Treat these as archival references unless a task explicitly asks you to rerun or update a specific iteration.
+### 1. Prepare packet + evidence template
+
+```bash
+node scripts/pulse-plugin-eval.mjs benchmark --iteration 8 --eval-ids 21,2
+```
+
+This generates:
+
+- `iteration-8/benchmark-packet.md`
+- `iteration-8/benchmark-evidence.json`
+
+Use the packet inside the current interactive chat. Paste the assistant responses and manual verdicts into the evidence template.
+
+### 2. Finalize benchmark artifacts
+
+```bash
+node scripts/pulse-plugin-eval.mjs benchmark \
+  --iteration 8 \
+  --eval-ids 21,2 \
+  --evidence pulse-eval-workspace/iteration-8/benchmark-evidence.json
+```
+
+This generates:
+
+- `iteration-8/benchmark.json`
+- `iteration-8/benchmark.md`
+- `pulse-eval-review.html`
+
+## Historical iterations
+
+- `iteration-*` directories are generated snapshots, not hand-maintained source files.
+- `pulse-eval-review.html` is the latest rendered review for the most recent finalized run.
+- Treat these as archival references unless a task explicitly asks you to refresh a specific iteration.
