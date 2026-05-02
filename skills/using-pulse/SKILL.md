@@ -70,6 +70,11 @@ Scout is read-only orientation. It summarizes onboarding, dependency health, sta
 
 Scout output is context, not a gate bypass. Keep gates and downstream skill contracts intact.
 
+Project docs are part of the scout contract:
+- if `.pulse/project-docs.json` is mapped, read the mapped repo-level docs before feature history when terminology or architecture boundaries matter
+- if project docs are only detected, surface that and consider `pulse:bootstrap-project-context` before deeper planning
+- if project docs are missing, do not invent a repo glossary silently; keep the absence explicit
+
 ### Checkpoint and State Posture
 
 Checkpoint files under `.pulse/checkpoints/<feature>/...` are **advisory snapshots only**.
@@ -162,6 +167,7 @@ If a request introduces user-visible capability, workflow, subsystem, API surfac
 | "Improve Pulse itself" | `pulse:writing-pulse-skills` |
 | "Architecture rescue" asks | `pulse:architecture-rescue` |
 | Architecture/discovery asks | `pulse:gitnexus` |
+| Repo/project-doc bootstrap or glossary setup | `pulse:bootstrap-project-context` |
 | Blocked/failing agent flow | `pulse:systematic-debug-fix` |
 | `/go` / full pipeline | Go Mode (`references/go-mode-pipeline.md`) |
 | Resume interrupted work | Resume logic from handoff manifest |

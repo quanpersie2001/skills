@@ -89,7 +89,7 @@ node skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <project_root>
 Interpret the result:
 
 - `status = "up_to_date"` — Pulse onboarding is current. Set `onboarding = PASS`.
-- `status = "needs_onboarding"` — the repo needs Pulse onboarding or remediation updates before normal bootstrap can continue. Use `actions` plus any relevant `details` to explain whether this is missing repo-local assets, missing or stale `.codex/hooks/*` Pulse hook scripts, stale `.codex/hooks.json` Pulse entries, legacy Python hook files, legacy verification/memory layout, or a partial Pulse install.
+- `status = "needs_onboarding"` — the repo needs Pulse onboarding or remediation updates before normal bootstrap can continue. Use `actions` plus any relevant `details` to explain whether this is missing repo-local assets, stale `.codex/hooks.json` Pulse entries, legacy `.codex/hooks/*` or `.codex/pulse_*.mjs` cleanup, legacy Python hook files, legacy verification/memory layout, or a partial Pulse install.
 - `status = "missing_runtime"` — Node.js 18+ is not available, so onboarding cannot run. Set `onboarding = NEEDS_SETUP`.
 
 For `needs_onboarding`:

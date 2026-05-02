@@ -310,7 +310,7 @@ test("applyRepo preserves an existing compact_prompt without explicit replace", 
   }
 });
 
-test("checkRepo flags legacy repo-local Pulse hook config and stale python hook files", () => {
+test("checkRepo flags legacy .codex hook registration and stale python hook files for cleanup", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 
   try {
@@ -353,10 +353,12 @@ test("checkRepo flags legacy repo-local Pulse hook config and stale python hook 
   }
 });
 
-test("applyRepo removes legacy Pulse hook entries without taking ownership of runtime hook files", () => {
+test("applyRepo removes legacy .codex hook registration without taking ownership of stale repo-local hook files", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
 
   try {
+    // These files model a pre-packaged-hooks install. Current runtime contract
+    // executes hooks/* directly; onboarding only cleans up the old .codex wiring.
     fs.mkdirSync(path.join(root, ".codex", "hooks"), { recursive: true });
     fs.writeFileSync(path.join(root, ".codex", "hooks", "pulse_session_start.mjs"), "// stale\n", "utf8");
     fs.writeFileSync(path.join(root, ".codex", "hooks", "pulse_session_start.py"), "# legacy\n", "utf8");
@@ -807,6 +809,27 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
     fs.writeFileSync(path.join(root, "history", "operator-surface-foundation", "phase-4-contract.md"), "# Contract\n", "utf8");
     fs.writeFileSync(path.join(root, "history", "operator-surface-foundation", "phase-4-story-map.md"), "# Story Map\n", "utf8");
     fs.mkdirSync(path.join(root, "history", "operator-surface-foundation", "verification"), { recursive: true });
+    fs.mkdirSync(path.join(root, "docs", "adr"), { recursive: true });
+    fs.writeFileSync(path.join(root, "CONTEXT.md"), "# Root Context\n", "utf8");
+    fs.writeFileSync(path.join(root, "docs", "adr", "0001-boundaries.md"), "# Boundaries\n", "utf8");
+    fs.writeFileSync(
+      path.join(root, ".pulse", "project-docs.json"),
+      `${JSON.stringify({
+        status: "mapped",
+        mode: "single-context",
+        context: {
+          root: "CONTEXT.md",
+          map: "",
+          entries: [],
+        },
+        adrs: {
+          enabled: true,
+          dir: "docs/adr",
+        },
+        notes: ["Glossary is stable at repo root."],
+      }, null, 2)}\n`,
+      "utf8",
+    );
     fs.writeFileSync(
       path.join(root, "history", "operator-surface-foundation", "verification", "final-review.md"),
       "# Final Review\n",
@@ -842,6 +865,12 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
     assert.equal(payload.reservations.exists, true);
     assert.equal(payload.reservations.total, 1);
     assert.equal(payload.reservations.active_count, 1);
+    assert.equal(payload.project_docs.exists, true);
+    assert.equal(payload.project_docs.status, "mapped");
+    assert.equal(payload.project_docs.mode, "single-context");
+    assert.equal(payload.project_docs.mapping_path, ".pulse/project-docs.json");
+    assert.equal(payload.project_docs.context.root, "CONTEXT.md");
+    assert.equal(payload.project_docs.adrs.dir, "docs/adr");
     assert.deepEqual(payload.reservations.active_agents, ["worker-blue-lake"]);
     assert.equal(
       payload.handoff_manifest.active[0].operator_summary,
@@ -913,6 +942,9 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
       "Possible duplicate corrections: planning-gate.",
     ));
     assert.ok(payload.next_reads.includes(".pulse/handoffs/manifest.json"));
+    assert.ok(payload.next_reads.includes(".pulse/project-docs.json"));
+    assert.ok(payload.next_reads.includes("CONTEXT.md"));
+    assert.ok(payload.next_reads.includes("docs/adr"));
     assert.ok(payload.next_reads.includes(".pulse/handoffs/planning.json"));
     assert.ok(payload.next_reads.includes("history/operator-surface-foundation/CONTEXT.md"));
     assert.ok(payload.next_reads.includes("history/operator-surface-foundation/approach.md"));
@@ -959,11 +991,14 @@ test("pulse status scout surfaces current-feature, runtime snapshot, canonical h
       metadata_first_ranking: true,
       fallback_to_filename_tokens: false,
     });
+    assert.ok(payload.recommended_actions.some((item) => item.includes("mapped project docs")));
     assert.ok(payload.recommended_actions.some((item) => item.includes("targeted recall pack")));
     assert.ok(payload.recommended_actions.some((item) => item.includes("durable audit pass without reopening live runtime state")));
     assert.ok(payload.recommended_actions.some((item) => item.includes("Memory hygiene warning")));
     assert.match(textStdout, /Feature: operator-surface-foundation/);
     assert.match(textStdout, /Operator surface:/);
+    assert.match(textStdout, /Project docs:/);
+    assert.match(textStdout, /Status: mapped/);
     assert.match(textStdout, /Current feature snapshot: present/);
     assert.match(textStdout, /Runtime snapshot: present/);
     assert.match(textStdout, /active_feature: snapshot-feature/);

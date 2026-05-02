@@ -19,7 +19,7 @@ This skill is for **analysis and proposal** first. By default it is **report-onl
 ## What this is (and is not)
 
 - **This skill**: architecture rescue and hygiene across seams, ownership, interfaces, and module depth.
-- **Not `pulse:simplify-code`**: simplify-code is diff-scoped cleanup and safe refactors on concrete changes.
+- **Not diff-scoped cleanup**: this skill is for system shape, seams, and ownership, not for small behavior-preserving cleanup on a concrete diff.
 - **Not normal planning**: planning slices approved feature work into phases/stories/beads; architecture-rescue diagnoses architecture friction and proposes rescue candidates before planning.
 
 ## Default mode

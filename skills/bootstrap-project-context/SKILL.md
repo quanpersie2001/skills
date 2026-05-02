@@ -47,6 +47,21 @@ Support these repository patterns:
 
 Record the selected structure in `.pulse/project-docs.json` as a mapping artifact in the skill workflow instructions.
 
+Detect exactly one of:
+- `single-context`
+- `multi-context`
+- `none-yet`
+
+Return the evidence paths that justify that choice.
+
+When docs already exist:
+- inspect them for glossary, ownership, and boundary cues
+- create or validate `.pulse/project-docs.json` immediately so downstream skills share the same map
+
+When docs do not exist:
+- propose only the lightest lazy scaffold needed for the first resolved term or durable decision
+- keep the absence explicit instead of silently inventing repo language
+
 If project docs are missing, default to a lazy scaffold proposal and ask for explicit user confirmation before creating files. Never force eager scaffolding.
 
 Use these references when scaffolding is approved:
@@ -101,6 +116,7 @@ Include:
 - major components and responsibilities
 - important commands and workflows
 - notable conventions or operating constraints from `AGENTS.md`
+- project-doc mode, glossary sources, and terminology hotspots that future exploring sessions should honor
 - open questions or areas that still need deeper inspection
 - the best next files or directories to read for the user's likely goal
 
@@ -144,4 +160,5 @@ This skill is complete when the upgraded prompt or repo-orientation pass:
 - begins with a full read of `AGENTS.md` and `README.md` when present
 - explains the project's purpose and technical architecture from inspected source
 - identifies the main components, workflows, and important commands
+- either confirms a valid `.pulse/project-docs.json` mapping or returns a concrete lazy scaffold proposal
 - captures repo-specific conventions and open questions clearly enough for the next turn to start productively

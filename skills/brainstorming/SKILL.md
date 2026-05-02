@@ -27,6 +27,11 @@ before any codebase research or implementation planning begins.
 
 Research shows that validated designs reduce planning rework by stopping assumption drift before it compounds.
 
+This skill should behave like a disciplined design grilling session:
+- walk the design tree until no planning-critical branch is unresolved
+- ask the user only what the repo and docs cannot already answer
+- when a strong default exists, include a recommended answer so the user can confirm or override it quickly
+
 <HARD-GATE>
 Do NOT invoke any implementation skill, write any code, create beads, or take any
 implementation action until a design has been presented AND the user has approved it.
@@ -125,6 +130,7 @@ Before asking any question, understand what already exists:
 - Read `.pulse/project-docs.json` first when present, then read the listed project docs before relying on feature history alone
 - If `.pulse/project-docs.json` is absent, detect likely project docs (README, architecture, ADR, domain docs) and read the smallest relevant set
 - Reuse existing glossary/terminology from project docs when present; do not invent new terms when established names already exist
+- Before asking, eliminate questions the repo can already answer. Read docs, code, and recent repo history first, then ask only for unresolved design intent.
 - Check relevant files, docs, and the last few commits related to the topic
 - Identify existing patterns, components, or decisions that constrain the design
 - Note what can be reused vs. what needs to be created from scratch
@@ -231,6 +237,9 @@ latent requirements than batched approaches.
 - Use structured question tools in this order when available: `AskUserQuestion` → `AskMeTool` → another equivalent harness-native question tool
 - Multiple-choice preferred over open-ended when possible
 - Start broad (what, why, for whom) then narrow (constraints, edge cases, success criteria)
+- For every question, include a clearly labeled recommended answer when a strong default exists
+- Keep walking the decision tree until each design-critical branch is chosen, rejected, delegated, or explicitly deferred
+- Do not stop after collecting preferences if a downstream planner would still need to guess
 - If the request is still shapeless after context review, use one brief step-back move before the next question so the question targets the real decision instead of a local detail
 - 3–4 questions per topic area, then checkpoint with the structured question tool when available: "More questions about [area], or move on?"
 - Do not mix plain-text questions and tool-based questions arbitrarily inside the same session
@@ -380,6 +389,7 @@ The ONLY valid next step is the user invoking pulse:exploring.
 
 - **One question at a time** — never overwhelm
 - **Multiple-choice preferred** — easier to answer than open-ended
+- **Question relentlessly, but only about decisions the repo cannot already answer**
 - **Use visuals only when they clarify** — seeing options should remove ambiguity, not add noise
 - **Honor existing glossary first** — prefer established project terminology and call out conflicts early
 - **YAGNI ruthlessly** — remove unrequested features from all designs

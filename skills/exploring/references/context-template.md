@@ -42,6 +42,9 @@ This is the scope anchor — planning must not exceed it.]
 
 These are fixed. Planning must implement them exactly. No creative reinterpretation.
 
+### Terminology & Domain Model
+[Use this subsection when language itself was a gray area. Record canonical terms plus rejected meanings or synonyms that should not be reused.]
+
 ### <Category that emerged from discussion>
 - **D1** [Specific, concrete decision — not a preference]
   *Rationale: [Why the user chose this, if relevant to implementation]*
@@ -64,6 +67,16 @@ These are fixed. Planning must implement them exactly. No creative reinterpretat
 [Things the user said like "I want it like X" or "similar to Y feature".
 Link to mockups, examples, or external references if mentioned.]
 </specifics>
+
+---
+
+<scenario_checks>
+## Scenario Checks
+
+[Optional. Capture 2-4 concrete scenarios or edge cases that prove the chosen boundaries and terminology.]
+
+- [Scenario] -> [What this confirms]
+</scenario_checks>
 
 ---
 
@@ -97,6 +110,17 @@ Downstream agents: read these files before planning to avoid reinventing existin
 
 *[Remove section if no canonical references exist]*
 </canonical_refs>
+
+---
+
+<project_docs_follow_up>
+## Project Docs Follow-up
+
+[Optional. Repo-level doc debt or updates discovered during exploring.]
+
+- **Target:** [root CONTEXT.md | CONTEXT-MAP.md entry | ADR candidate]
+  *Why:* [What recurring ambiguity or trade-off this would preserve]
+</project_docs_follow_up>
 
 ---
 

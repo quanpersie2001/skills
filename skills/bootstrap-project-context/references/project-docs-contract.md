@@ -14,10 +14,12 @@ Choose exactly one context mode per repository:
 
 1. `single-context`
    - One canonical `CONTEXT.md` at repo root.
+   - Use this when one dominant domain language governs the repo.
 
 2. `multi-context`
    - One canonical `CONTEXT-MAP.md` at repo root.
    - One `CONTEXT.md` per context area, linked from the map.
+   - Use this only when separate bounded contexts have distinct vocabularies and can be mapped cleanly.
 
 ADR support is optional in either mode:
 
@@ -35,7 +37,9 @@ Suggested shape:
 
 ```json
 {
+  "status": "mapped | detected | missing",
   "mode": "single-context | multi-context",
+  "mode_reason": "Short explanation of why this mode fits the repo.",
   "context": {
     "root": "CONTEXT.md",
     "map": "CONTEXT-MAP.md",
@@ -46,10 +50,12 @@ Suggested shape:
       }
     ]
   },
+  "glossary_paths": ["CONTEXT.md"],
   "adrs": {
     "enabled": true,
     "dir": "docs/adr"
-  }
+  },
+  "adr_paths": ["docs/adr/0001-bounded-contexts.md"]
 }
 ```
 
@@ -63,6 +69,10 @@ If required project docs are missing:
 4. Create only approved files.
 
 Never auto-generate full docs without user confirmation.
+
+Create `CONTEXT.md` only when the first domain term or invariant is worth recording.
+
+Offer an ADR only when the decision is hard to reverse, surprising without context, and the result of a real trade-off.
 
 ## Templates
 

@@ -23,6 +23,7 @@ Pulse keeps these invariants:
 
 - `SKILL.md` remains the primary workflow contract even when Node helpers provide runtime support.
 - `CONTEXT.md` is the source of truth for locked decisions.
+- repo-level project docs remain a separate truth plane for durable terminology and architecture context.
 - `validating` is a real execution gate, not an optional review step.
 - beads + `bv` + runtime-native swarm adapters + local reservations are the coordination substrate.
 - `swarming` is the orchestrator role and `executing` is the worker role.
@@ -102,7 +103,7 @@ No skill crosses these without explicit user approval:
 Sole authority for onboarding, tool-health, and readiness before any Pulse work begins.
 
 - Checks that `git`, `br`, and `bv` are available and reports versions
-- Runs `node skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root>` to assess repo onboarding/remediation state for `AGENTS.md`, repo-local Pulse runtime helpers under `.codex/`, repo-local Codex hook scripts under `.codex/hooks/`, legacy `.codex/hooks.json` cleanup, and `.pulse/onboarding.json`
+- Runs `node skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root>` to assess repo onboarding/remediation state for `AGENTS.md`, repo-local Pulse runtime helpers under `.pulse/scripts/`, repo-local Pulse state under `.pulse/`, legacy `.codex/hooks.json` cleanup, legacy `.codex/hooks/*` and `.codex/pulse_*.mjs` cleanup, and `.pulse/onboarding.json`
 - Applies onboarding or remediation changes only after explicit approval, using `--apply` when remediation is needed
 - Checks native runtime swarm capability and reservation-helper readiness (determines swarm vs single-worker capability)
 - Writes `.pulse/tooling-status.json` with outcome and `recommended_mode`
@@ -146,6 +147,8 @@ Router/scout only. Loaded after preflight on every session.
 Turns vague intent into an approved design spec before any decisions are locked.
 
 - Asks clarifying questions **one at a time** — hard gate between each
+- Prefers source-backed answers over avoidable user questions
+- Includes a recommended default when the repo or current context makes one strong
 - Proposes 2–3 distinct approaches with trade-offs after sufficient context
 - Presents a recommended design; iterates on feedback
 - Writes the agreed spec to `history/<feature>/spec.md`
@@ -165,6 +168,8 @@ Locks all implementation decisions before planning begins.
 
 - Classifies scope (quick / standard / deep) and domain (SEE / CALL / RUN / READ / ORGANIZE)
 - Asks Socratic questions **one at a time** — each question must be answered before the next
+- Reuses repo-level glossary when present and surfaces term conflicts immediately
+- Uses concrete scenarios to force precise boundaries when language is still fuzzy
 - Assigns stable decision IDs: D1, D2, D3... as decisions are locked
 - Writes the locked decisions to `history/<feature>/CONTEXT.md`
 - Spawns a self-review subagent before Gate 1
@@ -185,6 +190,7 @@ Pulse uses both human-readable and machine-readable runtime state:
   tooling-status.json   -> preflight result and recommended mode
   state.json            -> lightweight routing/status mirror
   STATE.md              -> human-readable current phase and focus
+  project-docs.json     -> routing map for repo-level CONTEXT/CONTEXT-MAP/ADR docs
   handoffs/manifest.json -> owner-scoped resume index
 ```
 
@@ -389,7 +395,7 @@ flowchart LR
         SDF[pulse:systematic-debug-fix]
         GNX[pulse:gitnexus]
         DRM[pulse:dream]
-        SC[pulse:simplify-code]
+        AR[pulse:architecture-rescue]
         PL2[pulse:prompt-leverage]
         WPS[pulse:writing-pulse-skills]
     end
@@ -398,6 +404,7 @@ flowchart LR
     SDF -->|learning found| CP2[pulse:compounding]
     GNX -->|feeds discovery| planning
     DRM -->|consolidates into| learnings[(.pulse/memory/)]
+    AR -->|shape rescue candidates before execution| planning
 ```
 
 ### `pulse:systematic-debug-fix`
@@ -438,17 +445,15 @@ Manual consolidation of durable learnings from Claude Code or Codex runtime arti
 
 ---
 
-### `pulse:simplify-code`
-Code review and simplification across four lenses.
+### `pulse:architecture-rescue`
+Report-first architecture hygiene for repo-wide or subsystem-wide shape problems.
 
-Three modes:
-- **review-only** — reports findings, no file changes
-- **safe-fixes** — applies high-confidence behavior-preserving changes
-- **fix-and-validate** — applies fixes and runs validation commands
+- maps shallow modules, leaky seams, ownership drift, and deepening opportunities
+- defaults to report-only mode rather than immediate execution
+- uses `pulse:gitnexus` when available to gather topology and breadth evidence before proposing rescue moves
+- hands approved rescue candidates to `pulse:planning` only when the user explicitly asks for follow-through
 
-Spawns 4 parallel review subagents: **reuse**, **quality**, **efficiency**, **clarity**. Aggregates into a structured findings list with `file`, `line`, `category`, `recommended fix`.
-
-**Hard rule:** In review-only mode, zero file modifications.
+**Hard rule:** Do not create beads or start implementation from this skill unless the user explicitly opts into planning or execution.
 
 ---
 

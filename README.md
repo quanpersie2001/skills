@@ -14,7 +14,7 @@
     <img alt="License" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
   </a>
   <a href="skills">
-    <img alt="Skills" src="https://img.shields.io/badge/skills-generated-8B5CF6?style=flat-square" />
+    <img alt="Skills" src="https://img.shields.io/badge/Skills-20-8B5CF6?style=flat-square" />
   </a>
 </p>
 
@@ -74,6 +74,11 @@ Supported repo patterns:
 
 When those docs already exist, Pulse reuses them. When they do not, `pulse:bootstrap-project-context` and downstream skills default to a lazy scaffold proposal and ask before creating files.
 
+Pulse treats this project-doc plane as live operating context, not passive background:
+- `pulse:brainstorming` and `pulse:exploring` should reuse repo terminology before inventing new words
+- repo-level glossary or ownership conflicts should be surfaced explicitly, not silently normalized
+- `pulse_status` should expose whether project docs are mapped, merely detected, or missing
+
 ---
 
 ## What A Pulse Run Looks Like
@@ -92,6 +97,11 @@ Pulse moves that request through a repeatable chain:
 6. `pulse:compounding` captures durable learnings for future work.
 
 The point is not ceremony for its own sake. The point is to make expensive misunderstandings and avoidable rework much less likely.
+
+Inside the questioning phases, Pulse follows a grill-style discipline:
+- ask one question at a time
+- explore the repo/docs before asking a question the code can already answer
+- include a recommended default when the repo or current context suggests one strongly
 
 ### Brainstorming Visual Support
 
@@ -304,7 +314,7 @@ Run `pulse:preflight` to check your environment before starting.
 /plugin install pulse@pulse
 ```
 
-The Claude package now ships a packaged `SessionStart` hook at `hooks/hooks.json`, so a fresh Claude session gets Pulse bootstrap context automatically before you manually load deeper skills.
+The Claude package uses a packaged `SessionStart` hook at `hooks/hooks.json`, so a fresh Claude session gets Pulse bootstrap context automatically before you manually load deeper skills.
 
 Or install individual skills:
 
@@ -321,7 +331,7 @@ Or install individual skills:
 2. Register `.agents/plugins/marketplace.json` as a local marketplace in Codex
 3. Install the `pulse` plugin — skills are auto-discovered from `skills/`
 
-The Codex package manifest now declares lifecycle config through `hooks/codex-hooks.json`, and those packaged hook entries execute the packaged scripts in `hooks/` via git-root-resolved commands. Onboarding still manages Pulse runtime helpers such as `.pulse/scripts/` and repo-local state, while legacy `.codex/hooks.json` Pulse entries remain a remediation path for older installs.
+The Codex package manifest declares lifecycle config through `hooks/codex-hooks.json`, and those packaged hook entries execute the packaged scripts in `hooks/` via git-root-resolved commands. Onboarding manages repo-local Pulse runtime helpers under `.pulse/scripts/` and repo-local state under `.pulse/`, while legacy `.codex/hooks.json` Pulse entries remain a remediation path for older installs.
 
 ---
 
@@ -346,7 +356,7 @@ Use the full chain when the work is ambiguous, multi-file, high-cost, or coordin
 
 ### Use `br` and the scout as your operating surface
 
-- `pulse_status` is the quick read-only scout for where the repo is now.
+- `pulse_status` is the quick read-only scout for current repo state.
 - `br` and `bv --robot-*` are the work graph surfaces once beads exist.
 - Open `CONTEXT.md`, `phase-plan.md`, and current phase artifacts only after the scout tells you where to look.
 
@@ -412,7 +422,7 @@ Pulse intentionally keeps different packaged manifests for Claude Code and Codex
 - Claude manifest (`.claude-plugin/plugin.json`) declares `skills` and `mcpServers`.
 - Shared packaged hook sources live under `hooks/`; Claude bootstrap uses `hooks/hooks.json` and `hooks/session-start.mjs`.
 - Codex manifest (`.codex-plugin/plugin.json`) declares packaged lifecycle config at `hooks/codex-hooks.json` and also declares `mcpServers`.
-- Codex packaged lifecycle config executes the packaged scripts in `hooks/` via git-root-resolved commands; repo-local `.codex/` remains for Pulse runtime helpers and legacy `.codex/hooks.json` cleanup.
+- Codex packaged lifecycle config executes the packaged scripts in `hooks/` via git-root-resolved commands; repo-local `.pulse/scripts/` remains the home for Pulse runtime helpers, while `.codex/` holds Codex config plus legacy Pulse cleanup concerns such as `.codex/hooks.json`.
 
 This is by design for runtime compatibility and should not be normalized unless the target runtime contract changes.
 

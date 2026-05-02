@@ -17,6 +17,11 @@ If `.pulse/onboarding.json` is missing or stale for the current repo, stop and i
 Spend 5–10 minutes extracting decisions before planning. It prevents hours of rework from planner assumptions ([GSD README](https://github.com/gsd-build/get-shit-done)).
 This skill captures those decisions so downstream agents build what the user actually wants.
 
+This skill should behave like a domain-aware grilling loop:
+- walk each unresolved branch until planning no longer has to guess
+- prefer source-backed answers over avoidable user questions
+- sharpen terminology as decisions crystallize instead of letting fuzzy language leak downstream
+
 ## When to Use This Skill
 
 Load when the user presents a feature request, asks to build or change something, or when
@@ -116,6 +121,7 @@ A gray area is a decision that:
 - Affects implementation specifics
 - Was not stated in the request
 - Would force the planner to make an assumption without it
+- Includes glossary conflicts, overloaded terms, and code-vs-docs-vs-user contradictions when they can change implementation behavior
 
 **Quick codebase scout** (grep only — no deep analysis):
 
@@ -149,8 +155,12 @@ identifies significantly more latent needs than batched approaches.
 1. One question per message — never bundled
 2. Single-select multiple choice preferred over open-ended
 3. Start broad (what/why/for whom) then narrow (constraints, edge cases)
-4. If a gray area still feels muddy, use one brief step-back move before the next question so you ask about the decision that changes planning, not a local implementation detail
-5. 3–4 questions per gray area, then checkpoint:
+4. If a question can be answered from the repo, project docs, or quick scout evidence, answer it there and ask only the remaining decision
+5. For each question, provide a recommended answer when a plausible default exists
+6. When discussing boundaries or relationships, introduce a concrete scenario or edge case to force precision
+7. If user language conflicts with project docs or quick code evidence, stop and resolve the contradiction before locking a decision
+8. If a gray area still feels muddy, use one brief step-back move before the next question so you ask about the decision that changes planning, not a local implementation detail
+9. 3–4 questions per gray area, then checkpoint:
    > "More questions about [area], or move to next? (Remaining: [unvisited areas])"
 
 **Scope creep response** — when the user suggests something outside scope:
@@ -171,6 +181,7 @@ Durable ambiguity rule:
 - Exploring is the primary place to propose lazy project-doc scaffolding when repeated ambiguity is clearly project-level (not feature-local) and existing docs cannot resolve it.
 - Keep this as a proposal, not an automatic write path. Confirm with the user before any scaffold action.
 - Even when scaffolding is proposed, `history/<feature>/CONTEXT.md` remains the feature source of truth for locked implementation decisions.
+- If repeated ambiguity is project-level rather than feature-level, add a `Project Docs Follow-up` naming the exact target: root `CONTEXT.md`, `CONTEXT-MAP.md` entry, or ADR candidate. Propose it here, but do not scaffold or edit repo docs without explicit approval.
 
 **Step 4.1 — Write CONTEXT.md**
 
@@ -183,6 +194,7 @@ Load `references/context-template.md` and populate every section. Rules:
 - Code context must cite file paths found during the scout
 - Open questions must be split: "Resolve Before Planning" vs "Deferred to Planning"
 - Every locked decision must reference its stable ID (D1, D2...)
+- Project-doc alignment must say whether existing repo terminology was reused, corrected, or found missing
 
 **Step 4.2 — Self-review via subagent**
 

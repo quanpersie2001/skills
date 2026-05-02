@@ -156,6 +156,7 @@ export function getPulseStatePaths(repoRoot) {
   return {
     onboarding: path.join(repoRoot, ".pulse", "onboarding.json"),
     toolingStatus: path.join(repoRoot, ".pulse", "tooling-status.json"),
+    projectDocs: path.join(repoRoot, ".pulse", "project-docs.json"),
     stateJson: path.join(repoRoot, ".pulse", "state.json"),
     stateMarkdown: path.join(repoRoot, ".pulse", "STATE.md"),
     currentFeature: path.join(repoRoot, ".pulse", "current-feature.json"),
@@ -169,6 +170,76 @@ export function getPulseStatePaths(repoRoot) {
     memoryRatchet: path.join(repoRoot, ".pulse", "memory", "ratchet"),
     agents: path.join(repoRoot, "AGENTS.md"),
     criticalPatterns: path.join(repoRoot, ".pulse", "memory", "critical-patterns.md"),
+  };
+}
+
+function summarizeProjectDocs(repoRoot, paths) {
+  const projectDocs = readJsonIfExists(paths.projectDocs);
+  const rootContextPath = "CONTEXT.md";
+  const contextMapPath = "CONTEXT-MAP.md";
+  const adrDirPath = "docs/adr";
+  const hasRootContext = fs.existsSync(path.join(repoRoot, rootContextPath));
+  const hasContextMap = fs.existsSync(path.join(repoRoot, contextMapPath));
+  const hasAdrDir = fs.existsSync(path.join(repoRoot, adrDirPath));
+
+  const mappedEntries = Array.isArray(projectDocs?.context?.entries)
+    ? projectDocs.context.entries
+        .filter((entry) => entry && typeof entry.path === "string" && entry.path)
+        .map((entry) => ({
+          id: typeof entry.id === "string" ? entry.id : "",
+          path: normalizeSelector(entry.path),
+        }))
+    : [];
+
+  const mappedMode = typeof projectDocs?.mode === "string" ? projectDocs.mode : "";
+  const status = projectDocs
+    ? (typeof projectDocs.status === "string" && projectDocs.status ? projectDocs.status : "mapped")
+    : ((hasRootContext || hasContextMap || hasAdrDir) ? "detected" : "missing");
+  const mode = mappedMode || (hasContextMap ? "multi-context" : (hasRootContext ? "single-context" : ""));
+  const contextRoot = typeof projectDocs?.context?.root === "string" && projectDocs.context.root
+    ? normalizeSelector(projectDocs.context.root)
+    : (hasRootContext ? rootContextPath : "");
+  const contextMap = typeof projectDocs?.context?.map === "string" && projectDocs.context.map
+    ? normalizeSelector(projectDocs.context.map)
+    : (hasContextMap ? contextMapPath : "");
+  const adrDir = typeof projectDocs?.adrs?.dir === "string" && projectDocs.adrs.dir
+    ? normalizeSelector(projectDocs.adrs.dir)
+    : (hasAdrDir ? adrDirPath : "");
+  const notes = Array.isArray(projectDocs?.notes)
+    ? projectDocs.notes.filter((item) => typeof item === "string" && item.trim() !== "")
+    : [];
+  const warnings = [];
+
+  if (projectDocs && !mode) {
+    warnings.push("project-docs.json exists but mode is missing.");
+  }
+  if (projectDocs && mode === "single-context" && !contextRoot) {
+    warnings.push("project-docs.json says single-context but no root CONTEXT.md is mapped.");
+  }
+  if (projectDocs && mode === "multi-context" && !contextMap && mappedEntries.length === 0) {
+    warnings.push("project-docs.json says multi-context but no CONTEXT-MAP.md or context entries are mapped.");
+  }
+  if (!projectDocs && (hasRootContext || hasContextMap || hasAdrDir)) {
+    warnings.push("Repo-level project docs were detected but .pulse/project-docs.json is missing.");
+  }
+
+  return {
+    exists: Boolean(projectDocs),
+    status,
+    mode,
+    mapping_path: projectDocs ? ".pulse/project-docs.json" : "",
+    context: {
+      root: contextRoot,
+      map: contextMap,
+      entries: mappedEntries,
+    },
+    adrs: {
+      enabled: typeof projectDocs?.adrs?.enabled === "boolean" ? projectDocs.adrs.enabled : hasAdrDir,
+      dir: adrDir,
+      exists: adrDir ? fs.existsSync(path.join(repoRoot, adrDir)) : false,
+    },
+    notes,
+    warnings,
   };
 }
 
@@ -1450,6 +1521,24 @@ function buildCheckpointRecordFromStatus(paths, status, options = {}) {
 function buildNextReads(status) {
   const reads = ["AGENTS.md", ".pulse/tooling-status.json"];
 
+  if (status.project_docs?.mapping_path) {
+    reads.push(status.project_docs.mapping_path);
+  }
+  if (status.project_docs?.context?.root) {
+    reads.push(status.project_docs.context.root);
+  }
+  if (status.project_docs?.context?.map) {
+    reads.push(status.project_docs.context.map);
+  }
+  for (const entry of status.project_docs?.context?.entries || []) {
+    if (entry.path) {
+      reads.push(entry.path);
+    }
+  }
+  if (status.project_docs?.adrs?.dir) {
+    reads.push(status.project_docs.adrs.dir);
+  }
+
   if (status.state_json.exists) {
     reads.push(".pulse/state.json");
   }
@@ -1506,6 +1595,9 @@ function buildRecommendedActions(status) {
   const checkpointWarnings = Array.isArray(status.checkpoints?.warnings)
     ? status.checkpoints.warnings
     : [];
+  const projectDocsWarnings = Array.isArray(status.project_docs?.warnings)
+    ? status.project_docs.warnings
+    : [];
 
   if (status.handoff_manifest.active_count > 0) {
     const actions = [
@@ -1513,6 +1605,13 @@ function buildRecommendedActions(status) {
       "Read the chosen handoff path, then reopen the active feature context.",
       "Use the generated handoff summary, resume briefing, and transfer block instead of ad hoc prose when presenting a resume path.",
     ];
+    if (status.project_docs?.status === "mapped") {
+      actions.push("When repo terminology or ownership boundaries matter, read the mapped project docs before going deeper into feature history.");
+    } else if (status.project_docs?.status === "detected") {
+      actions.push("Repo-level project docs were detected but are not mapped yet; consider pulse:bootstrap-project-context before deeper planning.");
+    } else {
+      actions.push("If repo-wide terminology keeps drifting, consider pulse:bootstrap-project-context to propose lazy project-doc scaffolding.");
+    }
 
     if (status.history_lifecycle?.exists) {
       actions.push(
@@ -1533,12 +1632,22 @@ function buildRecommendedActions(status) {
     if (checkpointWarnings.length > 0) {
       actions.push(`Checkpoint hygiene warning: ${checkpointWarnings[0]}`);
     }
+    if (projectDocsWarnings.length > 0) {
+      actions.push(`Project docs warning: ${projectDocsWarnings[0]}`);
+    }
 
     return actions;
   }
 
   if (status.tooling_status.next_skill) {
     const actions = [`Next skill suggestion: ${status.tooling_status.next_skill}.`];
+    if (status.project_docs?.status === "mapped") {
+      actions.push("Read the mapped project docs when repo-level terminology, boundaries, or ADR context may affect the next decision.");
+    } else if (status.project_docs?.status === "detected") {
+      actions.push("Repo-level project docs were detected but .pulse/project-docs.json is missing; use pulse:bootstrap-project-context to record the mapping before deeper planning.");
+    } else {
+      actions.push("If durable repo-level terminology or architecture context is missing, pulse:bootstrap-project-context can propose a lazy project-doc scaffold.");
+    }
     if (status.checkpoints?.latest?.path) {
       actions.push("If you are re-entering an active feature, compare the latest checkpoint against the current runtime snapshot before planning or execution.");
     }
@@ -1551,6 +1660,9 @@ function buildRecommendedActions(status) {
     if (checkpointWarnings.length > 0) {
       actions.push(`Checkpoint hygiene warning: ${checkpointWarnings[0]}`);
     }
+    if (projectDocsWarnings.length > 0) {
+      actions.push(`Project docs warning: ${projectDocsWarnings[0]}`);
+    }
     return actions;
   }
 
@@ -1558,6 +1670,13 @@ function buildRecommendedActions(status) {
     "Use this snapshot for fast orientation before deeper reads.",
     "If work is resuming, reopen the active feature context before planning or execution.",
   ];
+  if (status.project_docs?.status === "mapped") {
+    actions.push("Read the mapped project docs when repo-level terminology, boundaries, or ADR context may affect the next decision.");
+  } else if (status.project_docs?.status === "detected") {
+    actions.push("Repo-level project docs were detected but .pulse/project-docs.json is missing; use pulse:bootstrap-project-context to record the mapping before deeper planning.");
+  } else {
+    actions.push("If durable repo-level terminology or architecture context is missing, pulse:bootstrap-project-context can propose a lazy project-doc scaffold.");
+  }
 
   if (status.history_lifecycle?.exists) {
     actions.push(
@@ -1577,6 +1696,9 @@ function buildRecommendedActions(status) {
   }
   if (checkpointWarnings.length > 0) {
     actions.push(`Checkpoint hygiene warning: ${checkpointWarnings[0]}`);
+  }
+  if (projectDocsWarnings.length > 0) {
+    actions.push(`Project docs warning: ${projectDocsWarnings[0]}`);
   }
 
   return actions;
@@ -1802,6 +1924,7 @@ export async function readPulseStatus(repoRoot) {
   });
   const checkpoints = summarizeCheckpointFeature(paths, derivedFeature);
   const historyLifecycle = summarizeHistoryLifecycle(repoRoot, derivedFeature);
+  const projectDocsSummary = summarizeProjectDocs(repoRoot, paths);
 
   const status = {
     repo_root: repoRoot,
@@ -1828,6 +1951,7 @@ export async function readPulseStatus(repoRoot) {
     handoff_manifest: handoffManifestSummary,
     checkpoints,
     history_lifecycle: historyLifecycle,
+    project_docs: projectDocsSummary,
     critical_patterns_exists: fs.existsSync(paths.criticalPatterns),
     dependency_health: dependencyHealth,
     gitnexus_readiness: gitNexusReadiness,
@@ -2140,6 +2264,35 @@ function renderDependencyHealthLines(status) {
   return lines;
 }
 
+function renderProjectDocsLines(status) {
+  const projectDocs = status.project_docs && typeof status.project_docs === "object"
+    ? status.project_docs
+    : {
+        exists: false,
+        status: "missing",
+        mode: "",
+        mapping_path: "",
+        context: { root: "", map: "", entries: [] },
+        adrs: { enabled: false, dir: "", exists: false },
+        notes: [],
+        warnings: [],
+      };
+
+  const lines = ["Project docs:"];
+  lines.push(`- Status: ${projectDocs.status || "missing"}`);
+  lines.push(`- Mode: ${projectDocs.mode || "(unknown)"}`);
+  lines.push(`- Mapping path: ${projectDocs.mapping_path || "(none)"}`);
+  lines.push(`- Root context: ${projectDocs.context?.root || "(none)"}`);
+  lines.push(`- Context map: ${projectDocs.context?.map || "(none)"}`);
+  lines.push(`- Context entries: ${Array.isArray(projectDocs.context?.entries) ? projectDocs.context.entries.length : 0}`);
+  lines.push(`- ADR dir: ${projectDocs.adrs?.dir || "(none)"}`);
+  lines.push(`- ADRs present: ${projectDocs.adrs?.exists ? "yes" : "no"}`);
+  if (Array.isArray(projectDocs.warnings) && projectDocs.warnings[0]) {
+    lines.push(`- Warning: ${projectDocs.warnings[0]}`);
+  }
+  return lines;
+}
+
 function renderGitNexusReadinessLines(status) {
   const readiness = status.gitnexus_readiness && typeof status.gitnexus_readiness === "object"
     ? status.gitnexus_readiness
@@ -2190,6 +2343,16 @@ function renderOperatorSurfaceLines(status) {
         next_reads: [],
         self_sufficient: false,
       };
+  const projectDocs = status.project_docs && typeof status.project_docs === "object"
+    ? status.project_docs
+    : {
+        status: "missing",
+        mode: "",
+        mapping_path: "",
+        context: { root: "", map: "", entries: [] },
+        adrs: { enabled: false, dir: "", exists: false },
+        warnings: [],
+      };
   const memoryRecall = status.memory_recall && typeof status.memory_recall === "object"
     ? status.memory_recall
     : {
@@ -2206,6 +2369,19 @@ function renderOperatorSurfaceLines(status) {
   lines.push(
     `- Current feature snapshot: ${currentFeature.exists ? "present" : "missing"}`,
   );
+  lines.push(`- Project docs: ${projectDocs.status || "missing"}${projectDocs.mode ? ` (${projectDocs.mode})` : ""}`);
+  if (projectDocs.mapping_path) {
+    lines.push(`  - mapping_path: ${projectDocs.mapping_path}`);
+  }
+  if (projectDocs.context?.root) {
+    lines.push(`  - root_context: ${projectDocs.context.root}`);
+  }
+  if (projectDocs.context?.map) {
+    lines.push(`  - context_map: ${projectDocs.context.map}`);
+  }
+  if (projectDocs.adrs?.dir) {
+    lines.push(`  - adr_dir: ${projectDocs.adrs.dir}`);
+  }
   if (currentFeature.exists) {
     lines.push(`  - feature_key: ${currentFeature.feature_key || "(none)"}`);
     lines.push(`  - phase: ${currentFeature.phase || "(none)"}`);
@@ -2331,6 +2507,8 @@ export function renderPulseStatus(status) {
     `Active handoffs: ${status.handoff_manifest.active_count}`,
     "",
     ...renderOperatorSurfaceLines(status),
+    "",
+    ...renderProjectDocsLines(status),
     "",
     ...renderGitNexusReadinessLines(status),
     "",

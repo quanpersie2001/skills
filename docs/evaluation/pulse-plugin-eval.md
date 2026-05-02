@@ -28,6 +28,23 @@ node scripts/pulse-plugin-eval.mjs benchmark
 
 Use `--json` with any command for machine-readable output.
 
+## Common options
+
+| Option | Applies to | Purpose |
+|---|---|---|
+| `--workspace <path>` | all commands | Override the eval workspace root |
+| `--config <path>` | all commands | Override the benchmark config file |
+| `--run-cmd "..."` | `analyze`, `run` | Execute an additional local verification command during runtime checks |
+| `--iteration <name|num>` | `benchmark`, `run` | Choose the benchmark iteration directory |
+| `--eval-ids <list>` | `benchmark`, `run` | Select a comma-separated subset of scenario IDs |
+| `--evidence <path>` | `benchmark`, `run` | Finalize benchmark artifacts from a filled evidence file |
+| `--skip-static` | `run` | Skip static checks |
+| `--skip-runtime` | `run` | Skip runtime and scout checks |
+| `--skip-scenarios` | `run` | Skip benchmark preparation/finalization and scenario checks |
+| `--strict` | all commands | Exit non-zero when any warning is present |
+| `--runtime <value>` | `benchmark`, `run` | Accepted for compatibility in chat-run mode, but ignored |
+| `--help` | all commands | Print CLI help |
+
 ## Inputs
 
 The evaluator reads from two canonical inputs:
@@ -61,7 +78,7 @@ node scripts/pulse-plugin-eval.mjs analyze \
   --run-cmd "node skills/using-pulse/scripts/test_onboard_pulse.mjs"
 ```
 
-This stage no longer checks for headless `claude` or `codex` execution, because benchmark scenarios are now run in the current interactive chat instead.
+This stage does not check for headless `claude` or `codex` execution, because benchmark scenarios run in the current interactive chat instead.
 
 ## Scout stage
 
@@ -77,7 +94,7 @@ This stage is read-only. It tells you whether benchmark conclusions are being co
 
 ## Benchmark stage
 
-The benchmark stage now works in two steps.
+The benchmark stage works in two steps.
 
 ### Step 1 — prepare chat-run artifacts
 

@@ -19,7 +19,7 @@ These paths matter most:
 This repository is structured as a root-scoped packaged plugin repo. It ships a single plugin, `pulse`, from the repository root.
 
 - The Codex package manifest lives at [`.codex-plugin/plugin.json`](.codex-plugin/plugin.json). It declares the plugin name, version, and packaged runtime contract, including packaged Codex lifecycle config.
-- Codex packaged lifecycle config lives at [`hooks/codex-hooks.json`](hooks/codex-hooks.json) and executes the packaged hook scripts in [`hooks/`](hooks/) via git-root-resolved commands. Onboarding still owns other Pulse runtime helpers under `.codex/` and `.pulse/`, while `.codex/hooks.json` is only a legacy cleanup concern.
+- Codex packaged lifecycle config lives at [`hooks/codex-hooks.json`](hooks/codex-hooks.json) and executes the packaged hook scripts in [`hooks/`](hooks/) via git-root-resolved commands. Onboarding manages repo-local Pulse runtime helpers under `.pulse/scripts/` and repo-local state under `.pulse/`, while `.codex/hooks.json` and removed `.codex/*` Pulse helper files are legacy cleanup concerns.
 - The Claude manifest lives at [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json). It declares the packaged skill directory and shared MCP config for Claude Code.
 - Shared packaged hook sources live under [`hooks/`](hooks/). Claude plugin SessionStart bootstrap uses [`hooks/hooks.json`](hooks/hooks.json) and [`hooks/session-start.mjs`](hooks/session-start.mjs). Treat those files as package-surface runtime contract, not repo-local onboarding assets.
 - The repo-level marketplace at [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) exposes the packaged `pulse` plugin to Codex. When Codex opens a clone of this repo, it reads the marketplace file and offers `pulse` for installation.
@@ -32,23 +32,26 @@ All shipped skills live under [`skills/`](skills).
 
 ```text
 skills/
-├── using-pulse/               references/ scripts/ templates/
-├── preflight/                 agents/ references/
-├── exploring/                 references/
-├── planning/                  mcp.json references/
-├── validating/                references/
-├── swarming/                  references/
-├── executing/
-├── reviewing/                 references/
-├── compounding/               references/
-├── gitnexus/
-├── dream/                     references/
-├── writing-pulse-skills/      references/
-├── prompt-leverage/           agents/ references/ scripts/
+├── architecture-rescue/
 ├── bootstrap-project-context/ agents/ references/
+├── brainstorming/
+├── compounding/               references/
+├── dev-note/
+├── dev-note-distil/
+├── dream/                     references/
+├── executing/
+├── exploring/                 references/
+├── gitnexus/
+├── planning/                  mcp.json references/
+├── preflight/                 agents/ references/
+├── prompt-leverage/           agents/ references/ scripts/
 ├── refresh-project-docs/      agents/ references/
-├── simplify-code/
-└── systematic-debug-fix/      agents/ references/
+├── reviewing/                 references/
+├── swarming/                  references/
+├── systematic-debug-fix/      agents/ references/
+├── using-pulse/               references/ scripts/ templates/
+├── validating/                references/
+└── writing-pulse-skills/      references/
 ```
 
 Folder names are filesystem-safe and unprefixed. Frontmatter names should also stay bare; the runtime/plugin layer applies the `pulse:` namespace when the skill is surfaced:
@@ -178,7 +181,7 @@ Support routing may also invoke `pulse:systematic-debug-fix`, `pulse:gitnexus`, 
 
 ### Bead Contract
 
-Planning and validating now assume a canonical bead schema. These fields must exist:
+Planning and validating assume a canonical bead schema. These fields must exist:
 
 - `dependencies`
 - `files`
@@ -228,7 +231,7 @@ Minimum check:
 
 1. Add the marketplace and install the skill you changed:
    - **Codex:** add the repo marketplace from [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json), restart, then install `pulse`
-   - **Claude Code:** `/plugin marketplace add quanpersie2001/skills`, then `/plugin install <skill>@pulse`
+   - **Claude Code:** `/plugin marketplace add quanpersie2001/pulse`, then `/plugin install <skill>@pulse`
 2. Start a fresh session
 3. Ask for something that should trigger the skill
 4. Verify the right skill is discovered and the body instructions are followed
