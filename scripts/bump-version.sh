@@ -8,8 +8,8 @@ BUMP="${1:-patch}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 FILES=(
-  "$ROOT/plugins/pulse/.claude-plugin/plugin.json"
-  "$ROOT/plugins/pulse/.codex-plugin/plugin.json"
+  "$ROOT/.claude-plugin/plugin.json"
+  "$ROOT/.codex-plugin/plugin.json"
   "$ROOT/.agents/plugins/marketplace.json"
 )
 README_FILE="$ROOT/README.md"

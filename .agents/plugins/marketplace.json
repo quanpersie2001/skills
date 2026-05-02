@@ -6,11 +6,11 @@
   "plugins": [
     {
       "name": "pulse",
-      "description": "Validate-first multi-agent skills for project-doc-aware planning, architecture rescue, swarming, execution, review, and compounding. Includes all 22 Pulse skills.",
+      "description": "Validate-first multi-agent skills for project-doc-aware planning, architecture rescue, swarming, execution, review, and compounding.",
       "version": "3.5.0",
       "source": {
         "source": "local",
-        "path": "./plugins/pulse"
+        "path": "./"
       },
       "policy": {
         "installation": "AVAILABLE",

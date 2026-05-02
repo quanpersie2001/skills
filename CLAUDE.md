@@ -4,13 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-Pulse is a packaged skill plugin for Claude Code and Codex. It's a documentation-centric project — skills are defined as SKILL.md files, not compiled code. The repo ships 22 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
+Pulse is a packaged skill plugin for Claude Code and Codex. Its workflow contract lives primarily in `SKILL.md` files, while repo-local Node scripts handle onboarding, state sync, dependency checks, and other control-plane behavior. The repo ships 21 skills that chain together to move from vague requirements to shipped, reviewed, compounded code.
 
 ## Repository Layout
 
-- `plugins/pulse/skills/` — canonical source for all skill definitions (each skill is a `SKILL.md` file in its own directory)
-- `plugins/pulse/.codex-plugin/plugin.json` — Codex plugin manifest
-- `plugins/pulse/.mcp.json` — packaged MCP manifest for shared runtime servers
+- `skills/` — canonical source for all skill definitions (each skill is a `SKILL.md` file in its own directory)
+- `.codex-plugin/plugin.json` — Codex plugin manifest
+- `.claude-plugin/plugin.json` — Claude plugin manifest
+- `.mcp.json` — packaged MCP manifest for shared runtime servers
 - `.agents/plugins/marketplace.json` — Codex marketplace metadata
 - `scripts/sync-skills.sh` — raw skill mirror helper for agents/Claude compatibility
 - `AGENTS.md` — workflow rules and bead integration (re-read after context compaction)
@@ -62,7 +63,7 @@ history/<feature>/lifecycle-summary.md ← durable audit summary for gates/outco
 
 ## Editing Skills
 
-Each skill lives at `plugins/pulse/skills/<name>/SKILL.md`. When adding or modifying a skill:
+Each skill lives at `skills/<name>/SKILL.md`. When adding or modifying a skill:
 
 1. The SKILL.md is the entire skill definition — there's no separate code to compile.
 2. Skills are auto-discovered — no per-skill registration needed in manifests.
@@ -70,7 +71,7 @@ Each skill lives at `plugins/pulse/skills/<name>/SKILL.md`. When adding or modif
 
 ## Testing
 
-Pulse has automated coverage for onboarding/runtime control-plane behavior in `plugins/pulse/skills/using-pulse/scripts/test_onboard_pulse.mjs`. The `references/superpowers/tests/brainstorm-server/` suite is separate reference material and not part of the shipping plugin.
+Pulse has automated coverage for onboarding/runtime control-plane behavior in `skills/using-pulse/scripts/test_onboard_pulse.mjs`. The `references/superpowers/tests/brainstorm-server/` suite is separate reference material and not part of the shipping plugin.
 
 ## Session Protocol
 
@@ -86,7 +87,7 @@ git push                # Push to remote
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **pulse** (2746 symbols, 3970 relationships, 154 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **pulse** (2658 symbols, 3869 relationships, 147 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

@@ -1,20 +1,20 @@
 <div align="center">
 
-<img src="logos/logo-combination.svg" alt="Pulse logo" width="420" />
+<img src="assets/logo-combination.svg" alt="Pulse logo" width="420" />
 
 # Pulse
 
 <p><strong>A gated delivery chain system for Claude Code and Codex</strong></p>
 
 <p>
-  <a href="plugins/pulse/.codex-plugin/plugin.json">
+  <a href=".codex-plugin/plugin.json">
     <img alt="Version" src="https://img.shields.io/badge/version-3.5.0-0F766E?style=flat-square" />
   </a>
   <a href="docs/legal/terms.md">
     <img alt="License" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
   </a>
-  <a href="plugins/pulse/skills">
-    <img alt="Skills" src="https://img.shields.io/badge/skills-22-8B5CF6?style=flat-square" />
+  <a href="skills">
+    <img alt="Skills" src="https://img.shields.io/badge/skills-generated-8B5CF6?style=flat-square" />
   </a>
 </p>
 
@@ -30,7 +30,7 @@ Pulse wraps AI agents in a **gated delivery chain**. Every decision is locked be
 
 Without this structure, agents skip steps. With it, they can't.
 
-Pulse ships as **22 skills** — each a `SKILL.md` file loaded into context at invocation. No compiled app to build. No separate orchestration product to adopt. It is a docs-first skill plugin that uses the tools you already have.
+Pulse ships as a **skills package** — each skill is a `SKILL.md` file loaded into context at invocation. The workflow contract lives in those skill files, while repo-local Node helpers handle onboarding, state sync, dependency checks, and local coordination. There is no separate orchestration service to deploy. Pulse is a docs-first skill plugin that uses the tools you already have.
 
 ## What Pulse Is / Is Not
 
@@ -38,6 +38,7 @@ Pulse is:
 
 - a validate-first, docs-first workflow for Claude Code and Codex
 - a skill ecosystem that routes work through explicit gates and artifacts
+- a repo-local skill + control-plane package: `SKILL.md` defines the workflow contract, and local Node helpers keep that contract operable
 - a way to turn vague requests into reviewed, auditable delivery slices
 - a foundation-first feature workflow that defines architecture, ownership, and boundaries before phase slicing begins
 
@@ -45,7 +46,8 @@ Pulse is not:
 
 - a default autonomous runtime that should silently execute work end-to-end
 - a replacement for human approval at Gates 1-4
-- a compiled CLI product or full Mission Control-style orchestration system
+- a pure-markdown, zero-runtime system
+- a separate always-on orchestration service or full Mission Control-style control tower
 - a system that frames new features as MVPs, prototype subsets, or temporary architecture to be cleaned up later
 
 ## One-Line Glossary
@@ -95,7 +97,7 @@ The point is not ceremony for its own sake. The point is to make expensive misun
 
 `pulse:brainstorming` stays text-first. For most sessions, visual questions should use inline previews via `AskUserQuestion`.
 
-For complex UI brainstorming only — layout comparison, styling direction, design-system composition, visual hierarchy, or multi-screen flow shape — the skill can now escalate to an optional local visual runtime bundled under `plugins/pulse/skills/brainstorming/scripts/`.
+For complex UI brainstorming only — layout comparison, styling direction, design-system composition, visual hierarchy, or multi-screen flow shape — the skill can reference local support assets directly (`references/spec-reviewer-prompt.md`, `references/visual-support-guidance.md`, and `evals/`) and optionally use the local visual runtime under `skills/brainstorming/scripts/`.
 
 That runtime is not required for normal Pulse use:
 - if Node is available and the local URL is reachable, the skill can render browser-served mockups and capture selections
@@ -209,36 +211,11 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 
 ## Skill Catalog
 
-### Core Chain
+Skill and category inventory is generated from `skills/` and published under `generated/`.
 
-| Skill | Role |
-|-------|------|
-| `pulse:preflight` | Checks `git`, `br`, `bv`, native runtime swarm capability, and reservation-helper readiness; writes `.pulse/tooling-status.json`; chooses `swarm / single-worker / planning-only / blocked` |
-| `pulse:using-pulse` | Session router; manages go-mode, small_change/standard_feature/high_risk_feature mode selection, micro mode, resume from handoffs, and repo-local Pulse status scouting |
-| `pulse:brainstorming` | Turns vague intent into an approved design spec via one-question-at-a-time dialogue, using previews by default and an optional local visual runtime for complex UI brainstorming |
-| `pulse:exploring` | Socratic decision extraction into `history/<feature>/CONTEXT.md`; assigns stable D1, D2... IDs |
-| `pulse:planning` | Codebase research → `approach.md` + `phase-plan.md` → bead decomposition |
-| `pulse:validating` | 8-dimension plan-checker, spike execution for HIGH-risk items, bead schema gate |
-| `pulse:swarming` | Coordinator-only orchestration for parallel workers via runtime-native swarm adapters |
-| `pulse:executing` | Per-bead worker loop: claim → implement → verify → commit → close |
-| `pulse:reviewing` | 4 parallel specialist reviewers + learnings synthesizer + artifact verification + UAT |
-| `pulse:compounding` | Captures durable learnings into `.pulse/memory/learnings/` with propagation triage |
-
-### Support Skills
-
-| Skill | Role |
-|-------|------|
-| `pulse:systematic-debug-fix` | Root-cause-first bug fixing for blocked work, test failures, runtime breakage, and regression lock-down |
-| `pulse:gitnexus` | Codebase intelligence via GitNexus MCP tools or `rg` fallback; saves findings to `discovery.md` |
-| `pulse:dream` | Consolidates Claude Code or Codex runtime artifacts into Pulse memory with provenance tracking |
-| `pulse:simplify-code` | 4-lens code review (reuse, quality, efficiency, clarity) with optional safe fixes |
-| `pulse:prompt-leverage` | Upgrades raw prompts into structured execution-ready prompts |
-| `pulse:dev-note` | Captures one structured developer learning from the current coding-with-AI session into a raw daily note |
-| `pulse:dev-note-distil` | Distills pending raw dev notes into stable topic knowledge and rebuilds the global topic index |
-| `pulse:writing-pulse-skills` | TDD workshop for creating and improving Pulse skills (RED → GREEN → REFACTOR) |
-| `pulse:architecture-rescue` | Repo-wide or subsystem-wide architecture hygiene pass that surfaces shallow modules, leaky seams, ownership drift, and deepening opportunities; report-only by default |
-| `pulse:bootstrap-project-context` | Standalone repo-onboarding utility that forces a docs-first, source-grounded architecture pass and maps downstream project docs before implementation |
-| `pulse:refresh-project-docs` | Standalone docs-sync utility that rewrites README and related docs to match the current repo state in evergreen language |
+- Source of truth: `generated/skill-catalog.json`
+- Human-readable snapshot: `generated/skill-catalog.md`
+- Policy: docs and marketplace metadata should describe capabilities, not hard-code skill counts.
 
 ---
 
@@ -315,7 +292,7 @@ Pulse is getting clearer about three artifact planes:
   config.json                ← feature toggles
   project-docs.json          ← mapping artifact for repo-owned project docs consumed by Pulse
   handoffs/manifest.json     ← resume index
-  handoffs/<owner>.json      ← per-actor checkpoints
+  handoffs/<owner>.json      ← owner-scoped pause/resume handoff file
   memory/dream-pending/      ← queued ambiguous dream items for explicitly non-blocking runs
   memory/                    ← shared reusable memory root
     critical-patterns.md     ← globally promoted patterns for planning and targeted bug-fix lookups
@@ -331,7 +308,7 @@ history/<feature>/
   phase-<n>-contract.md      ← phase entry/exit/demo/pivots
   phase-<n>-story-map.md     ← stories → beads mapping
   lifecycle-summary.md       ← durable audit summary of key gates/outcomes/follow-up debt
-                            ← see `plugins/pulse/skills/using-pulse/references/history-lifecycle-contract.md`
+                            ← see `skills/using-pulse/references/history-lifecycle-contract.md`
   verification/              ← canonical verification evidence for the feature
 
 .beads/                      ← bead files (br managed)
@@ -380,7 +357,7 @@ Or install individual skills:
 
 1. Clone this repo
 2. Register `.agents/plugins/marketplace.json` as a local marketplace in Codex
-3. Install the `pulse` plugin — all 22 skills are discovered automatically
+3. Install the `pulse` plugin — skills are auto-discovered from `skills/`
 
 ---
 
@@ -419,6 +396,8 @@ node .codex/pulse_status.mjs --json
 
 It summarizes onboarding health plus `.pulse/state.json`, `.pulse/STATE.md`, and `.pulse/handoffs/manifest.json` so humans and agents can orient quickly before opening deeper artifacts.
 
+Checkpoint authority order for resume decisions is: active handoff manifest → selected owner handoff file → current state mirrors (`.pulse/state.json`, `.pulse/STATE.md`). Checkpoints are advisory snapshots, not source of truth.
+
 ---
 
 ## Getting Started
@@ -439,20 +418,26 @@ For a full walkthrough, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [
 
 ## Evaluation
 
+Run evaluations through the canonical entrypoint:
+
+```bash
+node scripts/pulse-plugin-eval.mjs
+```
+
 Pulse evaluation guidance lives in:
 
 - [`docs/evaluation/pulse-plugin-eval.md`](docs/evaluation/pulse-plugin-eval.md) — gate-based plugin evaluation runbook
 - [`docs/evaluation/pulse-swarming-hardening.md`](docs/evaluation/pulse-swarming-hardening.md) — swarming pressure scenarios and expected coordinator/worker behavior
-- [`docs/evaluation/how-to-read-results.md`](docs/evaluation/how-to-read-results.md) — how to interpret benchmark and scenario output
+- [`docs/evaluation/how-to-read-results.md`](docs/evaluation/how-to-read-results.md) — how to interpret benchmark and scenario output using the release reporting categories (runtime, quality, safety, docs, tests)
 
-The scenario source of truth remains [`pulse-eval-workspace/evals.json`](pulse-eval-workspace/evals.json), with iterative benchmark evidence under `pulse-eval-workspace/iteration-*/benchmark.md`.
+The scenario source of truth is [`pulse-eval-workspace/evals.json`](pulse-eval-workspace/evals.json). `pulse-eval-workspace/iteration-*` and `pulse-eval-workspace/pulse-eval-review.html` are archival benchmark/history artifacts.
 
 ## Manifest Asymmetry (Intentional)
 
 Pulse intentionally keeps different packaged manifests for Claude Code and Codex:
 
-- Claude manifest (`plugins/pulse/.claude-plugin/plugin.json`) declares `skills` and `mcpServers`.
-- Codex manifest (`plugins/pulse/.codex-plugin/plugin.json`) remains minimal and does not declare `mcpServers`.
+- Claude manifest (`.claude-plugin/plugin.json`) declares `skills` and `mcpServers`.
+- Codex manifest (`.codex-plugin/plugin.json`) remains minimal and does not declare `mcpServers`.
 
 This is by design for runtime compatibility and should not be normalized unless the target runtime contract changes.
 
@@ -469,7 +454,7 @@ bash scripts/sync-skills.sh --dry-run
 
 ## Contributing
 
-See [`plugins/pulse/CONTRIBUTING.md`](plugins/pulse/CONTRIBUTING.md) for skill structure, TDD discipline, naming conventions, versioning, and the PR process.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for skill structure, TDD discipline, naming conventions, versioning, and the PR process.
 
 ```bash
 # Bump version before opening a PR

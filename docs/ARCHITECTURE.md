@@ -1,6 +1,6 @@
 # Pulse Architecture
 
-Pulse is a documentation-centric plugin for Claude Code and Codex. Each skill is a `SKILL.md` file loaded into context at invocation. There is no compiled code — the skill files are the implementation.
+Pulse is a documentation-centric plugin for Claude Code and Codex. The workflow contract lives in `SKILL.md` files loaded into context at invocation, while repo-local Node helpers provide onboarding, state sync, dependency checks, and local coordination. Pulse is documentation-centric, not documentation-only.
 
 ## Core Idea
 
@@ -8,10 +8,20 @@ Pulse wraps AI agents in a gated delivery chain. The chain enforces that decisio
 
 The chain is not optional — every gate is a hard stop requiring explicit human approval.
 
+## Documentation plane vs local control plane
+
+Pulse has two cooperating layers:
+
+- **Documentation plane** — `SKILL.md` files define gates, routing, artifacts, and operator-facing workflow behavior.
+- **Local control plane** — repo-local Node helpers implement onboarding/remediation, state mirrors, dependency reporting, scout/status surfaces, and local coordination helpers such as reservations.
+
+The control plane supports the skill contract; it does not replace or supersede it.
+
 ## Core Principles
 
 Pulse keeps these invariants:
 
+- `SKILL.md` remains the primary workflow contract even when Node helpers provide runtime support.
 - `CONTEXT.md` is the source of truth for locked decisions.
 - `validating` is a real execution gate, not an optional review step.
 - beads + `bv` + runtime-native swarm adapters + local reservations are the coordination substrate.
@@ -89,26 +99,28 @@ No skill crosses these without explicit user approval:
 ### Phase 0 — Setup
 
 #### `pulse:preflight`
-Validates the environment before any Pulse work begins.
+Sole authority for onboarding, tool-health, and readiness before any Pulse work begins.
 
 - Checks that `git`, `br`, and `bv` are available and reports versions
-- Runs `node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <repo-root>` to assess repo onboarding/migration state for `AGENTS.md`, `.codex/` hooks, and `.pulse/onboarding.json`
-- Applies onboarding or migration changes only after explicit approval, using `--apply` when remediation is needed
+- Runs `node skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root>` to assess repo onboarding/remediation state for `AGENTS.md`, `.codex/` hooks, and `.pulse/onboarding.json`
+- Applies onboarding or remediation changes only after explicit approval, using `--apply` when remediation is needed
 - Checks native runtime swarm capability and reservation-helper readiness (determines swarm vs single-worker capability)
 - Writes `.pulse/tooling-status.json` with outcome and `recommended_mode`
 - Maintains `.pulse/state.json` as a lightweight machine-readable routing mirror
 - **Modes:** `swarm`, `single-worker`, `planning-only`, `blocked`
 - **Hard rule:** Never proceeds past FAIL. All downstream skills depend on this artifact.
+- **Authority boundary:** Preflight is the only skill that may establish or refresh onboarding/readiness status artifacts.
 
 **Outputs:** `.pulse/tooling-status.json`, `.pulse/state.json`, `.pulse/STATE.md`
 
 ---
 
 #### `pulse:using-pulse`
-The routing brain. Loaded after preflight on every session.
+Router/scout only. Loaded after preflight on every session.
 
 - Reads `tooling-status.json` and `STATE.md` to understand current context
 - Uses `node .codex/pulse_status.mjs --json` as a fast read-only scout when the repo is onboarded
+- Defers to `pulse:preflight` whenever onboarding/readiness artifacts are missing, stale, or contradictory
 - Presents the skill catalog and routes the user's intent to the correct first skill
 - Manages go-mode (full pipeline, 4 gates), working modes (`small_change` / `standard_feature` / `high_risk_feature`), micro mode (single-file trivial tasks)
 - Handles resume: reads `.pulse/handoffs/manifest.json`, presents active handoffs, asks which to resume
@@ -137,7 +149,8 @@ Turns vague intent into an approved design spec before any decisions are locked.
 - Proposes 2–3 distinct approaches with trade-offs after sufficient context
 - Presents a recommended design; iterates on feedback
 - Writes the agreed spec to `history/<feature>/spec.md`
-- Spawns a spec self-review subagent (see `references/spec-reviewer-prompt.md`) before handing off
+- Uses local support assets directly (`references/spec-reviewer-prompt.md`, `references/visual-support-guidance.md`, `evals/`) when needed
+- Spawns a spec self-review subagent before handing off
 - **Hard rule:** No code, no beads, no file writes until the spec is approved by the user
 
 **Outputs:** `history/<feature>/spec.md`  
@@ -176,10 +189,13 @@ Pulse uses both human-readable and machine-readable runtime state:
 ```
 
 Rules:
+- checkpoint authority order is: active handoff manifest → selected owner handoff file → current state mirrors (`state.json`, `STATE.md`)
+- checkpoints are advisory snapshots; they do not override handoff authority
 - `state.json` is a convenience mirror, not the source of truth for planning artifacts
 - `STATE.md` remains the narrative status file
 - handoff manifests remain owner-scoped and are not replaced by a global handoff file
 - `node .codex/pulse_status.mjs --json` is a read-only scout, not a workflow gate
+- if readiness/onboarding status is unclear, control returns to `pulse:preflight` rather than being inferred by `pulse:using-pulse`
 
 ---
 
@@ -249,6 +265,8 @@ Orchestrates parallel worker agents. Runs only when `recommended_mode=swarm`.
 
 #### `pulse:executing`
 The implementation worker. Runs either under swarming or directly in single-worker mode.
+
+For compact runtime details that were moved out of top-level docs, see `skills/executing/references/runtime-appendix.md`.
 
 ```mermaid
 flowchart TD
@@ -328,7 +346,7 @@ Also runs:
 ### Phase 7 — Compounding
 
 #### `pulse:compounding`
-Captures durable learnings from the completed feature into the institutional knowledge base.
+Captures post-cycle, machine-readable learnings from the completed feature into the institutional knowledge base.
 
 Spawns 3 parallel analysis subagents:
 1. **Pattern extractor** — what recurring solutions emerged?
@@ -355,6 +373,15 @@ These skills operate outside the main chain and are invoked on demand.
 Standalone utilities also ship outside the core chain:
 - `bootstrap-project-context` for docs-first, source-grounded repo onboarding
 - `refresh-project-docs` for syncing README and related docs to the current repo state in evergreen language
+
+Memory-adjacent skills split by audience and timing instead of sharing one generic "learning" bucket:
+
+| Skill | Audience | Primary input | Write target | Use when |
+|---|---|---|---|---|
+| `pulse:dev-note` | user-readable raw capture | current conversation + explicit user request | `dev-notes/raws/YYYYMMDD.md` | capture one learning from this conversation |
+| `pulse:dev-note-distil` | user-readable synthesis | accumulated raw dev-notes | `dev-notes/distil/...` | distill notes into reader-facing topics |
+| `pulse:dream` | machine-readable consolidation | runtime artifacts + existing `.pulse/memory/*` | `.pulse/memory/{learnings,corrections,ratchet,dream-pending}` | consolidate runtime artifacts outside the post-cycle moment |
+| `pulse:compounding` | machine-readable post-cycle learnings | completed Pulse history, verification evidence, bead graph | `.pulse/memory/learnings/*.md` plus selective `critical-patterns.md` promotion | capture what Pulse should retain after completed work |
 
 ```mermaid
 flowchart LR
@@ -399,8 +426,9 @@ Codebase intelligence via scout-first GitNexus MCP discovery (or `rg` fallback).
 ---
 
 ### `pulse:dream`
-Manual consolidation of durable learnings from Claude Code or Codex runtime artifacts into Pulse memory.
+Manual consolidation of durable learnings from Claude Code or Codex runtime artifacts into machine-readable Pulse memory outside the post-cycle compounding pass.
 
+- Not for reader-facing dev-note synthesis and does not replace `pulse:compounding`
 - Detects **bootstrap mode** (first run — no provenance markers) vs **recurring mode**
 - Detects the runtime (`claude`, `codex`, or `mixed`) and applies the runtime source policy
 - Routes each candidate via the consolidation rubric into a learning, correction, ratchet, pending item, critical-promotion proposal, or skip
@@ -525,10 +553,10 @@ flowchart TD
   project-docs.json           — routing map for repo-owned project docs
   handoffs/
     manifest.json             — index of all active pause/resume entries
-    planning.json             — planning checkpoint
-    coordinator.json          — swarm coordinator checkpoint
-    worker-<agent>.json       — per-worker checkpoint
-    single-worker.json        — single-worker checkpoint
+    planning.json             — owner-scoped planning pause/resume handoff
+    coordinator.json          — owner-scoped coordinator pause/resume handoff
+    worker-<agent>.json       — owner-scoped worker pause/resume handoff
+    single-worker.json        — owner-scoped single-worker pause/resume handoff
   memory/
     critical-patterns.md      — globally promoted patterns
     learnings/                — durable cross-feature learning entries
@@ -582,7 +610,7 @@ history/<feature>/
 | Beads viewer | `bv` | TUI inspection; `bv --robot-priority` for machine-readable priority queue |
 | GitNexus | `gitnexus` | Optional codebase intelligence (query, context, impact, route analysis) |
 | Native swarm adapters | — | Claude Code teammates or Codex subagents coordinated through Pulse |
-| Onboarding / migration | `node plugins/pulse/skills/v2-to-v3-migration/scripts/migrate_pulse_v2_to_v3.mjs --repo-root <repo-root>` | Assesses repo-level Pulse onboarding/migration state; apply with `--apply` only after approval |
+| Onboarding / remediation | `node skills/using-pulse/scripts/onboard_pulse.mjs --repo-root <repo-root>` | Assesses repo-level Pulse onboarding/remediation state; apply with `--apply` only after approval |
 
 ---
 
@@ -657,13 +685,19 @@ On resume, `pulse:using-pulse` reads the manifest and presents active handoffs f
 
 ## Evaluation Surface
 
+Canonical evaluation entrypoint:
+
+```bash
+node scripts/pulse-plugin-eval.mjs
+```
+
 Public evaluation contracts and interpretation guides:
 
 - [`docs/evaluation/pulse-plugin-eval.md`](evaluation/pulse-plugin-eval.md)
 - [`docs/evaluation/pulse-swarming-hardening.md`](evaluation/pulse-swarming-hardening.md)
-- [`docs/evaluation/how-to-read-results.md`](evaluation/how-to-read-results.md)
+- [`docs/evaluation/how-to-read-results.md`](evaluation/how-to-read-results.md) — release reporting categories: runtime, quality, safety, docs, tests
 
-Machine scenario matrix and longitudinal benchmark evidence live in `pulse-eval-workspace/`.
+Machine scenario source of truth is `pulse-eval-workspace/evals.json`. `pulse-eval-workspace/iteration-*` and `pulse-eval-workspace/pulse-eval-review.html` are archival benchmark/history artifacts.
 
 ## Verification Expectations
 

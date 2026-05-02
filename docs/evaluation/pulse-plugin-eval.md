@@ -1,45 +1,68 @@
 # Pulse Plugin Evaluation
 
-This runbook defines the public evaluation contract for Pulse as an installable skill plugin.
+This runbook defines the maintainer entrypoint for Pulse plugin evaluation.
+
+## Primary command
+
+Run the first-class evaluator from repo root:
+
+```bash
+node scripts/pulse-plugin-eval.mjs
+```
+
+The runner executes three gates in order:
+1. **Static plugin health** (manifest/marketplace/skills contracts)
+2. **Runtime/dependency health** (`git`, `br`, `bv`, optional command execution)
+3. **Scenario/benchmark health** (`pulse-eval-workspace` matrix + latest iteration artifacts)
 
 ## Gate 1 — Static plugin health
 
-Validate packaged metadata and structure first.
-
-Recommended checks:
-- plugin manifests parse cleanly
-- marketplace metadata is in sync with manifest versions
-- skill directories are discoverable from `plugins/pulse/skills/`
-
-A static pass is structural evidence only. It does not prove workflow routing or gate discipline.
+Covered by default runner checks:
+- `.codex-plugin/plugin.json` exists and parses
+- `.claude-plugin/plugin.json` exists and parses
+- `.agents/plugins/marketplace.json` exists and parses
+- `.mcp.json` exists and parses
+- manifest/marketplace/plugin versions are in sync
+- `skills/*/SKILL.md` contract is intact
 
 ## Gate 2 — Runtime/dependency health
 
-Check operator-path readiness before behavioral claims.
+Covered by default runner checks:
+- `git`, `br`, `bv` are available on PATH
+- optional scenario execution command can be run via `--run-cmd`
 
-Required checks:
-- `git`, `br`, and `bv` are available
-- Pulse onboarding/scout surfaces are reachable for the target repo
-- runtime mode is explicit (`swarm`, `single-worker`, `planning-only`, or `blocked`)
-- degraded dependencies are reported, not hidden
+Example:
 
-If a dependency is degraded, report which scenarios become dependency-sensitive.
+```bash
+node scripts/pulse-plugin-eval.mjs --run-cmd "node skills/using-pulse/scripts/test_onboard_pulse.mjs"
+```
 
-## Gate 3 — Behavioral pilot
+If runtime dependencies are degraded, report which scenario conclusions are dependency-sensitive.
 
-Run focused scenarios from [`pulse-eval-workspace/evals.json`](../../pulse-eval-workspace/evals.json).
+## Gate 3 — Scenario/benchmark health
 
-Minimum public pilot slice:
-- one routing skill (`using-pulse`, `exploring`, or `planning`)
-- one execution gate skill (`validating`)
-- one coordination skill (`swarming` or `executing`)
+Covered by default runner checks:
+- `pulse-eval-workspace/evals.json` exists and is readable
+- review artifact exists at `pulse-eval-workspace/pulse-eval-review.html`
+- latest `iteration-*` is detected (or explicit `--iteration`)
+- `benchmark.json` and `benchmark.md` are present for the selected iteration
+- benchmark summary and discrimination signal are extractable
 
-Score each run against:
-- expected output contract
-- expectations checklist
-- must-not behaviors
+Useful options:
 
-Iterative benchmark snapshots should be published from `pulse-eval-workspace/iteration-*/benchmark.md`.
+```bash
+# Select iteration explicitly
+node scripts/pulse-plugin-eval.mjs --iteration 6
+
+# Require a scenario subset to exist in evals.json
+node scripts/pulse-plugin-eval.mjs --eval-ids 7,8,19
+
+# Emit machine-readable output
+node scripts/pulse-plugin-eval.mjs --json
+
+# Treat warnings as failures
+node scripts/pulse-plugin-eval.mjs --strict
+```
 
 ## Fix-first triage order
 
@@ -57,5 +80,5 @@ Every published evaluation summary should include:
 - tested scenario IDs
 - pass/fail counts
 - dependency caveats
-- whether results are discriminating or non-discriminating
+- discriminating/non-discriminating assessment
 - links to benchmark artifacts and scenario source

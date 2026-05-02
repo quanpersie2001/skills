@@ -11,7 +11,7 @@
     {
       "name": "pulse",
       "description": "Pulse: validate-first multi-agent skills for phase contracts, stories, swarming, and execution",
-      "source": "./plugins/pulse"
+      "source": "./"
     }
   ]
 }

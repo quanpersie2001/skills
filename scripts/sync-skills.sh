@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-skills_root="$repo_root/plugins/pulse/skills"
+skills_root="$repo_root/skills"
 agents_target_root="${AGENTS_SKILLS_DIR:-$HOME/.agents/skills}"
 claude_target_root="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 targets="${SKILLS_SYNC_TARGETS:-agents}"
