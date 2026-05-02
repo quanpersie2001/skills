@@ -79,14 +79,26 @@ Pulse is downstream of everal strong agentic-development systems and distills th
 
 ```bash
 /plugin marketplace add quanpersie2001/pulse
-/plugin install pulse@pulse
+/plugin install pulse@pulse-dev
 ```
 
 ### Codex
 
-1. Clone this repo
-2. Register `.agents/plugins/marketplace.json` as a local marketplace
-3. Install the `pulse` plugin so skills under `skills/` are discovered automatically
+```bash
+codex plugin marketplace add quanpersie2001/pulse
+```
+
+Codex reads the marketplace name from [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json), so the installed plugin key is `pulse@pulse-dev`. In the desktop app, enable or install `pulse` from the `pulse-dev` marketplace if it is not already active after the marketplace add step.
+
+If you previously added an older Pulse marketplace named `pulse`, remove it before reinstalling:
+
+```bash
+codex plugin marketplace remove pulse
+```
+
+### After Install
+
+Installing the plugin makes the packaged skills, hooks, and MCP metadata available to the runtime. To use Pulse inside a target repository, start with `pulse:preflight` so Pulse can verify or install the repo-local onboarding assets it needs under `.pulse/`.
 
 ## Project Docs
 
