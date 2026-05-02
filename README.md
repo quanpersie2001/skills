@@ -211,10 +211,9 @@ Every gate is a hard stop. Nothing proceeds without explicit approval.
 
 ## Skill Catalog
 
-Skill and category inventory is generated from `skills/` and published under `generated/`.
+Skill and category inventory is generated from `skills/` and published as `skill-catalog.json` at the repo root.
 
-- Source of truth: `generated/skill-catalog.json`
-- Human-readable snapshot: `generated/skill-catalog.md`
+- Output artifact: `skill-catalog.json`
 - Policy: docs and marketplace metadata should describe capabilities, not hard-code skill counts.
 
 ---

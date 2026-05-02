@@ -2,8 +2,7 @@
   "schemaVersion": 1,
   "sourceRoot": "skills",
   "generatedFiles": [
-    "generated/skill-catalog.json",
-    "generated/skill-catalog.md"
+    "skill-catalog.json"
   ],
   "skillCount": 21,
   "skills": [
