@@ -476,12 +476,14 @@ test("syncPulseRuntimeArtifacts initializes and refreshes persisted control-plan
         phase: "planning",
         requested_mode: "swarm",
         recommended_mode: "single-worker",
+        next_action: "manual_invoke",
+        next_skill_recommended: "pulse:executing",
       }, null, 2)}\n`,
       "utf8",
     );
     fs.writeFileSync(
       path.join(root, ".pulse", "STATE.md"),
-      "Focus: markdown-feature\nPhase: execution\nGate: GATE 3\n",
+      "Focus: markdown-feature\nPhase: execution\nGate: GATE 3\nGate status: approved\nNext action: manual_invoke\nNext skill recommended: pulse:executing\n",
       "utf8",
     );
 
@@ -497,12 +499,19 @@ test("syncPulseRuntimeArtifacts initializes and refreshes persisted control-plan
     assert.equal(currentFeature.feature_key, "sync-feature");
     assert.equal(currentFeature.phase, "planning");
     assert.equal(currentFeature.gate, "GATE 3");
+    assert.equal(currentFeature.gate_status, "approved");
     assert.equal(currentFeature.status, "active");
+    assert.equal(currentFeature.next_action, "manual_invoke");
+    assert.equal(currentFeature.next_skill_recommended, "pulse:executing");
     assert.equal(runtimeSnapshot.active_feature, "sync-feature");
     assert.equal(runtimeSnapshot.active_skill, "pulse:planning");
     assert.equal(runtimeSnapshot.phase, "planning");
+    assert.equal(runtimeSnapshot.gate, "GATE 3");
+    assert.equal(runtimeSnapshot.gate_status, "approved");
     assert.equal(runtimeSnapshot.requested_mode, "swarm");
     assert.equal(runtimeSnapshot.recommended_mode, "single-worker");
+    assert.equal(runtimeSnapshot.next_action, "manual_invoke");
+    assert.equal(runtimeSnapshot.next_skill_recommended, "pulse:executing");
     assert.equal(runtimeSnapshot.source.current_feature, ".pulse/current-feature.json");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -533,6 +542,70 @@ test("syncPulseRuntimeArtifacts treats '(none)' feature placeholders as empty po
     assert.equal(currentFeature.feature_key, "");
     assert.equal(currentFeature.status, "idle");
     assert.equal(runtimeSnapshot.active_feature, "");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("pulse status scout recommends manual invocation after an approved gate by default", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-onboard-"));
+
+  try {
+    applyRepo(root, false);
+    fs.writeFileSync(
+      path.join(root, ".pulse", "state.json"),
+      `${JSON.stringify({
+        active_feature: "manual-gate-feature",
+        active_skill: "pulse:validating",
+        phase: "validating",
+        gate: "GATE 3",
+        gate_status: "approved",
+        requested_mode: "execution-only",
+        recommended_mode: "single-worker",
+        next_action: "manual_invoke",
+        next_skill_recommended: "pulse:executing",
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(root, ".pulse", "STATE.md"),
+      [
+        "Focus: manual-gate-feature",
+        "Phase: go-mode/gate-3",
+        "Gate: GATE 3",
+        "Gate status: approved",
+        "Next action: manual_invoke",
+        "Next skill recommended: pulse:executing",
+      ].join("\n") + "\n",
+      "utf8",
+    );
+
+    const jsonStdout = execFileSync(
+      "node",
+      [path.join(root, ".pulse", "scripts", "pulse_status.mjs"), "--json", "--sync"],
+      { cwd: root, encoding: "utf8" },
+    );
+    const textStdout = execFileSync(
+      "node",
+      [path.join(root, ".pulse", "scripts", "pulse_status.mjs"), "--sync"],
+      { cwd: root, encoding: "utf8" },
+    );
+
+    const payload = JSON.parse(jsonStdout);
+    assert.equal(payload.state_json.next_action, "manual_invoke");
+    assert.equal(payload.state_json.next_skill_recommended, "pulse:executing");
+    assert.equal(payload.current_feature.gate, "GATE 3");
+    assert.equal(payload.current_feature.gate_status, "approved");
+    assert.equal(payload.current_feature.next_action, "manual_invoke");
+    assert.equal(payload.current_feature.next_skill_recommended, "pulse:executing");
+    assert.equal(payload.runtime_snapshot.gate, "GATE 3");
+    assert.equal(payload.runtime_snapshot.gate_status, "approved");
+    assert.equal(payload.runtime_snapshot.next_action, "manual_invoke");
+    assert.equal(payload.runtime_snapshot.next_skill_recommended, "pulse:executing");
+    assert.equal(payload.recommended_actions[0], "Gate cleared. Manually invoke pulse:executing when ready.");
+    assert.match(textStdout, /gate_status: approved/);
+    assert.match(textStdout, /next_action: manual_invoke/);
+    assert.match(textStdout, /next_skill_recommended: pulse:executing/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

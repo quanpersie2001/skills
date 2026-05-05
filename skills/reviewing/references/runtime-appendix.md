@@ -62,6 +62,11 @@ If any P1 review bead exists:
 
 User acknowledgment means the user has seen the P1 list and directed a fix path. It never means merge permission with open P1.
 
+When P1 = 0 and Gate 4 approval is granted:
+- default approved path: update runtime state with `gate: GATE 4`, `gate_status: approved`, `next_skill_recommended: pulse:compounding`, and `next_action: manual_invoke`, then stop
+- optional fast path: continue in the same session only when the user explicitly chooses an equivalent of `Approve and continue now`; in that case set `next_action: continue_now` before loading compounding
+- never auto-merge as part of either approval path
+
 ## 4) Artifact Verification Contract
 
 Run Level 1 -> Level 2 -> Level 3 for every artifact named in `CONTEXT.md` and `approach.md`:

@@ -19,14 +19,14 @@ User: "/go <feature>"
        | Output: history/<feature>/CONTEXT.md
        |
        v
-[GATE 1] <- HARD STOP: "Approve CONTEXT.md?"
+[GATE 1] <- HARD STOP: "Approve CONTEXT.md? (approve only by default)"
        |
        v
 [STEP 2] planning (whole feature)
        | Output: discovery.md, approach.md, phase-plan.md
        |
        v
-[GATE 2] <- HARD STOP: "Approve phase-plan.md?"
+[GATE 2] <- HARD STOP: "Approve phase-plan.md? (approve only by default)"
        |
        v
 [STEP 3] planning (current phase prep)
@@ -37,7 +37,7 @@ User: "/go <feature>"
        | Plan-checker (<=3x) + spikes + bead polish
        |
        v
-[GATE 3] <- HARD STOP: "Current phase verified. Approve execution?"
+[GATE 3] <- HARD STOP: "Current phase verified. Approve execution? (approve only by default)"
        |
        v
 [STEP 5] swarming -> executing (xN workers)
@@ -51,7 +51,7 @@ User: "/go <feature>"
        | Artifact verification + human UAT
        |
        v
-[GATE 4] <- HARD STOP: "Approve merge?"
+[GATE 4] <- HARD STOP: "Approve merge? (approve only by default)"
        |
        v
 [STEP 7] compounding
@@ -135,18 +135,26 @@ Present:
 ```
 
 If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it with focused options:
-- `Approve and continue`
+- `Approve only`
+- `Approve and continue now`
 - `Revise decisions`
 - `Show CONTEXT.md`
 
 Only fall back to plain text when no structured question tool exists:
-- `Approve decisions and proceed to planning? (yes / revise / show full CONTEXT.md)`
+- `Approve decisions? (approve only / approve and continue now / revise / show full CONTEXT.md)`
 
 If the user selects `Revise decisions`, or gives equivalent explicit revision feedback, loop back to exploring.
 
 If the user selects `Show CONTEXT.md`, show the artifact and remain at this gate.
 
-If the user selects `Approve and continue`, or gives equivalent explicit approval, proceed to Step 2.
+If the user selects `Approve only`, or gives equivalent explicit approval without asking to continue immediately:
+- update `.pulse/state.json` and `.pulse/STATE.md`
+- record `gate: GATE 1`, `gate_status: approved`, `next_skill_recommended: pulse:planning`, and `next_action: manual_invoke`
+- stop there; do not auto-load planning
+
+If the user selects `Approve and continue now`, or gives equivalent explicit approval to stay in the current context/model:
+- update the same runtime fields, but set `next_action: continue_now`
+- proceed to Step 2 in the same session
 
 ---
 
@@ -186,18 +194,26 @@ Present:
 ```
 
 If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it with focused options:
-- `Approve phase plan`
+- `Approve only`
+- `Approve and continue now`
 - `Revise phase plan`
 - `Show phase-plan.md`
 
 Only fall back to plain text when no structured question tool exists:
-- `Approve this phase/story breakdown before current-phase preparation? (yes / revise / show full phase-plan.md)`
+- `Approve this phase/story breakdown? (approve only / approve and continue now / revise / show full phase-plan.md)`
 
 If the user selects `Revise phase plan`, or gives equivalent explicit revision feedback, return to the planning pass that owns `phase-plan.md`.
 
 If the user selects `Show phase-plan.md`, show the artifact and remain at this gate.
 
-If the user selects `Approve phase plan`, or gives equivalent explicit approval, proceed to Step 3.
+If the user selects `Approve only`, or gives equivalent explicit approval without asking to continue immediately:
+- update `.pulse/state.json` and `.pulse/STATE.md`
+- record `gate: GATE 2`, `gate_status: approved`, `next_skill_recommended: pulse:planning`, and `next_action: manual_invoke`
+- stop there; do not auto-enter current-phase preparation
+
+If the user selects `Approve and continue now`, or gives equivalent explicit approval to stay in the current context/model:
+- update the same runtime fields, but set `next_action: continue_now`
+- proceed to Step 3 in the same session
 
 ---
 
@@ -268,14 +284,23 @@ Present:
 ```
 
 If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it with focused options:
-- `Approve execution`
+- `Approve only`
+- `Approve and continue now`
 - `Review beads`
 - `Revise plan`
 
 Only fall back to plain text when no structured question tool exists:
-- `Current phase verified. Approve execution? (yes / review beads / no - revise plan)`
+- `Current phase verified. Approve execution? (approve only / approve and continue now / review beads / revise plan)`
 
-If the user selects `Revise plan`, or gives equivalent explicit revision feedback, return to planning or validating. If the user selects `Review beads`, stay at this gate and inspect bead details before asking again. If the user selects `Approve execution`, or gives equivalent explicit approval, proceed to Step 5.
+If the user selects `Revise plan`, or gives equivalent explicit revision feedback, return to planning or validating.
+If the user selects `Review beads`, stay at this gate and inspect bead details before asking again.
+If the user selects `Approve only`, or gives equivalent explicit approval without asking to continue immediately:
+- update `.pulse/state.json` and `.pulse/STATE.md`
+- record `gate: GATE 3`, `gate_status: approved`, `next_skill_recommended` from `.pulse/tooling-status.json`, and `next_action: manual_invoke`
+- stop there; do not auto-start swarming or execution
+If the user selects `Approve and continue now`, or gives equivalent explicit approval to stay in the current context/model:
+- update the same runtime fields, but set `next_action: continue_now`
+- proceed to Step 5 in the same session
 
 ---
 
@@ -338,7 +363,8 @@ If P1 > 0:
 - `Override merge` only with explicit user confirmation
 
 If P1 = 0:
-- `Approve merge`
+- `Approve only`
+- `Approve and continue now`
 - `Show review details`
 - `Do not merge yet`
 
@@ -348,7 +374,16 @@ If P1 > 0 plain-text fallback:
 - `P1 findings block merge. Options: fix P1s now / show P1 details / override (requires explicit user confirmation)`
 
 If P1 = 0 plain-text fallback:
-- `No blocking findings. Ready to [create PR / merge to main / keep branch]. Approve? (yes / show P2s first / no)`
+- `No blocking findings. Approve review closeout? (approve only / approve and continue now / show P2s first / not yet)`
+
+If P1 = 0 and the user selects `Approve only`, or gives equivalent explicit approval without asking to continue immediately:
+- update `.pulse/state.json` and `.pulse/STATE.md`
+- record `gate: GATE 4`, `gate_status: approved`, `next_skill_recommended: pulse:compounding`, and `next_action: manual_invoke`
+- stop there; do not auto-load compounding and never auto-merge
+
+If P1 = 0 and the user selects `Approve and continue now`, or gives equivalent explicit approval to stay in the current context/model:
+- update the same runtime fields, but set `next_action: continue_now`
+- proceed to Step 7 in the same session
 
 If fix beads are created, execute them and re-run reviewing before presenting Gate 4 again.
 

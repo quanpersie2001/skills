@@ -214,13 +214,15 @@ After CONTEXT.md passes review:
    Current: exploring complete for <feature>
    CONTEXT.md: history/<feature>/CONTEXT.md
    Locked decisions: D1...D_N
-   Next: invoke pulse:planning skill
+   Next skill recommended: pulse:planning
+   Next action: manual_invoke
    ```
 
 2. Present to user:
    > "Decisions captured. CONTEXT.md written to `history/<feature>/CONTEXT.md`.
    > CONTEXT.md is now the single source of truth for all downstream agents.
-   > Invoke the pulse:planning skill to research the codebase, show the proposed phases and stories, and then wait for approval before current-phase preparation."
+   > Gate 1 approval should update runtime state with `gate_status: approved`, `next_skill_recommended: pulse:planning`, and `next_action: manual_invoke` by default.
+   > If the user wants to keep the same context/model, they can explicitly choose an equivalent of 'Approve and continue now'; otherwise planning stays a manual invoke."
 
 <HARD-GATE>
 Do NOT invoke planning, write code, create beads, or take any implementation action.

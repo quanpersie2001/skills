@@ -71,11 +71,13 @@ CONTEXT.md
   -> Phase 2 Synthesis                 (history/<feature>/approach.md)
   -> Phase 3 Whole Feature Phase Plan  (history/<feature>/phase-plan.md)
   -> HARD-GATE (Gate 2): human approval required
+  -> default approved outcome: state sync + stop (`next_action: manual_invoke`, `next_skill_recommended: pulse:planning`)
+  -> optional approved outcome: continue now in the same context (`next_action: continue_now`)
   -> Phase 4 Current Phase Contract    (history/<feature>/phase-<n>-contract.md)
   -> Phase 5 Current Phase Story Map   (history/<feature>/phase-<n>-story-map.md)
   -> Phase 6 Multi-Perspective Check   (HIGH-stakes only)
   -> Phase 7 Current Phase Bead Creation (.beads/* via br)
-  -> Handoff: invoke pulse:validating for Phase <n>
+  -> Handoff: recommend pulse:validating for Phase <n> (`next_action: manual_invoke` by default)
 ```
 
 ## Phase Execution Contract
@@ -113,11 +115,14 @@ CONTEXT.md
 - Must define foundation-first architecture baseline and 2-4 meaningful phases with observable outcomes.
 - Set `Approval status: PENDING` and stop for user approval.
 - If revised, set or keep `REVISE_REQUIRED`; only set `APPROVED` after explicit approval.
+- Default approved path: update runtime state only, record `gate: GATE 2`, `gate_status: approved`, `next_skill_recommended: pulse:planning`, and `next_action: manual_invoke`, then stop.
+- Optional fast path: only enter Phase 4 immediately when the user explicitly chooses an equivalent of `Approve and continue now`; in that case set `next_action: continue_now` before continuing.
 
 Approval sync checklist before moving forward:
 1. Update `history/<feature>/phase-plan.md` approval state.
-2. Sync same state into `.pulse/STATE.md`.
+2. Sync same state into `.pulse/STATE.md` and `.pulse/state.json`.
 3. Confirm both artifacts name the same approved phase.
+4. Do not enter current-phase preparation unless the user explicitly asked to continue now in the same context.
 
 ### Phase 4: Current Phase Contract
 
@@ -160,7 +165,7 @@ On success:
 - only current-phase beads are created and normalized
 - HIGH-risk components are flagged for validating
 
-Then hand off with: **Invoke `pulse:validating` for Phase <n> before execution.**
+Then hand off with: **Recommend `pulse:validating` for Phase <n> as the next skill, default to `next_action: manual_invoke`, and continue in the same session only when the user explicitly asks for it.**
 
 ## Red Flags
 

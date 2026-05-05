@@ -111,8 +111,13 @@ export function buildDefaultState(overrides = {}) {
     active_skill:
       typeof overrides.active_skill === "string" ? overrides.active_skill : "pulse:using-pulse",
     active_feature: typeof overrides.active_feature === "string" ? overrides.active_feature : "",
+    gate: typeof overrides.gate === "string" ? overrides.gate : "",
+    gate_status: typeof overrides.gate_status === "string" ? overrides.gate_status : "",
     requested_mode: typeof overrides.requested_mode === "string" ? overrides.requested_mode : "",
     recommended_mode: typeof overrides.recommended_mode === "string" ? overrides.recommended_mode : "",
+    next_action: typeof overrides.next_action === "string" ? overrides.next_action : "",
+    next_skill_recommended:
+      typeof overrides.next_skill_recommended === "string" ? overrides.next_skill_recommended : "",
     handoff_manifest:
       typeof overrides.handoff_manifest === "string" && overrides.handoff_manifest
         ? overrides.handoff_manifest
@@ -307,6 +312,59 @@ function normalizeFeaturePointer(value) {
   return normalized === "(none)" ? "" : normalized;
 }
 
+function inferGateNextSkillRecommended(status, gate, gateStatus) {
+  const explicit = firstNonEmptyString(
+    status.state_markdown?.next_skill_recommended,
+    status.state_json?.next_skill_recommended,
+    status.current_feature?.next_skill_recommended,
+    status.runtime_snapshot?.next_skill_recommended,
+  );
+  if (explicit) {
+    return explicit;
+  }
+  if (gateStatus !== "approved") {
+    return "";
+  }
+
+  if (gate === "GATE 1" || gate === "GATE 2") {
+    return "pulse:planning";
+  }
+  if (gate === "GATE 3") {
+    const executionMode = firstNonEmptyString(
+      status.tooling_status?.recommended_mode,
+      status.runtime_snapshot?.recommended_mode,
+      status.state_json?.recommended_mode,
+    );
+    if (executionMode === "swarm") {
+      return "pulse:swarming";
+    }
+    if (executionMode === "single-worker") {
+      return "pulse:executing";
+    }
+    return "";
+  }
+  if (gate === "GATE 4") {
+    return "pulse:compounding";
+  }
+  return "";
+}
+
+function inferGateNextAction(status, gateStatus, nextSkillRecommended) {
+  const explicit = firstNonEmptyString(
+    status.state_markdown?.next_action,
+    status.state_json?.next_action,
+    status.current_feature?.next_action,
+    status.runtime_snapshot?.next_action,
+  );
+  if (explicit) {
+    return explicit;
+  }
+  if (gateStatus === "approved" && nextSkillRecommended) {
+    return "manual_invoke";
+  }
+  return "";
+}
+
 function buildCurrentFeatureRecord(status) {
   const featureKey = firstNonEmptyString(
     normalizeFeaturePointer(status.state_json?.active_feature),
@@ -320,19 +378,34 @@ function buildCurrentFeatureRecord(status) {
     status.current_feature?.phase,
     featureKey ? "idle" : "",
   );
-  const gate = firstNonEmptyString(status.state_markdown?.gate, status.current_feature?.gate);
+  const gate = firstNonEmptyString(
+    status.state_markdown?.gate,
+    status.state_json?.gate,
+    status.current_feature?.gate,
+  );
+  const gateStatus = firstNonEmptyString(
+    status.state_markdown?.gate_status,
+    status.state_json?.gate_status,
+    status.current_feature?.gate_status,
+    status.runtime_snapshot?.gate_status,
+  );
   const currentStatus = featureKey
     ? (status.current_feature?.status && status.current_feature.status !== "idle"
         ? status.current_feature.status
         : "active")
     : firstNonEmptyString(status.current_feature?.status, "idle");
+  const nextSkillRecommended = inferGateNextSkillRecommended(status, gate, gateStatus);
+  const nextAction = inferGateNextAction(status, gateStatus, nextSkillRecommended);
 
   return {
     schema_version: CURRENT_FEATURE_SCHEMA_VERSION,
     feature_key: featureKey,
     phase,
     gate,
+    gate_status: gateStatus,
     status: currentStatus,
+    next_action: nextAction,
+    next_skill_recommended: nextSkillRecommended,
     updated_at: utcNow(),
   };
 }
@@ -343,6 +416,19 @@ function buildRuntimeSnapshotRecord(status) {
     state_markdown: ".pulse/STATE.md",
     current_feature: ".pulse/current-feature.json",
   };
+  const gate = firstNonEmptyString(
+    status.current_feature?.gate,
+    status.state_markdown?.gate,
+    status.state_json?.gate,
+  );
+  const gateStatus = firstNonEmptyString(
+    status.current_feature?.gate_status,
+    status.state_markdown?.gate_status,
+    status.state_json?.gate_status,
+    status.runtime_snapshot?.gate_status,
+  );
+  const nextSkillRecommended = inferGateNextSkillRecommended(status, gate, gateStatus);
+  const nextAction = inferGateNextAction(status, gateStatus, nextSkillRecommended);
 
   return {
     schema_version: RUNTIME_SNAPSHOT_SCHEMA_VERSION,
@@ -358,6 +444,8 @@ function buildRuntimeSnapshotRecord(status) {
       status.state_markdown?.phase,
       "idle",
     ),
+    gate,
+    gate_status: gateStatus,
     requested_mode: firstNonEmptyString(
       status.tooling_status?.requested_mode,
       status.state_json?.requested_mode,
@@ -366,6 +454,8 @@ function buildRuntimeSnapshotRecord(status) {
       status.tooling_status?.recommended_mode,
       status.state_json?.recommended_mode,
     ),
+    next_action: nextAction,
+    next_skill_recommended: nextSkillRecommended,
     updated_at: utcNow(),
     source,
   };
@@ -378,7 +468,16 @@ export function writeCurrentFeature(repoRoot, nextCurrentFeature) {
     feature_key: typeof nextCurrentFeature?.feature_key === "string" ? nextCurrentFeature.feature_key.trim() : "",
     phase: typeof nextCurrentFeature?.phase === "string" ? nextCurrentFeature.phase.trim() : "",
     gate: typeof nextCurrentFeature?.gate === "string" ? nextCurrentFeature.gate.trim() : "",
+    gate_status: typeof nextCurrentFeature?.gate_status === "string"
+      ? nextCurrentFeature.gate_status.trim()
+      : "",
     status: typeof nextCurrentFeature?.status === "string" ? nextCurrentFeature.status.trim() : "",
+    next_action: typeof nextCurrentFeature?.next_action === "string"
+      ? nextCurrentFeature.next_action.trim()
+      : "",
+    next_skill_recommended: typeof nextCurrentFeature?.next_skill_recommended === "string"
+      ? nextCurrentFeature.next_skill_recommended.trim()
+      : "",
     updated_at: typeof nextCurrentFeature?.updated_at === "string" && nextCurrentFeature.updated_at
       ? nextCurrentFeature.updated_at
       : utcNow(),
@@ -398,11 +497,21 @@ export function writeRuntimeSnapshot(repoRoot, nextRuntimeSnapshot) {
     active_feature: typeof nextRuntimeSnapshot?.active_feature === "string" ? nextRuntimeSnapshot.active_feature.trim() : "",
     active_skill: typeof nextRuntimeSnapshot?.active_skill === "string" ? nextRuntimeSnapshot.active_skill.trim() : "",
     phase: typeof nextRuntimeSnapshot?.phase === "string" ? nextRuntimeSnapshot.phase.trim() : "",
+    gate: typeof nextRuntimeSnapshot?.gate === "string" ? nextRuntimeSnapshot.gate.trim() : "",
+    gate_status: typeof nextRuntimeSnapshot?.gate_status === "string"
+      ? nextRuntimeSnapshot.gate_status.trim()
+      : "",
     requested_mode: typeof nextRuntimeSnapshot?.requested_mode === "string"
       ? nextRuntimeSnapshot.requested_mode.trim()
       : "",
     recommended_mode: typeof nextRuntimeSnapshot?.recommended_mode === "string"
       ? nextRuntimeSnapshot.recommended_mode.trim()
+      : "",
+    next_action: typeof nextRuntimeSnapshot?.next_action === "string"
+      ? nextRuntimeSnapshot.next_action.trim()
+      : "",
+    next_skill_recommended: typeof nextRuntimeSnapshot?.next_skill_recommended === "string"
+      ? nextRuntimeSnapshot.next_skill_recommended.trim()
       : "",
     updated_at: typeof nextRuntimeSnapshot?.updated_at === "string" && nextRuntimeSnapshot.updated_at
       ? nextRuntimeSnapshot.updated_at
@@ -1281,6 +1390,24 @@ function inferCheckpointNextAction(status) {
   if (status.handoff_manifest?.active?.[0]?.next_action) {
     return status.handoff_manifest.active[0].next_action;
   }
+
+  const nextAction = firstNonEmptyString(
+    status.runtime_snapshot?.next_action,
+    status.current_feature?.next_action,
+    status.state_json?.next_action,
+  );
+  const nextSkillRecommended = firstNonEmptyString(
+    status.runtime_snapshot?.next_skill_recommended,
+    status.current_feature?.next_skill_recommended,
+    status.state_json?.next_skill_recommended,
+    status.tooling_status?.next_skill,
+  );
+  if (nextAction === "manual_invoke" && nextSkillRecommended) {
+    return `Manually invoke ${nextSkillRecommended} when ready.`;
+  }
+  if (nextAction === "continue_now" && nextSkillRecommended) {
+    return `Continue now with ${nextSkillRecommended} in the current context.`;
+  }
   if (status.tooling_status?.next_skill) {
     return `Open ${status.tooling_status.next_skill}`;
   }
@@ -1639,6 +1766,45 @@ function buildRecommendedActions(status) {
     return actions;
   }
 
+  const nextAction = firstNonEmptyString(
+    status.runtime_snapshot?.next_action,
+    status.current_feature?.next_action,
+    status.state_json?.next_action,
+  );
+  const nextSkillRecommended = firstNonEmptyString(
+    status.runtime_snapshot?.next_skill_recommended,
+    status.current_feature?.next_skill_recommended,
+    status.state_json?.next_skill_recommended,
+  );
+
+  if (nextAction === "manual_invoke" && nextSkillRecommended) {
+    const actions = [`Gate cleared. Manually invoke ${nextSkillRecommended} when ready.`];
+    actions.push("You can clear chat context or switch to a stronger model before invoking the recommended next skill.");
+    if (status.project_docs?.status === "mapped") {
+      actions.push("Read the mapped project docs when repo-level terminology, boundaries, or ADR context may affect the next decision.");
+    } else if (status.project_docs?.status === "detected") {
+      actions.push("Repo-level project docs were detected but .pulse/project-docs.json is missing; use pulse:bootstrap-project-context to record the mapping before deeper planning.");
+    } else {
+      actions.push("If durable repo-level terminology or architecture context is missing, pulse:bootstrap-project-context can propose a lazy project-doc scaffold.");
+    }
+    if (status.checkpoints?.latest?.path) {
+      actions.push("If you are re-entering an active feature, compare the latest checkpoint against the current runtime snapshot before planning or execution.");
+    }
+    if (recallPack.length > 0) {
+      actions.push("Before planning or debugging, consult the targeted recall pack instead of grepping the whole memory plane.");
+    }
+    if (hygieneWarnings.length > 0) {
+      actions.push(`Memory hygiene warning: ${hygieneWarnings[0]}`);
+    }
+    if (checkpointWarnings.length > 0) {
+      actions.push(`Checkpoint hygiene warning: ${checkpointWarnings[0]}`);
+    }
+    if (projectDocsWarnings.length > 0) {
+      actions.push(`Project docs warning: ${projectDocsWarnings[0]}`);
+    }
+    return actions;
+  }
+
   if (status.tooling_status.next_skill) {
     const actions = [`Next skill suggestion: ${status.tooling_status.next_skill}.`];
     if (status.project_docs?.status === "mapped") {
@@ -1711,8 +1877,11 @@ function summarizeCurrentFeature(currentFeature) {
       feature_key: "",
       phase: "",
       gate: "",
+      gate_status: "",
       updated_at: "",
       status: "",
+      next_action: "",
+      next_skill_recommended: "",
     };
   }
 
@@ -1721,8 +1890,13 @@ function summarizeCurrentFeature(currentFeature) {
     feature_key: typeof currentFeature.feature_key === "string" ? currentFeature.feature_key : "",
     phase: typeof currentFeature.phase === "string" ? currentFeature.phase : "",
     gate: typeof currentFeature.gate === "string" ? currentFeature.gate : "",
+    gate_status: typeof currentFeature.gate_status === "string" ? currentFeature.gate_status : "",
     updated_at: typeof currentFeature.updated_at === "string" ? currentFeature.updated_at : "",
     status: typeof currentFeature.status === "string" ? currentFeature.status : "",
+    next_action: typeof currentFeature.next_action === "string" ? currentFeature.next_action : "",
+    next_skill_recommended: typeof currentFeature.next_skill_recommended === "string"
+      ? currentFeature.next_skill_recommended
+      : "",
   };
 }
 
@@ -1734,8 +1908,12 @@ function summarizeRuntimeSnapshot(runtimeSnapshot) {
       active_feature: "",
       active_skill: "",
       phase: "",
+      gate: "",
+      gate_status: "",
       requested_mode: "",
       recommended_mode: "",
+      next_action: "",
+      next_skill_recommended: "",
       updated_at: "",
       source: null,
     };
@@ -1765,11 +1943,17 @@ function summarizeRuntimeSnapshot(runtimeSnapshot) {
       : "",
     active_skill: typeof runtimeSnapshot.active_skill === "string" ? runtimeSnapshot.active_skill : "",
     phase: typeof runtimeSnapshot.phase === "string" ? runtimeSnapshot.phase : "",
+    gate: typeof runtimeSnapshot.gate === "string" ? runtimeSnapshot.gate : "",
+    gate_status: typeof runtimeSnapshot.gate_status === "string" ? runtimeSnapshot.gate_status : "",
     requested_mode: typeof runtimeSnapshot.requested_mode === "string"
       ? runtimeSnapshot.requested_mode
       : "",
     recommended_mode: typeof runtimeSnapshot.recommended_mode === "string"
       ? runtimeSnapshot.recommended_mode
+      : "",
+    next_action: typeof runtimeSnapshot.next_action === "string" ? runtimeSnapshot.next_action : "",
+    next_skill_recommended: typeof runtimeSnapshot.next_skill_recommended === "string"
+      ? runtimeSnapshot.next_skill_recommended
       : "",
     updated_at: typeof runtimeSnapshot.updated_at === "string" ? runtimeSnapshot.updated_at : "",
     source,
@@ -2386,7 +2570,16 @@ function renderOperatorSurfaceLines(status) {
     lines.push(`  - feature_key: ${currentFeature.feature_key || "(none)"}`);
     lines.push(`  - phase: ${currentFeature.phase || "(none)"}`);
     lines.push(`  - gate: ${currentFeature.gate || "(none)"}`);
+    if (currentFeature.gate_status) {
+      lines.push(`  - gate_status: ${currentFeature.gate_status}`);
+    }
     lines.push(`  - status: ${currentFeature.status || "(none)"}`);
+    if (currentFeature.next_action) {
+      lines.push(`  - next_action: ${currentFeature.next_action}`);
+    }
+    if (currentFeature.next_skill_recommended) {
+      lines.push(`  - next_skill_recommended: ${currentFeature.next_skill_recommended}`);
+    }
     lines.push(`  - updated_at: ${currentFeature.updated_at || "(none)"}`);
   }
 
@@ -2398,8 +2591,20 @@ function renderOperatorSurfaceLines(status) {
     lines.push(`  - active_feature: ${runtimeSnapshot.active_feature || "(none)"}`);
     lines.push(`  - active_skill: ${runtimeSnapshot.active_skill || "(none)"}`);
     lines.push(`  - phase: ${runtimeSnapshot.phase || "(none)"}`);
+    if (runtimeSnapshot.gate) {
+      lines.push(`  - gate: ${runtimeSnapshot.gate}`);
+    }
+    if (runtimeSnapshot.gate_status) {
+      lines.push(`  - gate_status: ${runtimeSnapshot.gate_status}`);
+    }
     lines.push(`  - requested_mode: ${runtimeSnapshot.requested_mode || "(unspecified)"}`);
     lines.push(`  - recommended_mode: ${runtimeSnapshot.recommended_mode || "(unspecified)"}`);
+    if (runtimeSnapshot.next_action) {
+      lines.push(`  - next_action: ${runtimeSnapshot.next_action}`);
+    }
+    if (runtimeSnapshot.next_skill_recommended) {
+      lines.push(`  - next_skill_recommended: ${runtimeSnapshot.next_skill_recommended}`);
+    }
     lines.push(`  - updated_at: ${runtimeSnapshot.updated_at || "(none)"}`);
   }
 

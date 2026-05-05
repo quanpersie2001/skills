@@ -184,7 +184,8 @@ Unresolved concerns:
 ```
 
 Approval options (prefer structured tool if available):
-- Approve execution
+- Approve only
+- Approve and continue now
 - Review beads
 - Revise plan
 
@@ -197,3 +198,5 @@ Rejection routing options:
 
 Hard stop:
 - no execution starts until explicit approval is captured
+- default approval only updates runtime state with `gate_status: approved`, `next_skill_recommended`, and `next_action: manual_invoke`
+- execution starts only when the user explicitly chooses `Approve and continue now` or later manually invokes the recommended next skill

@@ -63,13 +63,13 @@ All execution-time rules live in `references/runtime-appendix.md`. Treat that fi
 4. Run artifact verification for all promised deliverables.
 5. Run human UAT unless explicitly skipped under allowed mode.
 6. Execute finishing and update Pulse state artifacts.
-7. Hand off to `pulse:compounding`.
+7. Recommend `pulse:compounding` as the next skill and default to `next_action: manual_invoke`.
 
 ## Handoff
 
 If paused, write a reviewing-owned handoff using `../using-pulse/references/handoff-contract.md` and register it in `.pulse/handoffs/manifest.json`.
 
-After finishing completes, report feature completion and explicitly trigger compounding.
+After finishing completes, report feature completion, update runtime state for Gate 4 approval, and recommend compounding without auto-triggering it unless the user explicitly asks to continue now.
 
 ## References
 

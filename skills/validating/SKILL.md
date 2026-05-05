@@ -149,10 +149,12 @@ Use structured question tools when available; otherwise plain text.
 Execution is forbidden until approval is explicit.
 
 On approval:
-- update `.pulse/STATE.md` to validated status
-- hand off by mode:
-  - `recommended_mode=swarm` → invoke `pulse:swarming`
-  - `recommended_mode=single-worker` → invoke `pulse:executing`
+- update `.pulse/STATE.md` and `.pulse/state.json` to validated status
+- default approved path: record `gate: GATE 3`, `gate_status: approved`, `next_action: manual_invoke`, and set `next_skill_recommended` from `recommended_mode`, then stop
+- optional fast path: only continue in the same session when the user explicitly chooses an equivalent of `Approve and continue now`; in that case set `next_action: continue_now` before continuing
+- mode mapping for `next_skill_recommended`:
+  - `recommended_mode=swarm` → `pulse:swarming`
+  - `recommended_mode=single-worker` → `pulse:executing`
 
 On rejection:
 - capture concern category and route back precisely (contract/story map/approach/beads)
@@ -162,10 +164,10 @@ Use final approval template/options in `references/runtime-appendix.md`.
 ## Execution Mode Compatibility
 
 Validating must support both downstream modes:
-- **Swarm mode**: all validations complete, hand off to `pulse:swarming`
-- **Single-worker mode**: all validations complete, hand off to `pulse:executing`
+- **Swarm mode**: all validations complete, recommend `pulse:swarming` as the next skill and default to `next_action: manual_invoke`
+- **Single-worker mode**: all validations complete, recommend `pulse:executing` as the next skill and default to `next_action: manual_invoke`
 
-The validation standard is identical in both modes.
+Only switch to `next_action: continue_now` when the user explicitly asks to keep going in the same context. The validation standard is identical in both modes.
 
 ## Lightweight Mode
 
