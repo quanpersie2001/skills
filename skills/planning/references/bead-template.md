@@ -36,6 +36,23 @@ labels:
 ---
 ```
 
+## Epic Beads (whole-feature root)
+
+When `type: epic`, keep the usual contract fields and add a minimal phase snapshot:
+
+```yaml
+phase_tracking:
+  total_phases: 3
+  current_phase: Phase 2 - API wiring
+  completed_phases:
+    - Phase 1 - foundation
+  final_phase_ready: false
+```
+
+Use this snapshot only to make the graph easier to read. It must be copied from `history/<feature>/phase-plan.md` and `.pulse/STATE.md`, and it must never override those artifacts.
+
+Do not try to encode every per-phase nuance into the epic bead. Keep the snapshot minimal and refresh it whenever the planned current phase changes.
+
 ## Required Fields
 
 - `dependencies`
@@ -67,6 +84,7 @@ These rules are intentionally strict because downstream skills rely on them as s
 8. `decision_refs` must point to actual decision IDs from `CONTEXT.md` when relevant.
 9. `learning_refs` should only include learnings this bead genuinely needs.
 10. If a correction entry or ratchet rule clearly applies to the bead, include that path in `learning_refs` instead of assuming the worker will rediscover it from global memory.
+11. If `type: epic`, include `phase_tracking.total_phases`, `phase_tracking.current_phase`, `phase_tracking.completed_phases`, and `phase_tracking.final_phase_ready` as a convenience snapshot copied from `phase-plan.md` and `.pulse/STATE.md`.
 
 ## Body Sections
 

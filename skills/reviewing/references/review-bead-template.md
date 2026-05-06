@@ -8,6 +8,11 @@ Per-finding markdown files are retired. The bead is now the primary review artif
 
 ## Bead Creation Rules
 
+Operational rule:
+- every accepted review finding must be materialized as a bead before Gate 4 is presented
+- if multiple reviewers report the same issue, deduplicate to one canonical bead and reference that bead ID in the review summary
+- do not present prose-only accepted findings without creating a bead or explicitly marking them duplicate/no-issue
+
 ### Severity Mapping
 
 | Review Severity | Bead Priority | Linkage | Blocking |

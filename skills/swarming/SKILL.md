@@ -240,13 +240,16 @@ When no current-phase beads remain `in_progress` and the graph shows no remainin
    - run final build/test commands appropriate to the project
    - clear `## Active Workers` from `.pulse/STATE.md`
    - inspect `history/<feature>/phase-plan.md` and `.pulse/STATE.md`
+   - determine final-phase eligibility from those artifacts, not from graph emptiness alone
+   - if `phase-plan.md` and `.pulse/STATE.md` disagree about the approved/current phase or whether later phases remain: stop and route back to planning/state sync before any review handoff
    - if more phases remain:
+     - keep the whole-feature epic open
      ```
      Active skill: swarming -> COMPLETE
      Swarm: <EPIC_ID> - current phase complete
      Next: planning for Phase <n+1>
      ```
-   - if this was the final phase:
+   - if this was the final phase and the artifacts agree no later phases remain:
      ```
      Active skill: swarming -> COMPLETE
      Swarm: <EPIC_ID> - final phase complete
@@ -255,7 +258,7 @@ When no current-phase beads remain `in_progress` and the graph shows no remainin
 
 4. Handoff message:
    - if more phases remain:
-     > "Swarm execution complete for the current phase. Return to `pulse:planning` to prepare the next phase."
+     > "Swarm execution complete for the current phase. The whole-feature epic stays open. Return to `pulse:planning` to prepare the next phase."
    - if this was the final phase:
      > "Swarm execution complete for the final phase. Invoke `pulse:reviewing`."
 
@@ -273,6 +276,7 @@ Stop and diagnose before continuing if you see:
 - **Workers stop using `bv --robot-priority` and start freelancing** — re-broadcast the execution contract
 - **Build/test failures accumulate without intervention** — create fix beads or stop and escalate
 - **Swarm is attempted while preflight recommended `single-worker`** — stop and use standalone executing
+- **An empty epic subtree is treated as proof the whole feature is complete** — confirm final-phase eligibility from `phase-plan.md` + `.pulse/STATE.md` before handing off to reviewing
 
 ---
 

@@ -185,6 +185,14 @@ For each phase include:
 - Approved phase to prepare next: `Phase <n> - <name> | none`
 - Approved at: `<ISO-8601 | pending>`
 - Current phase to prepare next: `Phase <n> - <name>`
+
+## 8. Epic Snapshot Inputs
+- Total phases: `<N>`
+- Current phase: `Phase <n> - <name>`
+- Completed phases: `<list or none>`
+- Final phase ready: `yes | no`
+
+Use these values to refresh the whole-feature epic bead snapshot after planning each phase. The epic snapshot is convenience metadata only; `phase-plan.md` and `.pulse/STATE.md` remain the source of truth.
 ```
 
 ---

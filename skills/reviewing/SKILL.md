@@ -27,7 +27,7 @@ Reviewing is the last automated quality gate before shipping. It verifies behavi
 
 ## When to Invoke
 
-- After `pulse:swarming` reports the final phase is complete
+- After `pulse:swarming` reports the final phase is complete and `history/<feature>/phase-plan.md` plus `.pulse/STATE.md` agree that no later phases remain
 - Manually when auditing a branch or diff
 - Optional flags: `--serial`, `--skip-uat` (only when human UAT is intentionally omitted and non-interactive evidence is used)
 
@@ -58,12 +58,13 @@ All execution-time rules live in `references/runtime-appendix.md`. Treat that fi
 ## Minimum Flow
 
 1. Run specialist review (4+1 model).
-2. Create review beads by severity and deduplicate overlaps.
-3. Enforce hard gate: if any P1 exists, stop and present; do not continue closeout.
-4. Run artifact verification for all promised deliverables.
+2. Run artifact verification for all promised deliverables.
+3. Turn every accepted finding into a review bead by severity and deduplicate overlaps before presenting results.
+4. Enforce hard gate: if any P1 review bead exists, stop and present the blocking bead IDs; do not continue closeout.
 5. Run human UAT unless explicitly skipped under allowed mode.
-6. Execute finishing and update Pulse state artifacts.
-7. Recommend `pulse:compounding` as the next skill and default to `next_action: manual_invoke`.
+6. If UAT or finishing checks reveal new accepted findings, create or update the corresponding review/fix beads before proceeding.
+7. Execute finishing and update Pulse state artifacts.
+8. Recommend `pulse:compounding` as the next skill and default to `next_action: manual_invoke`.
 
 ## Handoff
 

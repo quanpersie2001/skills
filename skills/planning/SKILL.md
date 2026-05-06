@@ -142,7 +142,14 @@ Run only for high-stakes phases (core architecture/auth/data model/high blast ra
 ### Phase 7: Current Phase Bead Creation
 
 - Create real beads with `br create`; never pseudo-beads in markdown.
-- Create epic first if missing, then current-phase task beads only.
+- Create one whole-feature epic first if missing, then current-phase task beads only.
+- The epic remains open across phases. Do not treat a phase-complete subtree as permission to close the whole-feature epic.
+- Populate the epic bead with a minimal phase snapshot sourced from `history/<feature>/phase-plan.md` plus `.pulse/STATE.md`:
+  - `total_phases`
+  - `current_phase`
+  - `completed_phases`
+  - `final_phase_ready`
+- Treat that epic snapshot as operator-facing convenience only. `phase-plan.md` and `.pulse/STATE.md` remain the source of truth.
 - Normalize every bead immediately with required schema fields:
   - `dependencies`, `files`, `verify`, `verification_evidence`, `testing_mode`, `decision_refs`, `learning_refs`
 - Use `references/bead-template.md` for bead schema details.
@@ -163,6 +170,7 @@ On success:
 - discovery, approach, phase-plan, phase-contract, and story-map are written
 - Gate 2 approval is recorded and synced
 - only current-phase beads are created and normalized
+- the whole-feature epic remains open unless the final phase has already completed and reviewing later closes it
 - HIGH-risk components are flagged for validating
 
 Then hand off with: **Recommend `pulse:validating` for Phase <n> as the next skill, default to `next_action: manual_invoke`, and continue in the same session only when the user explicitly asks for it.**

@@ -321,6 +321,8 @@ After current-phase execution completes:
 
 - if `phase-plan.md` shows later phases still pending -> return to Step 3 for the next phase
 - if the current phase was the final phase -> proceed to Step 6
+- do not use an empty epic subtree alone as proof the whole feature is complete; later phases may not be materialized yet
+- when in doubt, `phase-plan.md` + `.pulse/STATE.md` decide whether reviewing is allowed
 
 **Update STATE.md:** either `phase: go-mode/planning-next-phase` or `phase: go-mode/reviewing`
 
@@ -328,7 +330,7 @@ After current-phase execution completes:
 
 ## Step 6: Reviewing
 
-**Invoke:** Load `pulse:reviewing` skill only after the final phase swarm completes.
+**Invoke:** Load `pulse:reviewing` skill only after the final phase swarm completes and `phase-plan.md` plus `.pulse/STATE.md` agree that no later phases remain.
 
 **The pulse:reviewing skill will:**
 

@@ -45,6 +45,8 @@ Creation + linkage:
 - P1 -> blocking fix bead on current review/epic-close path
 - P2/P3 -> non-blocking follow-up beads (`external_ref=<source-epic-id>`, `review` labels)
 - P2/P3 must not be parented under current epic close path
+- every accepted finding that survives dedupe must become a review bead before Gate 4 is presented
+- do not leave accepted findings as prose-only notes without a bead ID
 
 Title pattern:
 
@@ -59,6 +61,7 @@ If any P1 review bead exists:
 - stop progression immediately
 - present P1 list with bead IDs and evidence
 - do not proceed to finishing while P1 remains open
+- if a blocking issue is still only described in prose, create the bead first and then present it as a blocker
 
 User acknowledgment means the user has seen the P1 list and directed a fix path. It never means merge permission with open P1.
 
@@ -83,6 +86,8 @@ Severity mapping:
 - L1+L2 only -> P2 review bead
 - L1 only (stub) -> P1 review bead
 - Missing -> P1 review bead
+
+Artifact-verification findings follow the same bead rule: if the issue is accepted as real, create the review bead before summarizing the review result.
 
 For APIs, config, infra, and CLI flows where human click-through is not applicable, collect non-interactive evidence such as:
 - verification command output
@@ -110,15 +115,20 @@ Skip is recorded in `.pulse/STATE.md` and is not a pass.
 
 ## 6) Finishing and Closeout
 
+Precondition before finishing:
+- confirm from `history/<feature>/phase-plan.md` plus `.pulse/STATE.md` that the just-completed phase is the final phase and no later phases remain pending
+- if those artifacts disagree, stop and route back to planning/state sync
+- do not infer whole-feature completion from an empty epic subtree alone; later phases may not be materialized yet
+
 Use this closeout checklist:
 
-- verify epic beads closed (`bv --robot-triage --graph-root <epic-id>`)
+- verify the blocking epic-close path is closed (`bv --robot-triage --graph-root <epic-id>`)
 - run final build/test/lint and route failures to blocking review beads
 - present merge options
 - verify canonical evidence in `history/<feature>/verification/`
 - write/refresh `history/<feature>/lifecycle-summary.md`
 - clean worktree if used
-- close epic bead
+- close epic bead only after the final-phase artifact check and epic-close-path check both pass
 - update Pulse state artifacts
 
 P2/P3 remain non-blocking but must be visible in PR and closeout artifacts.
@@ -141,6 +151,7 @@ FLAGGED_LEARNINGS: <count>
 - skipping artifact verification
 - marking UAT failures as pass
 - closing epic with open blocking beads
+- closing epic before `phase-plan.md` + `.pulse/STATE.md` confirm the final phase is complete
 - parenting P2/P3 under current epic instead of external_ref linkage
 
 ## 8) Deprecated Finding Files
