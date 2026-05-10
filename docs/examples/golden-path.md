@@ -23,15 +23,17 @@ This is the shortest concrete example of what a normal Pulse run is supposed to 
 
 4. `pulse:planning`
    - reads `CONTEXT.md`
-   - writes `discovery.md`, `approach.md`, `phase-plan.md`
-   - prepares the current phase with `phase-1-contract.md`, `phase-1-story-map.md`, and phase-1 beads
+   - routes mode → shape (`work-shape.md`, `phase-plan.md`, or `epic-map.md`)
+   - prepares current work artifacts (`current-story-pack.md` or `phase-<n>-contract.md` + `phase-<n>-story-map.md`) and bead timing
 
 5. `pulse:validating`
-   - verifies the current phase
+   - verifies feasibility/readiness for the selected current work
    - runs spikes for risky items
+   - may route back once to planning for current-work bead creation
    - stops until execution is explicitly approved
 
 6. `pulse:swarming` / `pulse:executing`
+   - starts only after Gate 3 approval of feasibility-validated current work
    - launches workers (or runs single-worker if preflight recommends it)
    - workers self-route from the live bead graph
    - work is implemented with file reservations and explicit verification

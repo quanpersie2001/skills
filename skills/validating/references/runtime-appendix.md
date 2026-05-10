@@ -4,32 +4,76 @@ This is the single runtime appendix for `pulse:validating`. It contains reusable
 
 ---
 
-## A. Phase 0 Orientation Template
+## A. Orientation Template
 
 ```text
-Validating Phase <n> of <total>: <phase name>
-Approval status (phase-plan.md): APPROVED | PENDING | REVISE_REQUIRED
-Approved phase to prepare next: <value>
-Approval source: history/<feature>/phase-plan.md
+Validating mode: <direct_task | spike | small_change | standard_feature | high_risk_feature>
+Approved shape artifact: <work-shape.md | phase-plan.md | epic-map.md>
+Current work: <direct work item | spike question | current story | current phase>
+Approval status: APPROVED | PENDING | REVISE_REQUIRED
+Approval source: history/<feature>/<shape-artifact>
 STATE mirror: in sync | out of sync | missing
-
-Stories:
-- Story 1: <name>
-- Story 2: <name>
-- Story 3: <name>
-
-Goal of this phase:
+Goal of current work:
 - <one-line practical outcome>
 ```
 
 Stop conditions:
-- `phase-plan.md` is not `APPROVED`
+- approved shape artifact is not `APPROVED`
 - approval fields are missing where required
-- `phase-plan.md` and `.pulse/STATE.md` disagree on approval/phase
+- shape artifact and `.pulse/STATE.md` disagree on approval/current work
 
 ---
 
-## B. Schema Gate Checklist
+## B. Reality Gate Template
+
+```text
+REALITY GATE REPORT
+Mode: <mode>
+Current work: <one sentence>
+MODE FIT: PASS|FAIL
+REPO FIT: PASS|FAIL
+ASSUMPTIONS: PASS|FAIL
+SMALLER PATH: PASS|FAIL
+PROOF SURFACE: PASS|FAIL
+Decision: proceed | revise planning | run spike first | collapse mode
+Evidence: <file/command/runtime evidence>
+```
+
+Fail if the plan assumes nonexistent code, unsupported commands, stale versions, missing credentials, unreachable services, hidden architecture work, or too much ceremony.
+
+---
+
+## C. Feasibility Matrix
+
+Required for `standard_feature` when assumptions remain and always for `high_risk_feature`.
+
+```text
+FEASIBILITY MATRIX
+Part / Assumption | Risk | Proof Required | Evidence | Result
+```
+
+Accepted evidence: existing implementation, file/API/type inspection, command output, build/typecheck/test result, official version/doc proof, runtime/API probe, or `.spikes/<feature>/` proof.
+
+Fail if evidence is only “this should work”, “likely”, “expected”, or model knowledge.
+
+Decisions:
+
+```text
+READY
+READY WITH CONSTRAINTS
+NOT READY - RUN SPIKE
+NOT READY - RETURN TO PLANNING
+```
+
+READY is feasibility, not execution approval, until required current-work beads pass review.
+
+If feasibility is READY/READY WITH CONSTRAINTS and beads are required for current work but absent:
+- route to planning to create only validated current-work beads
+- resume validating at schema gate and continue through bead review before Gate 3 approval
+
+---
+
+## D. Schema Gate Checklist
 
 Every bead must include:
 - `dependencies`
@@ -49,51 +93,27 @@ Additional checks:
 
 ---
 
-## C. Plan-Checker Runtime Contract (8 Dimensions)
+## E. Plan-Checker Runtime Contract
 
-Use this when spawning plan-checker. Inputs:
+Use when structure validation is needed after feasibility passes.
+
+Input set:
 - all `.beads/*.md`
 - `history/<feature>/CONTEXT.md`
 - `history/<feature>/discovery.md`
 - `history/<feature>/approach.md`
-- `history/<feature>/phase-plan.md`
-- `history/<feature>/phase-<n>-contract.md`
-- `history/<feature>/phase-<n>-story-map.md`
+- approved shape artifact (`work-shape.md` / `phase-plan.md` / `epic-map.md`)
+- current-work artifacts (`current-story-pack.md` or `phase-<n>-contract.md` + `phase-<n>-story-map.md`)
 
-Output format:
-
-```text
-PLAN VERIFICATION REPORT
-Feature: <feature name>
-Current phase: Phase <n> - <name>
-Stories reviewed: <N>
-Beads reviewed: <N>
-Date: <today>
-
-DIMENSION 1 — Phase Contract Clarity: [PASS | FAIL]
-DIMENSION 2 — Story Coverage And Ordering: [PASS | FAIL]
-DIMENSION 3 — Decision Coverage: [PASS | FAIL]
-DIMENSION 4 — Dependency Correctness: [PASS | FAIL]
-DIMENSION 5 — File Scope Isolation: [PASS | FAIL]
-DIMENSION 6 — Context Budget: [PASS | FAIL]
-DIMENSION 7 — Verification Completeness: [PASS | FAIL]
-DIMENSION 8 — Exit-State Completeness And Risk Alignment: [PASS | FAIL]
-
-OVERALL: [PASS | FAIL]
-PRIORITY FIXES (if FAIL):
-1. <most important>
-2. <next>
-```
-
-Dimension criteria (must all pass):
-1. phase contract clarity (entry/exit/demo/unlocks observable)
-2. story coverage and why-now ordering coherence
-3. locked decision coverage into stories and beads
-4. dependency correctness (story+bead order, acyclic, no hidden deps)
-5. file scope isolation for parallel execution
-6. context budget fit per bead
-7. verification completeness for stories and beads
-8. exit-state completeness plus HIGH-risk spike alignment
+PASS only when all dimensions pass:
+1. mode/shape coherence
+2. current-work coverage and order
+3. locked decision coverage
+4. dependency correctness
+5. file scope isolation
+6. context budget fit
+7. verification completeness
+8. integration/exit-state/risk coherence
 
 Iteration policy:
 - maximum 3 iterations
@@ -101,13 +121,12 @@ Iteration policy:
 
 ---
 
-## D. High-Risk Spike Protocol
+## F. Spike / Probe Protocol
 
-For each HIGH-risk row in `approach.md`:
-1. Create one spike bead with exact `spike_question`.
-2. Timebox isolated execution to 30 minutes.
-3. Write findings to `.spikes/<feature>/<spike-id>/FINDINGS.md`.
-4. Close with definitive `YES` or `NO` only.
+- One spike = one yes/no question.
+- Timebox isolated execution to 30 minutes.
+- Write findings to `.spikes/<feature>/<spike-id>/FINDINGS.md`.
+- Close with definitive `YES` or `NO` only.
 
 If no definitive answer at 30 minutes:
 - present current findings
@@ -115,17 +134,15 @@ If no definitive answer at 30 minutes:
 - never classify inconclusive as YES
 
 Routing:
-- YES → propagate constraints into affected beads/story map
-- NO → stop, update `approach.md`, return to planning, re-run validating
+- YES -> ensure constraints are reflected in affected current-work artifacts/beads; route to planning when planning-owned artifacts must be updated
+- NO -> stop, update planning artifacts, return to planning, re-run validating
 
 ---
 
-## E. Bead Fresh-Eyes Reviewer Contract
-
-Use this for quality pass after graph polishing.
+## G. Bead Fresh-Eyes Reviewer Contract
 
 Review goals:
-- detect CRITICAL execution blockers (assumed context, vague done criteria, broken verify, missing schema, missing TDD contract, scope overload, ambiguous implementation path)
+- detect CRITICAL execution blockers (assumed context, vague done criteria, broken verify, missing schema, missing TDD contract, scope overload, ambiguous path)
 - detect MINOR ambiguity/judgment-call risks
 - revise only when fix is local, clear, and keeps intended scope
 
@@ -145,56 +162,41 @@ Gate rule:
 
 ---
 
-## F. Final Approval Prompt (Gate 3)
+## H. Final Approval Prompt (Gate 3)
 
 ```text
 VALIDATION COMPLETE — APPROVAL REQUIRED BEFORE EXECUTION
 
-Phase Summary:
-- Phase: <Phase n — name>
-- Phase contract: history/<feature>/phase-<n>-contract.md
-- Story map: history/<feature>/phase-<n>-story-map.md
-- Stories: <N>
-- Beads: <N>
-- Demo story: <one line>
-- Execution mode: <swarm | single-worker>
+Mode:
+- Mode: <mode>
+- Shape: <shape artifact>
+- Current work: <story/work item>
 
-Structural Verification:
-- All 8 dimensions: PASS (after <N> iterations)
+Reality + Feasibility:
+- Reality gate: PASS
+- Feasibility: READY | READY WITH CONSTRAINTS
+- Spikes: <none | passed | concerns>
 
-Spike Results:
-- HIGH-risk items: <N>
-- Result: <all passed / concerns>
-
-Polishing Results:
-- Dependencies added: <N>
-- Graph issues fixed: <N>
-- Priority adjustments: <N>
-- Duplicates removed: <N>
+Structure + Beads:
+- Structural checks: PASS (after <N> iterations)
+- Bead review: <done | not needed>
 - Fresh-eyes CRITICAL flags fixed: <N>
 
-Exit-State Readiness:
+Execution readiness:
 - Entry state understood: YES
 - Exit state observable: YES
-- Story sequence coherent: YES
-- Demo credible: YES
+- Integration readiness: YES
+- Demo/proof credible: YES
 
 Unresolved concerns:
 - <none | list>
 ```
 
-Approval options (prefer structured tool if available):
+Approval options:
 - Approve only
 - Approve and continue now
 - Review beads
 - Revise plan
-
-Rejection routing options:
-1. phase meaning / exit-state issue
-2. story order or story size issue
-3. risk or spike concern
-4. bead quality concern
-5. fundamental approach concern
 
 Hard stop:
 - no execution starts until explicit approval is captured

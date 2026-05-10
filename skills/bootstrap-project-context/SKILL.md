@@ -10,17 +10,13 @@ metadata:
 
 Start a session by absorbing the repo's explicit instructions first, then confirm the real system shape from source.
 
-Load [references/prompt-template.md](references/prompt-template.md) when the user wants a reusable bootstrap prompt or when you need a strong starting template before beginning repo discovery.
+If the user asks to improve or templatize a bootstrap prompt, route to `pulse:prompt-leverage` first, then return here for repo orientation execution.
 
 Use the shared project-docs contract in [references/project-docs-contract.md](references/project-docs-contract.md) when bootstrapping or validating downstream project documentation structure.
 
-## Modes
+## Mode
 
-Choose the lightest mode that fits the request.
-
-- `Prompt-only`: refine the user's rough bootstrap prompt and return the upgraded prompt.
 - `Repo bootstrap`: read the operating docs, investigate the repo, and deliver an onboarding summary.
-- `Prompt + bootstrap`: return the upgraded prompt and use the same standards while building context.
 
 ## Workflow
 
@@ -45,7 +41,8 @@ Support these repository patterns:
 - `multi-context`: one top-level `CONTEXT-MAP.md` plus per-context `CONTEXT.md` files
 - `adrs`: ADR directory for durable architectural decisions
 
-Record the selected structure in `.pulse/project-docs.json` as a mapping artifact in the skill workflow instructions.
+By default, report the selected structure as a proposed `.pulse/project-docs.json` mapping artifact in the skill workflow instructions.
+Do not create or update `.pulse/project-docs.json` unless the user explicitly approves applying the detected mapping.
 
 Detect exactly one of:
 - `single-context`
@@ -56,7 +53,8 @@ Return the evidence paths that justify that choice.
 
 When docs already exist:
 - inspect them for glossary, ownership, and boundary cues
-- create or validate `.pulse/project-docs.json` immediately so downstream skills share the same map
+- validate the mapping in-session and report it as a proposed `.pulse/project-docs.json` update
+- apply the `.pulse/project-docs.json` create/update only after explicit user approval
 
 When docs do not exist:
 - propose only the lightest lazy scaffold needed for the first resolved term or durable decision
@@ -131,18 +129,6 @@ Make sure you did not:
 - describe architecture that you did not verify from source
 - miss an obvious top-level subsystem, runtime, or integration
 
-## Prompt Upgrade Rules
-
-When the user gives a rough bootstrap prompt, keep the intent but add the missing execution structure:
-
-- require a complete read of `AGENTS.md` and `README.md` before code investigation
-- require source-first codebase investigation after the docs pass
-- require identifying project purpose, architecture, components, workflows, and commands
-- require a concise onboarding synthesis instead of vague claims of understanding
-- require explicit mention of remaining unknowns and recommended next reads when appropriate
-
-Prefer the template in [references/prompt-template.md](references/prompt-template.md) over improvising from scratch.
-
 ## Red Flags
 
 Stop and correct the approach if any of these appear:
@@ -155,10 +141,10 @@ Stop and correct the approach if any of these appear:
 
 ## Done Criteria
 
-This skill is complete when the upgraded prompt or repo-orientation pass:
+This skill is complete when the repo-orientation pass:
 
 - begins with a full read of `AGENTS.md` and `README.md` when present
 - explains the project's purpose and technical architecture from inspected source
 - identifies the main components, workflows, and important commands
-- either confirms a valid `.pulse/project-docs.json` mapping or returns a concrete lazy scaffold proposal
+- returns a concrete detected mapping and/or lazy scaffold proposal, and only applies mapping/scaffold changes after explicit user approval
 - captures repo-specific conventions and open questions clearly enough for the next turn to start productively

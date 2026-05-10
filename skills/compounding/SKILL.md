@@ -15,7 +15,7 @@ metadata:
 
 # Compounding
 
-If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
+If preflight readiness is missing, stale, or blocked (check `.pulse/tooling-status.json`), stop and invoke `pulse:using-pulse` before continuing.
 
 Compounding turns completed feature work into reusable memory for future planning and execution.
 

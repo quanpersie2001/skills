@@ -312,6 +312,62 @@ function normalizeFeaturePointer(value) {
   return normalized === "(none)" ? "" : normalized;
 }
 
+function inferWorkShapeNextSkillRecommended(status) {
+  const workShapeStatus = firstNonEmptyString(
+    status.state_markdown?.work_shape_status,
+    status.state_json?.work_shape_status,
+    status.current_feature?.work_shape_status,
+    status.runtime_snapshot?.work_shape_status,
+  ).toLowerCase();
+  const currentWorkStatus = firstNonEmptyString(
+    status.state_markdown?.current_work_status,
+    status.state_json?.current_work_status,
+    status.current_feature?.current_work_status,
+    status.runtime_snapshot?.current_work_status,
+  ).toLowerCase();
+  const feasibilityStatus = firstNonEmptyString(
+    status.state_markdown?.feasibility_status,
+    status.state_json?.feasibility_status,
+    status.current_feature?.feasibility_status,
+    status.runtime_snapshot?.feasibility_status,
+  ).toLowerCase();
+  const reviewStatus = firstNonEmptyString(
+    status.state_markdown?.review_status,
+    status.state_json?.review_status,
+    status.current_feature?.review_status,
+    status.runtime_snapshot?.review_status,
+  ).toLowerCase();
+
+  if (reviewStatus === "approved") {
+    return "pulse:compounding";
+  }
+
+  if (feasibilityStatus === "approved" || feasibilityStatus === "ready") {
+    const executionMode = firstNonEmptyString(
+      status.tooling_status?.recommended_mode,
+      status.runtime_snapshot?.recommended_mode,
+      status.state_json?.recommended_mode,
+    );
+    if (executionMode === "swarm") {
+      return "pulse:swarming";
+    }
+    if (executionMode === "single-worker" || executionMode === "execution-only") {
+      return "pulse:executing";
+    }
+    return "";
+  }
+
+  if (workShapeStatus === "approved" && ["prepared", "ready", "validated"].includes(currentWorkStatus)) {
+    return "pulse:validating";
+  }
+
+  if (workShapeStatus === "approved") {
+    return "pulse:planning";
+  }
+
+  return "";
+}
+
 function inferGateNextSkillRecommended(status, gate, gateStatus) {
   const explicit = firstNonEmptyString(
     status.state_markdown?.next_skill_recommended,
@@ -322,6 +378,12 @@ function inferGateNextSkillRecommended(status, gate, gateStatus) {
   if (explicit) {
     return explicit;
   }
+
+  const workShapeNext = inferWorkShapeNextSkillRecommended(status);
+  if (workShapeNext) {
+    return workShapeNext;
+  }
+
   if (gateStatus !== "approved") {
     return "";
   }
@@ -389,6 +451,48 @@ function buildCurrentFeatureRecord(status) {
     status.current_feature?.gate_status,
     status.runtime_snapshot?.gate_status,
   );
+  const workShapeStatus = firstNonEmptyString(
+    status.state_markdown?.work_shape_status,
+    status.state_json?.work_shape_status,
+    status.current_feature?.work_shape_status,
+    status.runtime_snapshot?.work_shape_status,
+  );
+  const shapeArtifact = firstNonEmptyString(
+    status.state_markdown?.shape_artifact,
+    status.state_json?.shape_artifact,
+    status.current_feature?.shape_artifact,
+    status.runtime_snapshot?.shape_artifact,
+  );
+  const currentWorkId = firstNonEmptyString(
+    status.state_markdown?.current_work_id,
+    status.state_json?.current_work_id,
+    status.current_feature?.current_work_id,
+    status.runtime_snapshot?.current_work_id,
+  );
+  const currentWorkStatus = firstNonEmptyString(
+    status.state_markdown?.current_work_status,
+    status.state_json?.current_work_status,
+    status.current_feature?.current_work_status,
+    status.runtime_snapshot?.current_work_status,
+  );
+  const feasibilityStatus = firstNonEmptyString(
+    status.state_markdown?.feasibility_status,
+    status.state_json?.feasibility_status,
+    status.current_feature?.feasibility_status,
+    status.runtime_snapshot?.feasibility_status,
+  );
+  const readinessStatus = firstNonEmptyString(
+    status.state_markdown?.readiness_status,
+    status.state_json?.readiness_status,
+    status.current_feature?.readiness_status,
+    status.runtime_snapshot?.readiness_status,
+  );
+  const reviewStatus = firstNonEmptyString(
+    status.state_markdown?.review_status,
+    status.state_json?.review_status,
+    status.current_feature?.review_status,
+    status.runtime_snapshot?.review_status,
+  );
   const currentStatus = featureKey
     ? (status.current_feature?.status && status.current_feature.status !== "idle"
         ? status.current_feature.status
@@ -403,6 +507,13 @@ function buildCurrentFeatureRecord(status) {
     phase,
     gate,
     gate_status: gateStatus,
+    work_shape_status: workShapeStatus,
+    shape_artifact: shapeArtifact,
+    current_work_id: currentWorkId,
+    current_work_status: currentWorkStatus,
+    feasibility_status: feasibilityStatus,
+    readiness_status: readinessStatus,
+    review_status: reviewStatus,
     status: currentStatus,
     next_action: nextAction,
     next_skill_recommended: nextSkillRecommended,
@@ -446,6 +557,41 @@ function buildRuntimeSnapshotRecord(status) {
     ),
     gate,
     gate_status: gateStatus,
+    work_shape_status: firstNonEmptyString(
+      status.current_feature?.work_shape_status,
+      status.state_json?.work_shape_status,
+      status.state_markdown?.work_shape_status,
+    ),
+    shape_artifact: firstNonEmptyString(
+      status.current_feature?.shape_artifact,
+      status.state_json?.shape_artifact,
+      status.state_markdown?.shape_artifact,
+    ),
+    current_work_id: firstNonEmptyString(
+      status.current_feature?.current_work_id,
+      status.state_json?.current_work_id,
+      status.state_markdown?.current_work_id,
+    ),
+    current_work_status: firstNonEmptyString(
+      status.current_feature?.current_work_status,
+      status.state_json?.current_work_status,
+      status.state_markdown?.current_work_status,
+    ),
+    feasibility_status: firstNonEmptyString(
+      status.current_feature?.feasibility_status,
+      status.state_json?.feasibility_status,
+      status.state_markdown?.feasibility_status,
+    ),
+    readiness_status: firstNonEmptyString(
+      status.current_feature?.readiness_status,
+      status.state_json?.readiness_status,
+      status.state_markdown?.readiness_status,
+    ),
+    review_status: firstNonEmptyString(
+      status.current_feature?.review_status,
+      status.state_json?.review_status,
+      status.state_markdown?.review_status,
+    ),
     requested_mode: firstNonEmptyString(
       status.tooling_status?.requested_mode,
       status.state_json?.requested_mode,
@@ -470,6 +616,27 @@ export function writeCurrentFeature(repoRoot, nextCurrentFeature) {
     gate: typeof nextCurrentFeature?.gate === "string" ? nextCurrentFeature.gate.trim() : "",
     gate_status: typeof nextCurrentFeature?.gate_status === "string"
       ? nextCurrentFeature.gate_status.trim()
+      : "",
+    work_shape_status: typeof nextCurrentFeature?.work_shape_status === "string"
+      ? nextCurrentFeature.work_shape_status.trim()
+      : "",
+    shape_artifact: typeof nextCurrentFeature?.shape_artifact === "string"
+      ? nextCurrentFeature.shape_artifact.trim()
+      : "",
+    current_work_id: typeof nextCurrentFeature?.current_work_id === "string"
+      ? nextCurrentFeature.current_work_id.trim()
+      : "",
+    current_work_status: typeof nextCurrentFeature?.current_work_status === "string"
+      ? nextCurrentFeature.current_work_status.trim()
+      : "",
+    feasibility_status: typeof nextCurrentFeature?.feasibility_status === "string"
+      ? nextCurrentFeature.feasibility_status.trim()
+      : "",
+    readiness_status: typeof nextCurrentFeature?.readiness_status === "string"
+      ? nextCurrentFeature.readiness_status.trim()
+      : "",
+    review_status: typeof nextCurrentFeature?.review_status === "string"
+      ? nextCurrentFeature.review_status.trim()
       : "",
     status: typeof nextCurrentFeature?.status === "string" ? nextCurrentFeature.status.trim() : "",
     next_action: typeof nextCurrentFeature?.next_action === "string"
@@ -500,6 +667,27 @@ export function writeRuntimeSnapshot(repoRoot, nextRuntimeSnapshot) {
     gate: typeof nextRuntimeSnapshot?.gate === "string" ? nextRuntimeSnapshot.gate.trim() : "",
     gate_status: typeof nextRuntimeSnapshot?.gate_status === "string"
       ? nextRuntimeSnapshot.gate_status.trim()
+      : "",
+    work_shape_status: typeof nextRuntimeSnapshot?.work_shape_status === "string"
+      ? nextRuntimeSnapshot.work_shape_status.trim()
+      : "",
+    shape_artifact: typeof nextRuntimeSnapshot?.shape_artifact === "string"
+      ? nextRuntimeSnapshot.shape_artifact.trim()
+      : "",
+    current_work_id: typeof nextRuntimeSnapshot?.current_work_id === "string"
+      ? nextRuntimeSnapshot.current_work_id.trim()
+      : "",
+    current_work_status: typeof nextRuntimeSnapshot?.current_work_status === "string"
+      ? nextRuntimeSnapshot.current_work_status.trim()
+      : "",
+    feasibility_status: typeof nextRuntimeSnapshot?.feasibility_status === "string"
+      ? nextRuntimeSnapshot.feasibility_status.trim()
+      : "",
+    readiness_status: typeof nextRuntimeSnapshot?.readiness_status === "string"
+      ? nextRuntimeSnapshot.readiness_status.trim()
+      : "",
+    review_status: typeof nextRuntimeSnapshot?.review_status === "string"
+      ? nextRuntimeSnapshot.review_status.trim()
       : "",
     requested_mode: typeof nextRuntimeSnapshot?.requested_mode === "string"
       ? nextRuntimeSnapshot.requested_mode.trim()
@@ -738,6 +926,12 @@ function buildCheckpointRecordSummary(record, relativePath) {
       mode: typeof captured.mode === "string" ? captured.mode : "",
       story: typeof captured.story === "string" ? captured.story : "",
       bead: typeof captured.bead === "string" ? captured.bead : "",
+      work_shape_status: typeof captured.work_shape_status === "string" ? captured.work_shape_status : "",
+      shape_artifact: typeof captured.shape_artifact === "string" ? captured.shape_artifact : "",
+      current_work_id: typeof captured.current_work_id === "string" ? captured.current_work_id : "",
+      current_work_status: typeof captured.current_work_status === "string" ? captured.current_work_status : "",
+      feasibility_status: typeof captured.feasibility_status === "string" ? captured.feasibility_status : "",
+      readiness_status: typeof captured.readiness_status === "string" ? captured.readiness_status : "",
     },
     blockers,
     links: {
@@ -1371,8 +1565,14 @@ function inferCheckpointCaptured(status) {
     phase: currentFeature.phase || runtimeSnapshot.phase || stateJson.phase || "",
     gate: currentFeature.gate || "",
     mode: runtimeSnapshot.recommended_mode || stateJson.recommended_mode || "",
-    story: "",
+    story: currentFeature.current_work_id || runtimeSnapshot.current_work_id || stateJson.current_work_id || "",
     bead: "",
+    work_shape_status: currentFeature.work_shape_status || runtimeSnapshot.work_shape_status || stateJson.work_shape_status || "",
+    shape_artifact: currentFeature.shape_artifact || runtimeSnapshot.shape_artifact || stateJson.shape_artifact || "",
+    current_work_id: currentFeature.current_work_id || runtimeSnapshot.current_work_id || stateJson.current_work_id || "",
+    current_work_status: currentFeature.current_work_status || runtimeSnapshot.current_work_status || stateJson.current_work_status || "",
+    feasibility_status: currentFeature.feasibility_status || runtimeSnapshot.feasibility_status || stateJson.feasibility_status || "",
+    readiness_status: currentFeature.readiness_status || runtimeSnapshot.readiness_status || stateJson.readiness_status || "",
   };
 }
 
@@ -1476,14 +1676,23 @@ function summarizeHistoryLifecycle(repoRoot, feature) {
     summary.lifecycle_summary = lifecycleSummaryPath;
   }
 
-  const approvedArtifacts = [
+  const requiredArtifacts = [
     `history/${feature}/CONTEXT.md`,
     `history/${feature}/approach.md`,
-    `history/${feature}/phase-plan.md`,
   ].filter((item) => historyFiles.includes(item));
+  const shapeArtifacts = [
+    `history/${feature}/phase-plan.md`,
+    `history/${feature}/epic-map.md`,
+    `history/${feature}/work-shape.md`,
+    `history/${feature}/current-story-pack.md`,
+  ].filter((item) => historyFiles.includes(item));
+  const approvedArtifacts = [...requiredArtifacts, ...shapeArtifacts];
   summary.approved_artifacts = approvedArtifacts;
 
-  const lifecycleSignals = historyFiles.filter((item) => /phase-\d+-(contract|story-map)\.md$/u.test(item));
+  const lifecycleSignals = historyFiles.filter((item) => (
+    /phase-\d+-(contract|story-map)\.md$/u.test(item)
+    || /\/(epic-map|work-shape|current-story-pack)\.md$/u.test(item)
+  ));
   summary.lifecycle_signals = lifecycleSignals;
 
   summary.verification = historyFiles.filter((item) => item.startsWith(`history/${feature}/verification/`));
@@ -1494,7 +1703,8 @@ function summarizeHistoryLifecycle(repoRoot, feature) {
 
   summary.self_sufficient = Boolean(
     summary.lifecycle_summary
-    && approvedArtifacts.length >= 3
+    && requiredArtifacts.length >= 2
+    && shapeArtifacts.length > 0
     && lifecycleSignals.length > 0
     && summary.verification.length > 0,
   );
@@ -1614,6 +1824,12 @@ function buildCheckpointRecordFromStatus(paths, status, options = {}) {
         mode: typeof captured.mode === "string" ? captured.mode : "",
         story: typeof captured.story === "string" ? captured.story : "",
         bead: typeof captured.bead === "string" ? captured.bead : "",
+        work_shape_status: typeof captured.work_shape_status === "string" ? captured.work_shape_status : "",
+        shape_artifact: typeof captured.shape_artifact === "string" ? captured.shape_artifact : "",
+        current_work_id: typeof captured.current_work_id === "string" ? captured.current_work_id : "",
+        current_work_status: typeof captured.current_work_status === "string" ? captured.current_work_status : "",
+        feasibility_status: typeof captured.feasibility_status === "string" ? captured.feasibility_status : "",
+        readiness_status: typeof captured.readiness_status === "string" ? captured.readiness_status : "",
       },
       links: {
         context: typeof links.context === "string" ? normalizeSelector(links.context) : "",
@@ -1878,6 +2094,13 @@ function summarizeCurrentFeature(currentFeature) {
       phase: "",
       gate: "",
       gate_status: "",
+      work_shape_status: "",
+      shape_artifact: "",
+      current_work_id: "",
+      current_work_status: "",
+      feasibility_status: "",
+      readiness_status: "",
+      review_status: "",
       updated_at: "",
       status: "",
       next_action: "",
@@ -1891,6 +2114,13 @@ function summarizeCurrentFeature(currentFeature) {
     phase: typeof currentFeature.phase === "string" ? currentFeature.phase : "",
     gate: typeof currentFeature.gate === "string" ? currentFeature.gate : "",
     gate_status: typeof currentFeature.gate_status === "string" ? currentFeature.gate_status : "",
+    work_shape_status: typeof currentFeature.work_shape_status === "string" ? currentFeature.work_shape_status : "",
+    shape_artifact: typeof currentFeature.shape_artifact === "string" ? currentFeature.shape_artifact : "",
+    current_work_id: typeof currentFeature.current_work_id === "string" ? currentFeature.current_work_id : "",
+    current_work_status: typeof currentFeature.current_work_status === "string" ? currentFeature.current_work_status : "",
+    feasibility_status: typeof currentFeature.feasibility_status === "string" ? currentFeature.feasibility_status : "",
+    readiness_status: typeof currentFeature.readiness_status === "string" ? currentFeature.readiness_status : "",
+    review_status: typeof currentFeature.review_status === "string" ? currentFeature.review_status : "",
     updated_at: typeof currentFeature.updated_at === "string" ? currentFeature.updated_at : "",
     status: typeof currentFeature.status === "string" ? currentFeature.status : "",
     next_action: typeof currentFeature.next_action === "string" ? currentFeature.next_action : "",
@@ -1910,6 +2140,13 @@ function summarizeRuntimeSnapshot(runtimeSnapshot) {
       phase: "",
       gate: "",
       gate_status: "",
+      work_shape_status: "",
+      shape_artifact: "",
+      current_work_id: "",
+      current_work_status: "",
+      feasibility_status: "",
+      readiness_status: "",
+      review_status: "",
       requested_mode: "",
       recommended_mode: "",
       next_action: "",
@@ -1945,6 +2182,13 @@ function summarizeRuntimeSnapshot(runtimeSnapshot) {
     phase: typeof runtimeSnapshot.phase === "string" ? runtimeSnapshot.phase : "",
     gate: typeof runtimeSnapshot.gate === "string" ? runtimeSnapshot.gate : "",
     gate_status: typeof runtimeSnapshot.gate_status === "string" ? runtimeSnapshot.gate_status : "",
+    work_shape_status: typeof runtimeSnapshot.work_shape_status === "string" ? runtimeSnapshot.work_shape_status : "",
+    shape_artifact: typeof runtimeSnapshot.shape_artifact === "string" ? runtimeSnapshot.shape_artifact : "",
+    current_work_id: typeof runtimeSnapshot.current_work_id === "string" ? runtimeSnapshot.current_work_id : "",
+    current_work_status: typeof runtimeSnapshot.current_work_status === "string" ? runtimeSnapshot.current_work_status : "",
+    feasibility_status: typeof runtimeSnapshot.feasibility_status === "string" ? runtimeSnapshot.feasibility_status : "",
+    readiness_status: typeof runtimeSnapshot.readiness_status === "string" ? runtimeSnapshot.readiness_status : "",
+    review_status: typeof runtimeSnapshot.review_status === "string" ? runtimeSnapshot.review_status : "",
     requested_mode: typeof runtimeSnapshot.requested_mode === "string"
       ? runtimeSnapshot.requested_mode
       : "",
@@ -2196,6 +2440,12 @@ function buildCheckpointDiff(left, right) {
       mode: diffField(left?.captured?.mode || "", right?.captured?.mode || ""),
       story: diffField(left?.captured?.story || "", right?.captured?.story || ""),
       bead: diffField(left?.captured?.bead || "", right?.captured?.bead || ""),
+      work_shape_status: diffField(left?.captured?.work_shape_status || "", right?.captured?.work_shape_status || ""),
+      shape_artifact: diffField(left?.captured?.shape_artifact || "", right?.captured?.shape_artifact || ""),
+      current_work_id: diffField(left?.captured?.current_work_id || "", right?.captured?.current_work_id || ""),
+      current_work_status: diffField(left?.captured?.current_work_status || "", right?.captured?.current_work_status || ""),
+      feasibility_status: diffField(left?.captured?.feasibility_status || "", right?.captured?.feasibility_status || ""),
+      readiness_status: diffField(left?.captured?.readiness_status || "", right?.captured?.readiness_status || ""),
       blockers: diffField(
         JSON.stringify(left?.blockers || []),
         JSON.stringify(right?.blockers || []),

@@ -198,7 +198,7 @@ test("packaged Claude SessionStart hook falls back to using-pulse bootstrap befo
     assert.match(additionalContext, /# using-pulse/);
     assert.match(additionalContext, /pulse:preflight/);
     assert.match(additionalContext, /Pulse repo notes:/);
-    assert.match(additionalContext, /Pulse onboarding is missing in this repo\./);
+    assert.match(additionalContext, /Preflight readiness has not been established for this repo\./);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -1883,7 +1883,7 @@ test("using-pulse stays a router/scout and defers onboarding authority to prefli
   assert.match(skillText, /`pulse:preflight` is the sole readiness authority/i);
   assert.match(skillText, /Do not run `onboard_pulse\.mjs --apply` from this skill\./);
   assert.match(skillText, /Any onboarding or remediation change belongs to `pulse:preflight`\./);
-  assert.match(skillText, /- If `?\.pulse\/onboarding\.json`? is missing or stale, invoke `pulse:preflight`\./);
+  assert.match(skillText, /- If preflight readiness is missing or stale in `?\.pulse\/tooling-status\.json`?, invoke `pulse:preflight`\./);
   assert.match(skillText, /- If `?\.pulse\/tooling-status\.json`? is missing, invoke `pulse:preflight`\./);
   assert.doesNotMatch(skillText, /run onboard_pulse\.mjs --apply/i);
 });

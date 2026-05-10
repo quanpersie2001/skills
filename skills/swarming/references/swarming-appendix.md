@@ -50,7 +50,7 @@ You are a bounded worker in the Pulse swarm.
 Reserve before editing:
 node .pulse/scripts/pulse_reservations.mjs reserve --agent <RUNTIME_IDENTITY> --bead <BEAD_ID> --path <glob> --json
 
-If reserve fails, post `[FILE CONFLICT]` immediately and wait for coordinator resolution.
+If reserve fails, post `[FILE_CONFLICT]` immediately and wait for coordinator resolution.
 
 Release before `[DONE]`:
 node .pulse/scripts/pulse_reservations.mjs release --agent <RUNTIME_IDENTITY> --json
@@ -63,9 +63,13 @@ node .pulse/scripts/pulse_reservations.mjs release --agent <RUNTIME_IDENTITY> --
 ## Reporting Contract
 Report immediately when any of these happen:
 - `[ONLINE]`
-- `[DONE]`
 - `[BLOCKED]`
-- `[FILE CONFLICT]`
+- `[FILE_CONFLICT]`
+- `[READY_TO_COMMIT]`
+- `[COMMIT_SLOT_GRANTED]`
+- `[COMMIT_DONE]`
+- `[COMMIT_BLOCKED]`
+- `[DONE]`
 - `[HANDOFF]`
 
 ## What You Must NOT Do
@@ -80,44 +84,104 @@ Report immediately when any of these happen:
 
 ## C) Coordination Message Protocol
 
+### Canonical event schema (all worker/coordinator events)
+
+Use this canonical shape on the active coordination surface:
+
+```json
+{
+  "event": "<EVENT_NAME>",
+  "runtime_identity": "<RUNTIME_IDENTITY>",
+  "timestamp": "<ISO-8601>",
+  "payload": {}
+}
+```
+
+Required top-level fields for every event:
+- `event`
+- `runtime_identity`
+- `timestamp`
+- `payload`
+
+Missing-field rule:
+- if any required field is missing, the coordinator must request a corrected event and must not infer or backfill missing values
+
 ### Required worker events
 
 #### `[ONLINE]`
-- runtime identity
-- `AGENTS.md: read`
-- `pulse:executing: loading`
-- next step: `bv --robot-priority`
-
-#### `[DONE]`
-- bead id/title
-- worker runtime identity
-- commit hash
-- 2-3 sentence implementation summary
-- files modified
-- verification evidence path(s)
-- context budget estimate
+`payload` must include:
+- `agents_read` (`true`)
+- `executing_loaded` (`true`)
+- `next_step` (`bv --robot-priority`)
 
 #### `[BLOCKED]`
-- bead id
-- blocker type (`MISSING_CONTEXT | DEPENDENCY_NOT_MET | TECHNICAL_FAILURE | AMBIGUITY`)
-- concrete blocker description
-- concrete ask to proceed
-- explicit paused state
+`payload` must include:
+- `bead_id`
+- `blocker_type` (`MISSING_CONTEXT | DEPENDENCY_NOT_MET | TECHNICAL_FAILURE | AMBIGUITY`)
+- `description`
+- `ask`
+- `paused` (`true`)
 
-#### `[FILE CONFLICT]`
-- requested path/scope
-- bead id
-- holder identity when known
-- why this scope is needed
-- explicit request for coordinator decision
+#### `[FILE_CONFLICT]`
+`payload` must include:
+- `bead_id`
+- `requested_scope`
+- `holder_identity` (nullable when unknown)
+- `reason`
+- `decision_request` (`true`)
+
+#### `[READY_TO_COMMIT]`
+`payload` must include:
+- `bead_id`
+- `commit_summary`
+- `files_modified`
+- `verification_paths`
+- `queue_request` (`true`)
+
+#### `[COMMIT_SLOT_GRANTED]`
+`payload` must include:
+- `bead_id`
+- `slot_token`
+- `granted_by`
+
+#### `[COMMIT_DONE]`
+`payload` must include:
+- `bead_id`
+- `commit_hash`
+- `slot_token`
+- `files_modified`
+
+#### `[COMMIT_BLOCKED]`
+`payload` must include:
+- `bead_id`
+- `slot_token` (nullable when no slot issued)
+- `reason`
+- `ask`
+
+#### `[DONE]`
+`payload` must include:
+- `bead_id`
+- `bead_title`
+- `commit_hash`
+- `implementation_summary`
+- `files_modified`
+- `verification_paths`
+- `context_budget`
+
+#### `[HANDOFF]`
+`payload` must include:
+- `bead_id`
+- `handoff_path`
+- `resume_briefing`
+- `open_blockers`
 
 ### Coordinator control messages
 
-- `[SWARM START]` — announce execution model and spawned workers.
-- `[CONFLICT DECISION]` — resolve requester/holder action (`WAIT | RELEASE_AT_SAFE_POINT | DEFER`).
+- `[SWARM_START]` — announce execution model and spawned workers.
+- `[CONFLICT_DECISION]` — resolve requester/holder action (`WAIT | RELEASE_AT_SAFE_POINT | DEFER`).
 - `[OVERSEER]` — global reminder/correction.
-- `[CONTEXT WARNING]` — pause boundary with handoff summary.
-- `[SWARM COMPLETE]` — completion summary + next skill.
+- `[CONTEXT_WARNING]` — pause boundary with handoff summary.
+- `[SWARM_COMPLETE]` — completion summary + next skill.
 
 ---
 

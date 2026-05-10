@@ -1,17 +1,18 @@
 ---
 name: planning
 description: >-
-  Use after pulse:exploring when locked decisions are ready and the user needs
-  an approved phase plan plus current-phase preparation for validation.
+  Use after pulse:exploring when locked decisions are ready and the user needs a
+  mode-gated plan with an approved work shape and current-work prep for
+  validation.
 metadata:
-  version: '2.3'
+  version: '2.4'
   ecosystem: pulse
   dependencies:
     - id: beads-cli
       kind: command
       command: br
       missing_effect: degraded
-      reason: Planning creates beads for the current phase through br.
+      reason: Planning creates beads for validated current work through br.
     - id: beads-viewer
       kind: command
       command: bv
@@ -27,39 +28,39 @@ metadata:
 
 # Planning
 
-If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
+If preflight readiness is missing, stale, or blocked (check `.pulse/tooling-status.json`), stop and invoke `pulse:using-pulse` before continuing.
 
 Planning has two jobs:
-1. Make the whole feature legible in plain language.
-2. Prepare only the next approved phase for validating and execution.
+1. Choose the least workflow that protects the work.
+2. Prepare only the approved current work for validating.
 
 If this skill cannot explain the work with practical outcomes and realistic examples, it is not done.
 
 ## Core Planning Model
 
 ```text
-Whole Feature
-  -> Phase Plan
-    -> Current Phase
-      -> Stories
-        -> Beads
+Mode
+  -> Shape
+    -> Epic?
+      -> Current Work
+        -> Beads?
 ```
 
-- **Whole Feature**: the full thing the user asked for
-- **Phase Plan**: meaningful chunks that reach that full result
-- **Current Phase**: the one chunk prepared now
-- **Story**: causal sequence inside the current phase
-- **Bead**: worker-sized executable unit
+- **Mode**: `direct_task` | `spike` | `small_change` | `standard_feature` | `high_risk_feature`
+- **Shape**: work-shape, phase-plan, or epic-map
+- **Current Work**: direct item, spike question, current story, or current phase
+- **Bead**: worker-sized executable unit for validated current work
 
-For new feature work, define whole-feature architecture before slicing phases: enduring foundations, ownership boundaries, interfaces, and contracts first.
+For new feature work, define architecture/reality basis before shaping current work.
 
 ## Hot-Path Rules
 
 - `history/<feature>/CONTEXT.md` is the source of truth; planning reads but never overrides locked decisions.
 - Read `.pulse/project-docs.json` first when present, then listed docs before relying only on feature history artifacts.
-- Gate 2 is mandatory: do not prepare current-phase artifacts or beads before explicit phase-plan approval.
-- Plan the full feature first, but create beads only for the approved current phase.
-- Keep phase descriptions outcome-first and scenario-first, not layer-jargon-first.
+- Start with a mode gate and record why smaller modes are insufficient when above `small_change`.
+- Gate 2 is mandatory: do not prepare current-work artifacts before explicit shape approval.
+- For tough work, prefer epic maps when capability/risk areas are clearer than milestone phases.
+- Create beads only for approved current work, and only after feasibility passes (except already-proven direct/small work).
 - Carry relevant corrections/ratchets from learnings into bead `learning_refs`.
 
 ## Pipeline
@@ -69,16 +70,20 @@ CONTEXT.md
   -> Phase 0 Learnings Retrieval
   -> Phase 1 Discovery                 (history/<feature>/discovery.md)
   -> Phase 2 Synthesis                 (history/<feature>/approach.md)
-  -> Phase 3 Whole Feature Phase Plan  (history/<feature>/phase-plan.md)
+  -> Phase 3 Mode Gate + Work Shape    (work-shape.md | phase-plan.md | epic-map.md)
   -> HARD-GATE (Gate 2): human approval required
-  -> default approved outcome: state sync + stop (`next_action: manual_invoke`, `next_skill_recommended: pulse:planning`)
+  -> default approved outcome: state sync + stop (`next_action: manual_invoke`, `next_skill_recommended: pulse:validating`)
   -> optional approved outcome: continue now in the same context (`next_action: continue_now`)
-  -> Phase 4 Current Phase Contract    (history/<feature>/phase-<n>-contract.md)
-  -> Phase 5 Current Phase Story Map   (history/<feature>/phase-<n>-story-map.md)
-  -> Phase 6 Multi-Perspective Check   (HIGH-stakes only)
-  -> Phase 7 Current Phase Bead Creation (.beads/* via br)
-  -> Handoff: recommend pulse:validating for Phase <n> (`next_action: manual_invoke` by default)
+  -> Phase 4 Current-Work Prep         (current-story-pack.md | phase-<n>-contract.md + phase-<n>-story-map.md)
+  -> Handoff: recommend pulse:validating (`next_action: manual_invoke` by default)
 ```
+
+Bead timing contract:
+- `direct_task` and already-proven `small_change` may create current-work beads in planning.
+- `standard_feature` and `high_risk_feature` default to no-bead planning output; validating must confirm feasibility first.
+- After validating reaches feasibility `READY`/`READY WITH CONSTRAINTS`, route once to planning to create only current-work beads, then resume validating for schema/structure/bead review.
+
+Load `references/planning-reference.md` for mode quality rules and artifact templates.
 
 ## Phase Execution Contract
 
@@ -109,51 +114,46 @@ CONTEXT.md
 - Include gap analysis, recommended approach, alternatives, risk map, proposed structure, learnings applied.
 - For every HIGH risk define: component, reason, validating owner, YES/NO spike question, affected beads, decision gate options, and `testing_mode` expectation.
 
-### Phase 3: Whole Feature Phase Plan (Gate 2 setup)
+### Phase 3: Mode Gate + Work Shape (Gate 2 setup)
 
-- Write `history/<feature>/phase-plan.md` using `references/planning-reference.md`.
-- Must define foundation-first architecture baseline and 2-4 meaningful phases with observable outcomes.
+- Choose mode first: `direct_task | spike | small_change | standard_feature | high_risk_feature`.
+- Write one approved shape artifact:
+  - `work-shape.md` for direct/spike/small work
+  - `phase-plan.md` for milestone-shaped work
+  - `epic-map.md` for capability/risk-shaped work
 - Set `Approval status: PENDING` and stop for user approval.
 - If revised, set or keep `REVISE_REQUIRED`; only set `APPROVED` after explicit approval.
-- Default approved path: update runtime state only, record `gate: GATE 2`, `gate_status: approved`, `next_skill_recommended: pulse:planning`, and `next_action: manual_invoke`, then stop.
+- Default approved path: update runtime state only, record `gate: GATE 2`, `gate_status: approved`, `next_skill_recommended: pulse:validating`, and `next_action: manual_invoke`, then stop.
 - Optional fast path: only enter Phase 4 immediately when the user explicitly chooses an equivalent of `Approve and continue now`; in that case set `next_action: continue_now` before continuing.
 
 Approval sync checklist before moving forward:
-1. Update `history/<feature>/phase-plan.md` approval state.
+1. Update shape artifact approval state.
 2. Sync same state into `.pulse/STATE.md` and `.pulse/state.json`.
-3. Confirm both artifacts name the same approved phase.
-4. Do not enter current-phase preparation unless the user explicitly asked to continue now in the same context.
+3. Confirm both artifacts name the same approved current work.
+4. Do not enter current-work preparation unless the user explicitly asked to continue now in the same context.
 
-### Phase 4: Current Phase Contract
+### Phase 4: Current-Work Prep
 
-- Select first unprepared phase from `.pulse/STATE.md` unless user chooses another.
-- Write `history/<feature>/phase-<n>-contract.md` using `references/planning-reference.md`.
-- Must lock entry/exit states, demo walkthrough, unlocks, non-goals, assumptions, and success criteria.
+- Select current work from approved shape:
+  - direct/spike/small: current work in `work-shape.md`
+  - epic-map: current story in `current-story-pack.md`
+  - phase-plan: current phase contract/story map
+- Keep prep bounded to one executable current slice.
+- Current work must lock entry/exit, scope, verification, and out-of-scope boundaries.
 
-### Phase 5: Current Phase Story Map
-
-- Write `history/<feature>/phase-<n>-story-map.md` using `references/planning-reference.md`.
-- Stories must state what happens, why now, serial/parallel safety, shared-collision risk, done criteria, and testing discipline hints.
-
-### Phase 6: Multi-Perspective Check (HIGH-stakes only)
-
-Run only for high-stakes phases (core architecture/auth/data model/high blast radius). Iterate 1-2 rounds across phase plan, contract, and story map until changes are incremental.
-
-### Phase 7: Current Phase Bead Creation
+### Phase 5: Current-Work Bead Creation (conditional)
 
 - Create real beads with `br create`; never pseudo-beads in markdown.
-- Create one whole-feature epic first if missing, then current-phase task beads only.
-- The epic remains open across phases. Do not treat a phase-complete subtree as permission to close the whole-feature epic.
-- Populate the epic bead with a minimal phase snapshot sourced from `history/<feature>/phase-plan.md` plus `.pulse/STATE.md`:
-  - `total_phases`
-  - `current_phase`
-  - `completed_phases`
-  - `final_phase_ready`
-- Treat that epic snapshot as operator-facing convenience only. `phase-plan.md` and `.pulse/STATE.md` remain the source of truth.
+- Create only current-work beads. Never create future-story/future-phase beads.
+- Beads are allowed in planning only when either condition holds:
+  1. mode is `direct_task` or already-proven `small_change`
+  2. validating has already returned `READY`/`READY WITH CONSTRAINTS` for this current work and explicitly routed back for bead creation
+- For `standard_feature` and `high_risk_feature`, do not create execution beads before feasibility passes.
+- For epic/phase work, keep one whole-feature epic open until final reviewing closeout.
 - Normalize every bead immediately with required schema fields:
   - `dependencies`, `files`, `verify`, `verification_evidence`, `testing_mode`, `decision_refs`, `learning_refs`
 - Use `references/bead-template.md` for bead schema details.
-- Fill Story-To-Bead Mapping in `phase-<n>-story-map.md` after bead creation.
+- Fill story/work-to-bead mapping after bead creation.
 
 ## STATE + Handoff
 
@@ -162,25 +162,29 @@ After major transitions, update `.pulse/STATE.md` as a mirror of durable artifac
 If context exceeds 65% at a phase boundary:
 - write `.pulse/handoffs/planning.json` with the shared envelope from `../using-pulse/references/handoff-contract.md`
 - register it in `.pulse/handoffs/manifest.json`
-- keep payload concise and phase-specific (`completed_through`, `artifacts_written`, `beads_created`, `open_questions`, `stories_defined`)
+- keep payload concise and current-work specific (`completed_through`, `artifacts_written`, `beads_created`, `open_questions`, `current_work`)
 
 ## Completion Handoff
 
 On success:
-- discovery, approach, phase-plan, phase-contract, and story-map are written
+- discovery, approach, and approved shape artifact are written
 - Gate 2 approval is recorded and synced
-- only current-phase beads are created and normalized
-- the whole-feature epic remains open unless the final phase has already completed and reviewing later closes it
-- HIGH-risk components are flagged for validating
+- current-work prep artifacts are written
+- bead state is explicit:
+  - direct/proven-small path: current-work beads may already exist and are normalized
+  - feasibility-first path: phase/epic/harder work stops at current-work prep with no execution beads yet
+  - post-feasibility path: if validating returns READY/READY WITH CONSTRAINTS and beads are required but absent, planning creates only validated current-work beads before validating resumes
+- HIGH-risk components are flagged for feasibility validation
 
-Then hand off with: **Recommend `pulse:validating` for Phase <n> as the next skill, default to `next_action: manual_invoke`, and continue in the same session only when the user explicitly asks for it.**
+Then hand off with: **Recommend `pulse:validating` for current work as the next skill, default to `next_action: manual_invoke`, and continue in the same session only when the user explicitly asks for it.**
 
 ## Red Flags
 
 - Skipping learnings retrieval or ignoring `CONTEXT.md`
-- Proceeding past phase plan without approval
-- Treating phases as technical buckets instead of real outcomes
-- Creating beads for later phases
+- Skipping mode gate
+- Proceeding past shape approval without explicit approval
+- Defaulting to phases when a work-shape or epic-map is clearer
+- Creating future-work beads
 - Vague, non-observable exit states
 - Prose-only bead scope/verification or missing canonical fields
 - HIGH-risk items without concrete YES/NO spike questions

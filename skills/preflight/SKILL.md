@@ -184,7 +184,7 @@ Choose exactly one result:
   - at least one optional capability is missing, or swarm must downgrade to single-worker
 - `FAIL`
   - any required tool for the requested mode is unavailable
-  - onboarding is `NEEDS_SETUP` or `STALE` and could not be resolved in Phase 2
+  - onboarding is `NEEDS_SETUP` or `NEEDS_ONBOARDING` and could not be resolved in Phase 2
 
 Also choose `recommended_mode`:
 
@@ -254,7 +254,7 @@ PREFLIGHT COMPLETE
 Status: PASS | DEGRADED | FAIL
 Requested mode: <mode>
 Recommended mode: <mode>
-Onboarding: PASS | NEEDS_SETUP | STALE
+Onboarding: PASS | NEEDS_SETUP | NEEDS_ONBOARDING
 
 Ready:
 - <tool>

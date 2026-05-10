@@ -60,7 +60,7 @@ This is not the path for trivial non-feature corrections already covered by `sma
 | Spec | Write the approved design to `history/<feature>/spec.md` | Stable spec for exploring |
 | Self-review | Run the spec reviewer subagent and fix serious issues | Planning-ready spec |
 | User review gate | Wait for explicit approval on the written spec | Approved handoff artifact |
-| Handoff | Update `.pulse/STATE.md` and direct the next step to `pulse:exploring` | Clean pipeline transition |
+| Handoff | Update `.pulse/STATE.md` and recommend `pulse:exploring` as the next manual step | Clean pipeline transition |
 
 ---
 
@@ -77,7 +77,7 @@ Create a task for each item and complete them in order:
 7. **Write spec doc** — save to `history/<feature>/spec.md` and note the path
 8. **Spec self-review** — subagent check for placeholders, contradictions, scope, ambiguity
 9. **User reviews spec** — ask user to confirm before proceeding
-10. **Handoff to exploring** — invoke `pulse:exploring` to lock implementation decisions
+10. **Handoff to exploring** — recommend `pulse:exploring` as the next manual step to lock implementation decisions
 
 ---
 
@@ -97,7 +97,7 @@ digraph brainstorming {
     "Write spec doc" [shape=box];
     "Spec self-review (subagent)" [shape=box];
     "User reviews spec?" [shape=diamond];
-    "Invoke pulse:exploring" [shape=doublecircle];
+    "Recommend pulse:exploring handoff" [shape=doublecircle];
 
     "Explore project context" -> "Multi-system?";
     "Multi-system?" -> "Decompose first" [label="yes"];
@@ -114,12 +114,12 @@ digraph brainstorming {
     "Write spec doc" -> "Spec self-review (subagent)";
     "Spec self-review (subagent)" -> "User reviews spec?";
     "User reviews spec?" -> "Write spec doc" [label="changes requested"];
-    "User reviews spec?" -> "Invoke pulse:exploring" [label="approved"];
+    "User reviews spec?" -> "Recommend pulse:exploring handoff" [label="approved"];
 }
 ```
 
-**The terminal state is invoking `pulse:exploring`.** Do NOT invoke planning, validating,
-or any execution skill. After brainstorming, the ONLY valid next step is `pulse:exploring`.
+**The terminal state is an approved `spec.md` plus `.pulse/STATE.md` update, with a recommendation to run `pulse:exploring` next.** Do NOT invoke planning, validating,
+or any execution skill by default. After brainstorming, the ONLY valid next step is `pulse:exploring`.
 
 ---
 
@@ -374,13 +374,17 @@ After user spec approval:
    ```
 
 2. Present to user:
-   > "Spec approved. Invoke `pulse:exploring` to extract implementation decisions
+   > "Spec approved. Next step: run `pulse:exploring` to extract implementation decisions
    > (gray areas, scope boundaries, and locked choices) before planning begins."
+
+3. Optional continue-now path:
+   - Only if the user explicitly asks to continue now, invoke `pulse:exploring` in the same session.
+   - Otherwise stop after the spec approval + `.pulse/STATE.md` update + recommendation above.
 
 <HARD-GATE>
 Do NOT invoke planning, create beads, or write any code.
 The terminal state of this skill is a written, approved spec and STATE update.
-The ONLY valid next step is the user invoking pulse:exploring.
+The ONLY valid next step is pulse:exploring (manual by default, or invoked now only when the user explicitly asks).
 </HARD-GATE>
 
 ---

@@ -12,7 +12,7 @@ metadata:
 
 # Exploring Skill
 
-If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
+If `.pulse/tooling-status.json` is missing, stale, or reports `FAIL`/`blocked` for the current repo, stop and invoke `pulse:preflight`, then return through `pulse:using-pulse` before continuing.
 
 Spend 5–10 minutes extracting decisions before planning. It prevents hours of rework from planner assumptions ([GSD README](https://github.com/gsd-build/get-shit-done)).
 This skill captures those decisions so downstream agents build what the user actually wants.
@@ -39,7 +39,10 @@ If `.pulse/config.json` contains `"skip_exploring": true`, this skill should be 
 
 ## Process
 
-You MUST complete these phases in order. Create a task for each phase before starting.
+You MUST complete these phases in order.
+
+When task-list tooling is available in the runtime, create and track one task per phase before starting each phase.
+When task-list tooling is unavailable, use an explicit phase checklist in responses (and mirror it in `.pulse/STATE.md` when touched) with only one phase marked active at a time so ordering remains enforceable.
 
 ---
 

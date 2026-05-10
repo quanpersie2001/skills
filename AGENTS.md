@@ -23,8 +23,8 @@ Pulse is not:
 ## One-Line Glossary
 
 - `CONTEXT.md` — locked decisions that downstream work must honor.
-- `phase-plan.md` — the whole-feature slice plan.
-- phase contract — the current phase's proof and exit conditions.
+- `work-shape.md` / `phase-plan.md` / `epic-map.md` — approved planning shape artifact.
+- current-work artifact — execution-ready slice (`work-shape.md` section, `current-story-pack.md`, or `phase-<n>-contract.md` + `phase-<n>-story-map.md`).
 - story map — the reason beads are sequenced the way they are.
 - bead — one worker-sized unit of work with exact files and checks.
 - handoff — the pause/resume contract for the next actor.
@@ -37,8 +37,8 @@ Pulse is not:
 | `pulse:using-pulse` | Bootstrap/meta — routing, go mode, state bootstrap | Session start, "build feature X" |
 | `pulse:preflight` | Tool readiness, mode selection, project tooling status | Before planning or execution |
 | `pulse:exploring` | Extract decisions via Socratic dialogue → CONTEXT.md | New feature, unclear requirements |
-| `pulse:planning` | Research + synthesis + bead creation → approach.md + beads | After exploring, with CONTEXT.md |
-| `pulse:validating` | Plan verification + spikes + bead polishing — THE GATE | After planning, before execution |
+| `pulse:planning` | Route mode → shape → current work; synthesize artifacts and bead timing | After exploring, with CONTEXT.md |
+| `pulse:validating` | Feasibility/readiness verification + spikes + constrained routing | After planning, before execution |
 | `pulse:swarming` | Launch + tend parallel worker agents | After validating approves beads |
 | `pulse:executing` | Per-agent worker loop (report online → implement → close) | Loaded by workers spawned by swarming |
 | `pulse:reviewing` | Specialist reviewers + 3-level verification + UAT + finishing | After swarming completes all beads |
@@ -67,8 +67,8 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 ## Go Mode Gates
 
 - **GATE 1** (after exploring): approve `CONTEXT.md` before planning
-- **GATE 2** (after planning): approve the phase plan before current-phase preparation
-- **GATE 3** (after validating): approve execution before swarming or single-worker execution
+- **GATE 2** (after planning): approve the selected shape artifact (`work-shape.md` | `phase-plan.md` | `epic-map.md`)
+- **GATE 3** (after validating): approve feasibility-validated current work before swarming or single-worker execution
 - **GATE 4** (after reviewing): approve merge; P1 findings block this gate
 
 ## Core Tools
@@ -337,7 +337,7 @@ bv --robot-triage | jq '.[] | select(.blockers | length > 0) | {id, blockers}'
 1. Run `pulse:preflight`.
 2. Run `pulse:using-pulse`.
 3. Use `node .pulse/scripts/pulse_status.mjs --json` when available for a read-only scout pass.
-4. Open only the artifacts the scout points at: usually `.pulse/state.json`, `.pulse/STATE.md`, `.pulse/handoffs/manifest.json`, `history/<feature>/CONTEXT.md`, and `phase-plan.md`.
+4. Open only the artifacts the scout points at: usually `.pulse/state.json`, `.pulse/STATE.md`, `.pulse/handoffs/manifest.json`, `history/<feature>/CONTEXT.md`, and the selected shape/current-work artifacts.
 
 ### Resume safely
 
@@ -347,8 +347,8 @@ bv --robot-triage | jq '.[] | select(.blockers | length > 0) | {id, blockers}'
 
 ### Pick swarm vs single-worker
 
-- Prefer swarm only when the current phase has enough parallelizable beads to justify coordination overhead.
-- Prefer single-worker when the phase still needs Pulse discipline but not multiple active workers.
+- Prefer swarm only when approved current work has enough parallelizable beads to justify coordination overhead.
+- Prefer single-worker when approved current work still needs Pulse discipline but not multiple active workers.
 - In both paths, Gate 3 approval is still required before execution begins.
 
 ### Scout guidance
@@ -381,7 +381,7 @@ If P1 items remain open, they block merge. Fix or escalate before ending.
 
 ### 3. Update Status
 
-Update `.pulse/STATE.md` with current phase, completed work, and any open blockers.
+Update `.pulse/STATE.md` with approved current work focus, completed work, and any open blockers.
 
 ### 4. Sync Beads
 
@@ -488,8 +488,8 @@ Pulse is not a license to skip `CONTEXT.md`, validating, review gates, or human 
 ## One-Line Glossary
 
 - `CONTEXT.md` — locked decisions downstream work must honor.
-- `phase-plan.md` — the whole-feature slice plan.
-- phase contract — the current phase's proof and exit conditions.
+- `work-shape.md` / `phase-plan.md` / `epic-map.md` — approved planning shape artifact.
+- current-work artifact — execution-ready slice (`work-shape.md` section, `current-story-pack.md`, or `phase-<n>-contract.md` + `phase-<n>-story-map.md`).
 - story map — the reason beads are sequenced the way they are.
 - bead — one worker-sized unit of work with exact files and checks.
 - handoff — the pause/resume contract for the next actor.
@@ -498,7 +498,7 @@ Pulse is not a license to skip `CONTEXT.md`, validating, review gates, or human 
 ## Startup
 
 1. Read this file at session start and again after any context compaction.
-2. If `.pulse/onboarding.json` is missing or outdated, stop and run `pulse:using-pulse` before continuing.
+2. If preflight readiness is missing/stale/blocked in `.pulse/tooling-status.json`, stop and run `pulse:using-pulse` before continuing.
 3. If `.pulse/scripts/pulse_status.mjs` exists, use `node .pulse/scripts/pulse_status.mjs --json` for a fast read-only status snapshot.
 4. If `.pulse/handoffs/manifest.json` exists, do not auto-resume. Surface the saved state and wait for user confirmation.
 5. If `.pulse/memory/critical-patterns.md` exists, read it before planning or execution work.
@@ -538,7 +538,7 @@ pulse:preflight
 .pulse/
   onboarding.json     ← onboarding state for the Pulse plugin
   state.json          ← machine-readable routing/status mirror
-  STATE.md            ← current phase and focus
+  STATE.md            ← approved current-work focus
   handoffs/
     manifest.json     ← pause/resume artifact
   memory/             ← shared reusable memory root
@@ -560,7 +560,7 @@ history/<feature>/
 
 ### Startup scout
 
-1. Run `pulse:using-pulse` if onboarding is missing or stale.
+1. Run `pulse:using-pulse` if preflight readiness is missing, stale, or blocked.
 2. Run `node .pulse/scripts/pulse_status.mjs --json` when available.
 3. Use the scout to choose the next artifact instead of opening everything at once.
 
@@ -572,8 +572,8 @@ history/<feature>/
 
 ### Swarm vs single-worker
 
-- Use swarm when the current phase has enough parallelizable beads to justify coordination overhead.
-- Use single-worker when Pulse discipline is still needed but parallelism is not.
+- Use swarm when approved current work has enough parallelizable beads to justify coordination overhead.
+- Use single-worker when approved current work still needs Pulse discipline but parallelism is not.
 - Gate 3 still blocks both modes until validating approves execution.
 
 ## Codex Guardrails
@@ -596,7 +596,7 @@ Before ending a substantial Pulse work chunk:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **pulse** (2638 symbols, 3942 relationships, 156 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **pulse** (2501 symbols, 3738 relationships, 151 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

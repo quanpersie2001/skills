@@ -10,15 +10,11 @@ metadata:
 
 Update documentation from the live repo state, not from outdated docs or feature-memory summaries.
 
-Load [references/prompt-template.md](references/prompt-template.md) when the user wants a polished reusable prompt or when you need a starting template before editing docs directly.
+If the user asks to improve or templatize a docs-refresh prompt, route to `pulse:prompt-leverage` first, then return here for docs execution.
 
-## Modes
+## Mode
 
-Choose the lightest mode that fits the request.
-
-- `Prompt-only`: refine the user's raw docs-refresh prompt and return the upgraded prompt.
 - `Docs execution`: inspect the repo and update the relevant docs directly.
-- `Prompt + execution`: return the upgraded prompt and use the same standards while editing docs.
 
 ## Workflow
 
@@ -87,19 +83,6 @@ Check that:
 - stale statements, placeholders, and contradictions are removed
 - links still resolve if you touched public docs
 
-## Prompt Upgrade Rules
-
-When the user gives a rough prompt, keep the intent but add the missing execution structure:
-
-- tell the agent to inspect the repo before editing docs
-- tell the agent to treat code and config as canonical over stale docs
-- require updating all relevant documentation, not only the README
-- require evergreen phrasing with no change-log language
-- require explicit coverage of commands, options, features, and workflows
-- require a verification pass for consistency and outdated content
-
-Prefer the template in [references/prompt-template.md](references/prompt-template.md) over improvising from scratch.
-
 ## Red Flags
 
 Stop and correct the approach if any of these appear:
@@ -112,7 +95,7 @@ Stop and correct the approach if any of these appear:
 
 ## Done Criteria
 
-This skill is complete when the upgraded prompt or edited docs:
+This skill is complete when the edited docs:
 
 - describe only the current state of the project
 - include the relevant commands, options, features, and workflows

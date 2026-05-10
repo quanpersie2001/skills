@@ -4,8 +4,14 @@ Use this appendix for detailed checklists and command templates referenced by `.
 
 ## Non-trivial bead rule
 
-Before reserving files or writing code, also read `history/<feature>/phase-<n>-contract.md` and `history/<feature>/phase-<n>-story-map.md` when any is true:
+Before reserving files or writing code, read the active-shape current-work artifacts whenever any trigger condition below is true.
 
+Shape artifact requirements:
+- work-shape path: `history/<feature>/work-shape.md` (current work is defined directly there)
+- epic-map path: `history/<feature>/epic-map.md` and `history/<feature>/current-story-pack.md`
+- phase-plan path: `history/<feature>/phase-plan.md`, `history/<feature>/phase-<n>-contract.md`, and `history/<feature>/phase-<n>-story-map.md`
+
+Trigger conditions:
 - `testing_mode` is `tdd-required`
 - the bead touches multiple files across different modules or ownership boundaries
 - the bead has multiple upstream dependencies or explicitly references story coordination, parallelism, shared file/context risk, or boundary preservation
@@ -69,7 +75,7 @@ If you detect context compaction, stop and re-read before further implementation
 1. `AGENTS.md`
 2. `history/<feature>/CONTEXT.md`
 3. `br show <bead-id>`
-4. If non-trivial, phase contract/story map and boundary-relevant `approach.md`
+4. If non-trivial, active-shape current-work artifacts (`work-shape.md`, `current-story-pack.md`, or phase contract/story map) and boundary-relevant `approach.md`
 5. `node .pulse/scripts/pulse_reservations.mjs list --active-only --json`
 6. latest coordinator updates on the active coordination surface
 
@@ -84,7 +90,7 @@ If you detect context compaction, stop and re-read before further implementation
 - continuing after compaction without re-reading required context
 - implementing stubs/TODOs/empty handlers
 - ignoring locked decisions from `CONTEXT.md`
-- skipping required phase artifact reads for non-trivial work
+- skipping required current-work artifact reads for non-trivial work
 - guessing through ambiguity instead of surfacing it
 - bundling multiple beads in one commit
 - claiming without reservation checks

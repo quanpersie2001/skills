@@ -6,7 +6,7 @@
 
 ## Overview
 
-Go mode is the full Pulse pipeline from raw feature request to merged, compounded learnings. It always starts with preflight and always has exactly 4 human gates. The pipeline is designed so that each gate protects the next irreversible commitment.
+Go mode is the full Pulse pipeline from raw feature request to merged, compounded learnings. It always starts with preflight and always has exactly 4 human gates. The pipeline now separates a whole-feature work shape from the current work slice so each gate protects the next irreversible commitment.
 
 ```text
 User: "/go <feature>"
@@ -22,31 +22,36 @@ User: "/go <feature>"
 [GATE 1] <- HARD STOP: "Approve CONTEXT.md? (approve only by default)"
        |
        v
-[STEP 2] planning (whole feature)
-       | Output: discovery.md, approach.md, phase-plan.md
+[STEP 2] planning (mode gate + shape)
+       | Output: discovery.md, approach.md, and one approved shape artifact:
+       |         work-shape.md | phase-plan.md | epic-map.md
        |
        v
-[GATE 2] <- HARD STOP: "Approve phase-plan.md? (approve only by default)"
+[GATE 2] <- HARD STOP: "Approve shape artifact? (approve only by default)"
        |
        v
-[STEP 3] planning (current phase prep)
-       | Output: phase-<n>-contract.md, phase-<n>-story-map.md, current-phase beads
+[STEP 3] current-work preparation
+       | Output depends on shape:
+       |   - work-shape: current work is defined directly in work-shape.md
+       |   - epic-map: epic-map.md + current-story-pack.md
+       |   - phase-plan: phase-plan.md + phase-<n>-contract.md + phase-<n>-story-map.md
+       | Plus: current-work beads only
        |
        v
-[STEP 4] validating (current phase)
-       | Plan-checker (<=3x) + spikes + bead polish
+[STEP 4] current-work validation
+       | Reality gate + feasibility matrix/spikes + schema gate + structural checker + bead polish
        |
        v
-[GATE 3] <- HARD STOP: "Current phase verified. Approve execution? (approve only by default)"
+[GATE 3] <- HARD STOP: "Current work verified. Approve execution? (approve only by default)"
        |
        v
 [STEP 5] swarming -> executing (xN workers)
-       | Current phase only
+       | Current work slice only
        |
-       |-- if later phases remain -> return to STEP 3 for the next phase
+       |-- if later work slices remain -> return to STEP 3 for the next work slice
        |
        v
-[STEP 6] reviewing (after final phase only)
+[STEP 6] reviewing (after final work slice only)
        | 4 specialist review agents + final synthesizer -> P1/P2/P3 findings
        | Artifact verification + human UAT
        |
@@ -158,19 +163,23 @@ If the user selects `Approve and continue now`, or gives equivalent explicit app
 
 ---
 
-## Step 2: Planning (Whole Feature)
+## Step 2: Planning (Mode Gate + Shape)
 
 **Invoke:** Load `pulse:planning` skill.
 
 **Input:** `history/<feature>/CONTEXT.md`, `.pulse/memory/critical-patterns.md`.
 
-**The first planning pass will:**
+**This planning pass will:**
 
 - retrieve learnings
 - run discovery
 - synthesize an approach
-- write `history/<feature>/phase-plan.md`
-- show the full phase breakdown in plain English
+- select mode and shape strategy
+- write one shape artifact:
+  - `history/<feature>/work-shape.md` (direct/spike/small)
+  - `history/<feature>/phase-plan.md` (milestone/phase-shaped)
+  - `history/<feature>/epic-map.md` (capability/risk-shaped)
+- set shape approval to pending and stop at Gate 2
 
 **Important:** this step does **not** create beads yet.
 
@@ -178,38 +187,39 @@ If the user selects `Approve and continue now`, or gives equivalent explicit app
 
 ---
 
-## Gate 2: Approve phase-plan.md
+## Gate 2: Approve selected shape artifact
 
 ```text
 HARD-GATE: Do not proceed until user explicitly approves.
 
 Present:
   "Planning complete for [feature].
-   Proposed phases:
-   - Phase 1: [name] -> [real-world outcome]
-   - Phase 2: [name] -> [real-world outcome]
-   - Phase 3: [name] -> [real-world outcome]
+   Proposed mode + shape: [work-shape | phase-plan | epic-map]
+   Current-work strategy:
+   - work-shape: execute selected slice from shape
+   - epic-map: execute selected `current-story-pack.md`
+   - phase-plan: execute selected phase contract/story map
 
-   Stories inside each phase are documented in history/<feature>/phase-plan.md."
+   Shape artifact: history/<feature>/<selected-shape-artifact>.md"
 ```
 
 If the active harness provides `AskUserQuestion`, `AskMeTool`, or another structured question tool, use it with focused options:
 - `Approve only`
 - `Approve and continue now`
 - `Revise phase plan`
-- `Show phase-plan.md`
+- `Show selected shape artifact`
 
 Only fall back to plain text when no structured question tool exists:
-- `Approve this phase/story breakdown? (approve only / approve and continue now / revise / show full phase-plan.md)`
+- `Approve this shape artifact? (approve only / approve and continue now / revise / show full artifact)`
 
-If the user selects `Revise phase plan`, or gives equivalent explicit revision feedback, return to the planning pass that owns `phase-plan.md`.
+If the user selects `Revise shape artifact`, or gives equivalent explicit revision feedback, return to the planning pass that owns the selected shape artifact.
 
-If the user selects `Show phase-plan.md`, show the artifact and remain at this gate.
+If the user selects `Show selected shape artifact`, show the artifact and remain at this gate.
 
 If the user selects `Approve only`, or gives equivalent explicit approval without asking to continue immediately:
 - update `.pulse/state.json` and `.pulse/STATE.md`
 - record `gate: GATE 2`, `gate_status: approved`, `next_skill_recommended: pulse:planning`, and `next_action: manual_invoke`
-- stop there; do not auto-enter current-phase preparation
+- stop there; do not auto-enter current-work preparation
 
 If the user selects `Approve and continue now`, or gives equivalent explicit approval to stay in the current context/model:
 - update the same runtime fields, but set `next_action: continue_now`
@@ -217,24 +227,27 @@ If the user selects `Approve and continue now`, or gives equivalent explicit app
 
 ---
 
-## Step 3: Planning (Current Phase Prep)
+## Step 3: Current-Work Preparation
 
-**Invoke:** Load `pulse:planning` again in current-phase preparation mode.
+**Invoke:** Load `pulse:planning` again in current-work preparation mode.
 
-**Input:** approved `phase-plan.md`, `approach.md`, `CONTEXT.md`.
+**Input:** approved shape artifact (`work-shape.md` | `phase-plan.md` | `epic-map.md`), `approach.md`, `CONTEXT.md`.
 
-**The second planning pass will:**
+**Current-work prep will:**
 
-- select the current phase from `phase-plan.md`
-- write `history/<feature>/phase-<n>-contract.md`
-- write `history/<feature>/phase-<n>-story-map.md`
-- create beads only for that phase
+- select one executable current work slice from approved shape
+- produce shape-appropriate current-work artifacts:
+  - work-shape: current work is embedded in shape artifact
+  - epic-map: write `history/<feature>/current-story-pack.md`
+  - phase-plan: write `history/<feature>/phase-<n>-contract.md` and `history/<feature>/phase-<n>-story-map.md`
+- create beads only for current work when the mode/path requires planning-side bead materialization (for example, direct_task or already-proven small_change)
+- otherwise hand off artifact-only current work to validating first; if feasibility becomes READY/READY WITH CONSTRAINTS and beads are still absent, validating routes back once for current-work bead creation and then resumes validation
 
 **Rules:**
 
-- default to the first unprepared phase
-- never create later-phase beads early
-- every bead must include `Phase <n>` and `Story <m>` context
+- default to first unprepared executable slice in the approved shape
+- never create future-slice beads early
+- every bead must include current-work + story context
 
 Important planning contract:
 
@@ -246,19 +259,20 @@ Important planning contract:
 
 ---
 
-## Step 4: Validating (Current Phase)
+## Step 4: Current-Work Validation
 
 **Invoke:** Load `pulse:validating` skill.
 
-**Input:** current phase beads, `phase-plan.md`, current phase contract/story map, `approach.md`, `CONTEXT.md`.
+**Input:** approved shape artifact, shape-specific current-work artifacts, `approach.md`, `CONTEXT.md`, and optionally current-work beads if they were already created in planning.
 
 **The pulse:validating skill will:**
 
-- Phase 0: orient on the current phase and confirm the phase plan was approved
-- Phase 1: plan-checker loop (<=3 iterations, 8 dimensions)
-- Phase 2: spike execution for current-phase HIGH-risk items
-- Phase 3: bead polishing (`bv --robot-suggest`, `--robot-insights`, `--robot-priority`)
-- Phase 4: current-phase exit-state readiness review
+- orient on mode/shape/current work and verify shape approval
+- run reality-fit and feasibility checks (including spikes where needed)
+- if feasibility is READY/READY WITH CONSTRAINTS and current-work beads are absent, route back once to planning for current-work bead creation, then resume validation
+- run bead schema gate before structural checker when beads are present
+- run structural checker loop (<=3 iterations)
+- polish bead graph and run current-work readiness review
 
 If a spike returns `NO`, stop and go back to planning.
 
@@ -268,14 +282,15 @@ If execution or debugging reveals that the issue is no longer a local bug but an
 
 ---
 
-## Gate 3: Approve Current-Phase Execution
+## Gate 3: Approve Feasibility-Validated Current Work
 
 ```text
 HARD-GATE: This is the most critical gate. Do not proceed until user explicitly approves.
 
 Present:
-  "Validation complete for [feature], Phase <n>.
-   [N] beads ready for current-phase execution.
+  "Validation complete for [feature], current work slice [name/id].
+   [N] beads ready for execution.
+   Feasibility status: [ready / blocked]
    Risk: [X] HIGH items -> spikes: [all passed / N failed]
 
    Any unresolved concerns: [list or 'none']
@@ -290,7 +305,7 @@ If the active harness provides `AskUserQuestion`, `AskMeTool`, or another struct
 - `Revise plan`
 
 Only fall back to plain text when no structured question tool exists:
-- `Current phase verified. Approve execution? (approve only / approve and continue now / review beads / revise plan)`
+- `Current work is feasibility-validated. Approve execution? (approve only / approve and continue now / review beads / revise plan)`
 
 If the user selects `Revise plan`, or gives equivalent explicit revision feedback, return to planning or validating.
 If the user selects `Review beads`, stay at this gate and inspect bead details before asking again.
@@ -304,33 +319,33 @@ If the user selects `Approve and continue now`, or gives equivalent explicit app
 
 ---
 
-## Step 5: Swarming + Executing (Current Phase)
+## Step 5: Swarming + Executing (Current Work Slice)
 
 Use `pulse:swarming` if preflight recommends `swarm`, otherwise invoke `pulse:executing` directly.
 
 **The pulse:swarming skill will:**
 
 - initialize the coordination runtime
-- spawn workers for the current phase bead set
-- monitor current-phase execution
-- verify current-phase beads closed
+- spawn workers for the current-work bead set
+- monitor current-work execution
+- verify current-work beads closed
 
-### Phase loop rule
+### Work-slice loop rule
 
-After current-phase execution completes:
+After current-work execution completes:
 
-- if `phase-plan.md` shows later phases still pending -> return to Step 3 for the next phase
-- if the current phase was the final phase -> proceed to Step 6
-- do not use an empty epic subtree alone as proof the whole feature is complete; later phases may not be materialized yet
-- when in doubt, `phase-plan.md` + `.pulse/STATE.md` decide whether reviewing is allowed
+- if approved shape artifact (`work-shape.md` | `phase-plan.md` | `epic-map.md`) shows later work slices still pending -> return to Step 3 for the next work slice
+- if the current work slice was the final approved work slice -> proceed to Step 6
+- do not use an empty epic subtree alone as proof the whole feature is complete; later work slices may not be materialized yet
+- when in doubt, approved shape artifact + `.pulse/STATE.md` decide whether reviewing is allowed
 
-**Update STATE.md:** either `phase: go-mode/planning-next-phase` or `phase: go-mode/reviewing`
+**Update STATE.md:** either `phase: go-mode/planning-next-work` or `phase: go-mode/reviewing`
 
 ---
 
 ## Step 6: Reviewing
 
-**Invoke:** Load `pulse:reviewing` skill only after the final phase swarm completes and `phase-plan.md` plus `.pulse/STATE.md` agree that no later phases remain.
+**Invoke:** Load `pulse:reviewing` skill only after the final current-work execution completes and the approved shape artifact plus `.pulse/STATE.md` agree that no later work remains.
 
 **The pulse:reviewing skill will:**
 
@@ -395,7 +410,7 @@ If fix beads are created, execute them and re-run reviewing before presenting Ga
 
 **Invoke:** Load `pulse:compounding` skill.
 
-**Input:** full feature history (`CONTEXT.md`, `approach.md`, `phase-plan.md`, review findings, execution notes).
+**Input:** full feature history (`CONTEXT.md`, `approach.md`, approved shape artifact, review findings, execution notes).
 
 **The pulse:compounding skill will:**
 
@@ -430,12 +445,12 @@ Output:
 -> Re-present GATE 1
 ```
 
-### If the user rejects phase-plan.md at GATE 2
+### If the user rejects the selected shape artifact at GATE 2
 
 ```text
--> Identify which phase names, boundaries, or stories feel wrong
--> Return to the whole-feature planning pass
--> Update phase-plan.md
+-> Identify which shape boundaries, stories, or risk/capability grouping feels wrong
+-> Return to the shape-selection planning pass
+-> Update selected shape artifact (`work-shape.md` | `phase-plan.md` | `epic-map.md`)
 -> Re-present GATE 2
 ```
 
@@ -445,15 +460,15 @@ Output:
 -> Present failing dimensions to user
 -> Ask: "Return to planning with these specific concerns?"
 -> Load planning with the failure report as context
--> Re-run validating after the current phase is re-prepared
+-> Re-run validating after current-work artifacts are re-prepared
 ```
 
 ### If a spike fails
 
 ```text
 -> STOP: do not proceed to GATE 3
--> Present: "Spike [id] failed: [reason]. Current phase is blocked."
--> Options: (a) Revise approach, (b) Descope the risky part, (c) Re-split phase boundaries
+-> Present: "Spike [id] failed: [reason]. Current work slice is blocked."
+-> Options: (a) Revise approach, (b) Descope the risky part, (c) Re-split work-shape boundaries
 -> If revise: return to planning and then re-run validating
 ```
 
@@ -461,7 +476,7 @@ Output:
 
 ```text
 -> Write handoff via .pulse/handoffs/coordinator.json and update manifest
--> Present: "Context budget reached. Current phase swarm paused.
+-> Present: "Context budget reached. Current work-slice swarm paused.
             [X] beads complete, [Y] in flight.
             Resume in a new session."
 -> End turn gracefully
@@ -531,9 +546,9 @@ preflight
   -> verify tooling, write STATE.md
   |
 planning (lightweight)
-  -> one-phase plan
+  -> one-slice shape plan
   -> approval gate
-  -> one current-phase bead
+  -> one current-work bead
   -> no multi-model refinement
   |
 validating (lightweight)
@@ -555,15 +570,15 @@ compounding (only if lesson learned)
 
 **Why 4 gates, not 3?**
 
-Because the phase breakdown itself is now a first-class human decision. `CONTEXT.md` locks intent, `phase-plan.md` locks the feature shape, validating locks execution-readiness for the current phase, and reviewing locks merge-readiness.
+Because shape selection itself is now a first-class human decision. `CONTEXT.md` locks intent, the approved shape artifact (`work-shape.md` | `phase-plan.md` | `epic-map.md`) locks feature structure, validating locks execution-readiness for current work, and reviewing locks merge-readiness.
 
 **Why is GATE 3 the most critical?**
 
-Execution is the only phase that creates source-code side effects. A broken current phase discovered post-execution costs far more to fix than one caught in validating.
+Execution is the only stage that creates source-code side effects. A broken current work slice discovered post-execution costs far more to fix than one caught in feasibility validation.
 
 **Why does planning now happen in two passes?**
 
-Because "show me the whole shape" and "prepare one phase for execution" are different jobs. Combining them made phase/story explanations too abstract and pushed bead creation earlier than users wanted.
+Because "show me the whole shape" and "prepare one work slice for execution" are different jobs. Combining them made shape/story explanations too abstract and pushed bead creation earlier than users wanted.
 
 **What tone should the model use at every gate?**
 

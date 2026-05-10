@@ -39,9 +39,9 @@ Pulse ships as a **skills package**. Each skill is a `SKILL.md` file loaded into
 Pulse turns a vague request into a reviewed delivery trail:
 
 1. `pulse:exploring` locks decisions into `CONTEXT.md`
-2. `pulse:planning` turns those decisions into phases, contracts, story maps, and beads
-3. `pulse:validating` checks that the current phase is actually safe to execute
-4. `pulse:swarming` or `pulse:executing` implements the work
+2. `pulse:planning` selects work shape (`work-shape.md`, `phase-plan.md`, or `epic-map.md`) and prepares current work artifacts
+3. `pulse:validating` verifies feasibility and readiness for the selected current work
+4. `pulse:swarming` or `pulse:executing` implements the approved current work
 5. `pulse:reviewing` blocks weak merges
 6. `pulse:compounding` captures durable learnings for future work
 
@@ -50,8 +50,8 @@ Pulse turns a vague request into a reviewed delivery trail:
 | Gate | What it blocks |
 | --- | --- |
 | **Gate 1** | Planning before decisions are locked |
-| **Gate 2** | Phase prep before the plan is approved |
-| **Gate 3** | Execution before the current phase is validated |
+| **Gate 2** | Work-shape execution prep before the selected shape artifact is approved |
+| **Gate 3** | Execution before feasibility-validated current work is explicitly approved |
 | **Gate 4** | Merge before review is complete |
 
 ## Why use pulse

@@ -2,6 +2,8 @@
 
 This appendix contains the operational contract for reviewing.
 
+Prerequisite: `br` must be available. If `br` is unavailable, Gate 4 cannot run; stop reviewing and route to preflight/tooling remediation via `pulse:using-pulse`.
+
 ## 1) 4+1 Review Model
 
 Agents 1-4 are specialists. Agent 5 (learnings-synthesizer) always runs after specialist completion.
@@ -26,7 +28,7 @@ Agent 5 never runs in parallel with agents 1-4.
 
 Each reviewer gets only:
 
-1. diff (`git diff <base>..<head>`)
+1. reviewing-owned changeset diff evidence for the active Pulse closeout path (`git diff <base>..<head>`)
 2. `history/<feature>/CONTEXT.md`
 3. `history/<feature>/approach.md`
 
@@ -116,9 +118,13 @@ Skip is recorded in `.pulse/STATE.md` and is not a pass.
 ## 6) Finishing and Closeout
 
 Precondition before finishing:
-- confirm from `history/<feature>/phase-plan.md` plus `.pulse/STATE.md` that the just-completed phase is the final phase and no later phases remain pending
+- confirm final-slice completion from the active approved shape path plus `.pulse/STATE.md`:
+  - work-shape path: `history/<feature>/work-shape.md`
+  - phase-plan path: `history/<feature>/phase-plan.md`
+  - epic-map path: `history/<feature>/epic-map.md` and `history/<feature>/current-story-pack.md`
+- confirm those artifacts agree no later current-work slice remains pending
 - if those artifacts disagree, stop and route back to planning/state sync
-- do not infer whole-feature completion from an empty epic subtree alone; later phases may not be materialized yet
+- do not infer whole-feature completion from an empty epic subtree alone; later slices may not be materialized yet
 
 Use this closeout checklist:
 
@@ -128,7 +134,7 @@ Use this closeout checklist:
 - verify canonical evidence in `history/<feature>/verification/`
 - write/refresh `history/<feature>/lifecycle-summary.md`
 - clean worktree if used
-- close epic bead only after the final-phase artifact check and epic-close-path check both pass
+- close epic bead only after final-slice artifact eligibility check and epic-close-path check both pass
 - update Pulse state artifacts
 
 P2/P3 remain non-blocking but must be visible in PR and closeout artifacts.
@@ -151,7 +157,7 @@ FLAGGED_LEARNINGS: <count>
 - skipping artifact verification
 - marking UAT failures as pass
 - closing epic with open blocking beads
-- closing epic before `phase-plan.md` + `.pulse/STATE.md` confirm the final phase is complete
+- closing epic before approved shape artifacts + `.pulse/STATE.md` confirm final-slice completion (`work-shape.md`, `phase-plan.md`, or `epic-map.md` + `current-story-pack.md`)
 - parenting P2/P3 under current epic instead of external_ref linkage
 
 ## 8) Deprecated Finding Files

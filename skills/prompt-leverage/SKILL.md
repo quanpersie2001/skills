@@ -13,15 +13,17 @@ Turn the user's current prompt into a stronger working prompt without changing t
 ## Workflow
 
 1. Read the raw prompt and identify the real job to be done.
-2. Infer the task type: coding, research, writing, analysis, planning, or review.
-3. Rebuild the prompt with the framework blocks in `references/framework.md`.
-4. Keep the result proportional: do not over-specify a simple task.
-5. Return both the improved prompt and a short explanation of what changed when useful.
+2. Infer the task type: coding, research, writing, analysis, planning, review, or packaged Pulse domain workflow.
+3. If the prompt targets a packaged Pulse domain workflow, load that domain skill's workflow rules and templates as source material before rewriting.
+4. Rebuild the prompt with the framework blocks in `references/framework.md`, grounded in the domain workflow when applicable.
+5. Keep the result proportional: do not over-specify a simple task.
+6. Return both the improved prompt and a short explanation of what changed when useful.
 
 ## Transformation Rules
 
 - Preserve the user's objective, constraints, and tone unless they conflict.
 - Prefer adding missing structure over rewriting everything stylistically.
+- For prompts targeting packaged Pulse domain workflows, derive structure from that domain skill's workflow contract and references instead of inventing a parallel framework.
 - Add context requirements only when they improve correctness.
 - Add tool rules only when tool use materially affects correctness.
 - Add verification and completion criteria for non-trivial tasks.
@@ -75,13 +77,17 @@ If the prompt is already strong, say so and make only minimal edits.
 
 | Prompt Deficiency | Recommended Block |
 |-------------------|-------------------|
-| No success criteria | Verification |
-| Vague scope | Scope Boundaries |
-| Missing context | Context / Background |
-| No error handling guidance | Edge Cases |
-| Unclear output format | Output Format |
+| No success criteria | Objective + Done Criteria |
+| Vague scope | Objective + Context |
+| Missing context | Context |
+| No error handling guidance | Verification |
+| Unclear output format | Output Contract |
 | No tool usage rules | Tool Rules |
 
 ## Integration with Pulse
 
-Can be used to strengthen prompts before passing them to `pulse:exploring` or to improve worker instructions in `pulse:swarming` payloads.
+Owns prompt improvement and templating across Pulse skills.
+
+When the prompt is for a packaged domain workflow (for example bootstrap, docs refresh, exploring, planning, validating, swarming, executing, reviewing, compounding), reuse that domain skill's workflow rules and templates as the source of truth.
+
+Use this skill first for prompt upgrades, then route execution to the target domain skill.

@@ -21,14 +21,16 @@ metadata:
 
 # Reviewing
 
-If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
+If preflight readiness is missing, stale, or blocked (check `.pulse/tooling-status.json`), stop and invoke `pulse:using-pulse` before continuing.
 
-Reviewing is the last automated quality gate before shipping. It verifies behavior, safety, and completeness rather than trusting bead closure alone.
+`br` is required for reviewing. If `br` is unavailable, Gate 4 cannot run; stop immediately and route to preflight/tooling remediation via `pulse:using-pulse`.
+
+Reviewing is the last automated quality gate before shipping. It verifies behavior, safety, and completeness for Pulse ecosystem closeout rather than trusting bead closure alone.
 
 ## When to Invoke
 
-- After `pulse:swarming` reports the final phase is complete and `history/<feature>/phase-plan.md` plus `.pulse/STATE.md` agree that no later phases remain
-- Manually when auditing a branch or diff
+- After `pulse:swarming` reports final current work is complete and the approved shape artifacts plus `.pulse/STATE.md` agree no later work remains (`work-shape.md`, `phase-plan.md`, or `epic-map.md` + `current-story-pack.md` when epic-map is active)
+- During Pulse ecosystem closeout immediately before Gate 4 decisioning
 - Optional flags: `--serial`, `--skip-uat` (only when human UAT is intentionally omitted and non-interactive evidence is used)
 
 ## Required Inputs
@@ -40,7 +42,7 @@ Read before starting:
 - `history/<feature>/approach.md`
 - `history/<feature>/lifecycle-summary.md` when present
 - `.pulse/STATE.md`
-- git diff or worktree diff
+- reviewing-owned changeset evidence for the active Pulse closeout path
 
 If `.pulse/project-docs.json` is absent, detect and read the smallest relevant project docs (README, architecture, ADR, domain docs).
 

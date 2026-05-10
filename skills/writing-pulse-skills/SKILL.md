@@ -15,7 +15,7 @@ Skills are code. They have bugs. Test them before deploying.
 This is the TDD-for-skills methodology adapted from Superpowers (N=28,000 scale testing confirms persuasion-optimized skills produce 3-4× better agent compliance than plain instructions).
 
 **THE IRON LAW: NO SKILL WITHOUT A FAILING TEST FIRST.**
-Write skill before testing? Delete it. Start over. No exceptions — not for "simple additions," not for "just a section," not for "reference only."
+If you wrote skill content before RED, stop immediately and do not build on that untested change. Revert or set aside only the untested edit, create RED pressure scenarios first, then rewrite from the failing-test evidence. No exceptions — not for "simple additions," not for "just a section," not for "reference only."
 
 ## When to Use
 
@@ -200,4 +200,4 @@ Load when needed:
 - `references/creation-log-template.md` — CREATION-LOG.md template for documenting the TDD process
 - `references/pressure-test-template.md` — Pressure scenario templates and the 7 pressure types
 
-**Background:** The TDD-for-skills methodology originates from the Superpowers framework (obra/superpowers). Persuasion research: Meincke et al. (2025), N=28,000 LLM conversations, University of Pennsylvania. Compliance methodology validated by ComplexBench, PromptAgent, and RNR studies (see research/15-tdd-skills-methodology.md for full citations).
+**Background:** The TDD-for-skills methodology originates from the Superpowers framework (obra/superpowers). Persuasion research: Meincke et al. (2025), N=28,000 LLM conversations, University of Pennsylvania. Compliance methodology is validated by ComplexBench, PromptAgent, and RNR studies documented in the upstream Superpowers research materials.

@@ -101,13 +101,20 @@ Avoid "while I'm here" refactors unless they are required to complete the root-c
 
 ### 5. Lock Down Regressions
 
-After the fixes are verified, add regression coverage for every completed issue.
+After the fixes are verified, add automated regression coverage for every completed issue by default.
 
 For each issue, add:
 
 - one exact reproduction test for the original failure
 - boundary variants around the failure edge
 - sibling coverage for the same bug family elsewhere in the codebase
+
+Exception path (use only when automated regression coverage is genuinely impractical):
+
+- document why automation is impractical in this environment right now
+- preserve the strongest available reproduction evidence for the fixed behavior
+- record the manual or command-based verification that was run instead
+- list follow-up needed to make the behavior testable later when applicable
 
 Common bug families:
 
@@ -134,7 +141,7 @@ For each new test:
 Finish with a coverage check:
 
 - every tracker item is resolved or explicitly deferred
-- every completed fix has direct regression coverage
+- every completed fix has direct automated regression coverage, or a justified exception record with durable evidence
 - every important bug family has boundary or sibling coverage where justified
 
 ## Red Flags
@@ -164,7 +171,7 @@ Do not declare the work done until:
 
 - the root cause is identified or the remaining uncertainty is explicitly documented
 - each fix is verified with evidence
-- regression coverage exists for the completed issues
+- automated regression coverage exists for the completed issues, or a justified exception includes durable verification evidence and follow-up where applicable
 - unresolved risks or follow-ups are listed clearly
 
 ## Integration with Pulse

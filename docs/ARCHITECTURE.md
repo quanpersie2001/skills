@@ -50,8 +50,8 @@ flowchart TD
 | `using-pulse` | Scout, route, and decide the first correct skill |
 | `brainstorming` | Turn vague intent into a shaped design |
 | `exploring` | Lock decisions into `CONTEXT.md` |
-| `planning` | Produce the feature plan, phase contract, story map, and beads |
-| `validating` | Prove the current phase is safe to execute |
+| `planning` | Route mode → shape, then define current work artifacts and bead timing |
+| `validating` | Prove feasibility/readiness of the selected current work before execution |
 | `swarming` | Coordinate parallel workers |
 | `executing` | Implement one bead at a time |
 | `reviewing` | Run review, findings, and UAT gates |
@@ -62,8 +62,8 @@ flowchart TD
 | Gate | Happens after | Why it exists |
 | --- | --- | --- |
 | Gate 1 | Exploring | No planning before decisions are locked |
-| Gate 2 | Planning | No phase prep before the plan shape is approved |
-| Gate 3 | Validating | No execution before the phase is proven ready |
+| Gate 2 | Planning | No execution prep before the selected shape artifact is approved |
+| Gate 3 | Validating | No execution before feasibility-validated current work is approved |
 | Gate 4 | Reviewing | No merge while P1 findings still exist |
 
 ## System Boundaries
@@ -104,14 +104,17 @@ Use `node .pulse/scripts/pulse_status.mjs --json` as the first scout read when t
 
 This is the durable record for one feature or slice.
 
-Typical contents:
+Typical contents vary by selected shape:
 
 ```text
 history/<feature>/
   CONTEXT.md
   discovery.md
   approach.md
+  work-shape.md
   phase-plan.md
+  epic-map.md
+  current-story-pack.md
   phase-<n>-contract.md
   phase-<n>-story-map.md
   verification/
@@ -150,7 +153,7 @@ Beads are the unit of execution. Chat threads are not.
 
 ### Planner and validator
 
-`pulse:planning` and `pulse:validating` define whether execution should happen at all. This is the part that turns "we have an idea" into "we have a safe bead graph."
+`pulse:planning` and `pulse:validating` define whether execution should happen at all. Planning routes mode → shape and current work; validating confirms feasibility/readiness before execution starts.
 
 ### Coordinator
 

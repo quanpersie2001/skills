@@ -100,6 +100,11 @@ The index is part of the managed output contract of this skill.
 
 Mark the raw note entries as distilled and record which topic slugs they fed.
 
+Use this minimal provenance convention for every distilled raw entry:
+- set `**Status:** distilled`
+- set `**Distilled into:** [topic-slug, ...]` with only the topic slugs actually updated/created from that note
+
+Do not add extra status fields or narrative run logs in raw notes.
 Keep this update factual.
 Do not claim a note was distilled into a topic it did not actually influence.
 

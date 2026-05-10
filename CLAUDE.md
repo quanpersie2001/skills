@@ -39,8 +39,8 @@ pulse:preflight → pulse:using-pulse → pulse:exploring → pulse:planning →
 
 Four human gates control progression:
 - **GATE 1** (after exploring): Approve `CONTEXT.md`
-- **GATE 2** (after planning): Approve `phase-plan.md`
-- **GATE 3** (after validating): Approve execution — never skip this
+- **GATE 2** (after planning): Approve selected shape artifact (`work-shape.md` | `phase-plan.md` | `epic-map.md`)
+- **GATE 3** (after validating): Approve feasibility-validated current work execution — never skip this
 - **GATE 4** (after reviewing): P1 findings must be fixed before merge approval
 
 ## Artifact Locations
@@ -54,9 +54,15 @@ Four human gates control progression:
 history/<feature>/verification/      ← canonical verification evidence
 history/<feature>/CONTEXT.md         ← exploring output (source of truth for decisions)
 history/<feature>/approach.md        ← planning synthesis
+history/<feature>/work-shape.md      ← canonical shape artifact for direct/spike/small
+history/<feature>/phase-plan.md      ← canonical shape artifact for milestone-shaped work
+history/<feature>/epic-map.md        ← canonical shape artifact for capability/risk-shaped work
+history/<feature>/current-story-pack.md ← current-work artifact when using epic-map path
+history/<feature>/phase-<n>-contract.md ← current-work contract when using phase-plan path
+history/<feature>/phase-<n>-story-map.md ← bead map for the active current-work contract
 history/<feature>/lifecycle-summary.md ← durable audit summary for gates/outcomes/follow-up debt
                                        ← contract: using-pulse/references/history-lifecycle-contract.md
-.beads/                              ← bead files (planning creates, executing closes)
+.beads/                              ← bead files (planning may create for direct/small; validate-first paths may create after readiness)
 .spikes/                             ← spike verification results
 .pulse/memory/                      ← shared reusable memory output
 ```
@@ -87,7 +93,7 @@ git push                # Push to remote
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **pulse** (2638 symbols, 3942 relationships, 156 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **pulse** (2501 symbols, 3738 relationships, 151 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

@@ -21,7 +21,7 @@ metadata:
 
 # Executing
 
-If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` before continuing.
+If preflight readiness is missing, stale, or blocked (check `.pulse/tooling-status.json`), stop and invoke `pulse:using-pulse` before continuing.
 
 `pulse:executing` supports two modes:
 
@@ -107,6 +107,27 @@ If a handoff exists and was written by a prior instance of you (same worker iden
 2. Resume from where it stopped; skip re-reading already-read files
 3. Archive or mark the handoff consumed and update the manifest
 
+A worker must not consume another worker's handoff directly.
+
+### 1e. Exceptional path: coordinator-reassigned orphaned worker handoff
+
+Normal path stays same-runtime-identity resume.
+
+Only the coordinator may reassign an orphaned worker handoff when the original runtime identity is unavailable.
+
+Before you resume from a reassigned handoff, require coordinator confirmation that all are true:
+- prior worker inactivity was confirmed
+- file reservations for the prior owner were checked and are safe for transfer
+- same-branch commit queue state was checked and is safe for transfer
+
+For reassignment, the coordinator must update `.pulse/handoffs/manifest.json` and the owner handoff file before any worker resumes, recording:
+- previous owner
+- new owner
+- reason
+- coordinator approval
+
+If those updates are missing, do not resume from the handoff.
+
 ---
 
 ## Step 2: Get the Next Bead
@@ -157,17 +178,25 @@ If any required field is missing, stop and bounce the bead back to validating or
 
 If `testing_mode` is `tdd-required`, confirm `tdd_steps` is present before implementation starts.
 
-### Phase-artifact read rule for non-trivial beads
+### Current-work artifact read rule for non-trivial beads
 
 Do not rely on the bead alone when the work is architecturally or operationally sensitive.
 
-Before reserving files or writing code, read `history/<feature>/phase-<n>-contract.md` and `history/<feature>/phase-<n>-story-map.md` if any of these are true:
+Before reserving files or writing code, read the active-shape current-work artifacts whenever any condition below is true.
 
+Shape artifact requirements:
+- work-shape path: read `history/<feature>/work-shape.md` (current work is defined directly there)
+- epic-map path: read `history/<feature>/epic-map.md` and `history/<feature>/current-story-pack.md`
+- phase-plan path: read `history/<feature>/phase-plan.md`, `history/<feature>/phase-<n>-contract.md`, and `history/<feature>/phase-<n>-story-map.md`
+
+Trigger conditions:
 - `testing_mode` is `tdd-required`
 - the bead touches multiple files across different modules or ownership boundaries
 - the bead has multiple upstream dependencies or explicitly references story coordination, parallelism, shared file/context risk, or boundary preservation
 - the `verify` path is multi-step, integration-heavy, or hard to explain in one line from the bead alone
 - after reading the bead, more than one plausible implementation path still seems possible
+
+Use the active-shape artifact set as the canonical current-work contract for this bead.
 
 For beads that touch module interfaces, ownership boundaries, or HIGH-risk constraints, also read the relevant parts of `history/<feature>/approach.md`.
 
@@ -224,7 +253,7 @@ Before writing any code, scan your bead's description for decision IDs (D1, D2, 
 Before you change a file, say what you believe is true:
 - which existing path or component you are extending
 - what the bead is explicitly asking you to preserve or change
-- which phase exit-state or story done condition this bead advances when phase artifacts were required
+- which phase exit-state or story done condition this bead advances when current-work artifacts were required
 - what will prove success once verification runs
 
 If two plausible interpretations remain, stop. Surface the ambiguity explicitly and get the bead repaired or clarified instead of guessing in code.
@@ -233,7 +262,7 @@ If two plausible interpretations remain, stop. Surface the ambiguity explicitly 
 
 Match naming conventions, error handling patterns, import styles, and test structures found in the codebase.
 
-For new feature beads, do not invent temporary architecture just to get a first phase over the line. Preserve the planned module ownership, interfaces, and cross-module contracts from `CONTEXT.md`, `approach.md`, and the phase artifacts.
+For new feature beads, do not invent temporary architecture just to get a first work slice over the line. Preserve the planned module ownership, interfaces, and cross-module contracts from `CONTEXT.md`, `approach.md`, and the current-work artifacts.
 
 ### Keep the change surgical
 
@@ -339,16 +368,26 @@ Before `br close`, confirm all are true:
 br close <bead-id> --reason "Completed: <one-line summary of what was implemented>"
 ```
 
-### 6c. Atomic git commit
+### 6c. Atomic git commit via coordinator-owned queue (worker mode)
 
-One commit per bead. Exactly this format:
+One commit per bead. Do not batch multiple beads into one commit. Do not commit unrelated changes.
+
+In worker mode, implementation and verification can run in parallel, but `git add`/`git commit` are serialized on the same branch under coordinator control.
+
+Protocol:
+1. Send `READY_TO_COMMIT` on the active coordination surface with bead ID and the exact declared files you will stage.
+2. Wait until the coordinator grants `COMMIT_SLOT_GRANTED`.
+3. Only after slot grant, run:
 
 ```bash
 git add <files-you-modified>
 git commit -m "feat(<bead-id>): <summary matching br close reason>"
 ```
 
-Do not batch multiple beads into one commit. Do not commit unrelated changes.
+4. Commit only the files you declared in `READY_TO_COMMIT`.
+5. Report `COMMIT_DONE` with commit hash, or `COMMIT_BLOCKED` with the blocking reason.
+
+In standalone mode, run the same one-bead commit format directly.
 
 ### 6d. Release file reservations (worker mode)
 
@@ -378,7 +417,7 @@ After each bead:
 
 ### Writing the handoff
 
-Use the handoff contract from `pulse:using-pulse` (`../using-pulse/references/history-lifecycle-contract.md`) and write owner-scoped files:
+Use the handoff contract from `pulse:using-pulse` (`../using-pulse/references/handoff-contract.md`) and write owner-scoped files:
 
 - worker mode -> `.pulse/handoffs/worker-<runtime_identity>.json`
 - standalone mode -> `.pulse/handoffs/single-worker.json`
@@ -407,7 +446,7 @@ Re-read in this exact order before any further action:
 1. `AGENTS.md`
 2. `history/<feature>/CONTEXT.md`
 3. the current bead you were working on: `br show <bead-id>`
-4. if the bead qualifies as non-trivial under Step 2, re-read `history/<feature>/phase-<n>-contract.md` and `history/<feature>/phase-<n>-story-map.md`, plus `history/<feature>/approach.md` when boundary-sensitive or HIGH-risk
+4. if the bead qualifies as non-trivial under Step 2, re-read the active-shape current-work artifacts (`work-shape.md` section, `current-story-pack.md`, or `phase-<n>-contract.md` + `phase-<n>-story-map.md`); also re-read `history/<feature>/approach.md` when boundary-sensitive or HIGH-risk
 5. your active file reservations: `node .pulse/scripts/pulse_reservations.mjs list --active-only --json`
 6. the latest relevant coordinator updates on the active coordination surface
 
@@ -431,9 +470,10 @@ Stop and reassess if you notice any of these:
 - **Continuing after compaction without re-reading** — you have amnesia; fix it before proceeding
 - **Implementing stubs, TODOs, or empty handlers** — these are not implementations; they are deferred failures
 - **Ignoring a locked decision from CONTEXT.md**
-- **Skipping required phase-contract/story-map reads for a non-trivial bead** — you are forcing execution to guess phase meaning and story intent
+- **Skipping required current-work contract/story-map reads for a non-trivial bead** — you are forcing execution to guess work-shape intent and execution boundaries
 - **Guessing through ambiguity instead of surfacing it** — hidden design choices belong back in planning/validation, not in worker code
 - **Bundling multiple beads into one commit** — atomic commits per bead are the audit trail; don't corrupt it
+- **Committing in worker mode without `COMMIT_SLOT_GRANTED`** — same-branch commit order is coordinator-owned and must stay serialized
 - **Claiming a bead without checking reservations** — self-routing still depends on file coordination
 - **Closing or blocking a bead without reporting on the active coordination surface** — invisible progress breaks the swarm
 - **Waiting silently for the coordinator** — if you are blocked, conflicted, handing off, or done, report it

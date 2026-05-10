@@ -1,6 +1,6 @@
 ---
 name: using-pulse
-description: Use when bootstrapping or resuming work in a Pulse project after pulse:preflight, or when a request needs Pulse phase selection and mode-aware routing.
+description: Use when bootstrapping or resuming work in a Pulse project after pulse:preflight, or when a request needs Pulse work-shape/current-work routing and mode-aware skill selection.
 metadata:
   version: '2.2'
   ecosystem: pulse
@@ -24,22 +24,23 @@ metadata:
 
 # using-pulse
 
-Bootstrap meta-skill. Load this after `pulse:preflight` to route into the correct next Pulse skill and resume safely.
+Bootstrap meta-skill. Load this after `pulse:preflight` to route into the correct next Pulse skill and resume safely inside a preflight-ready Pulse environment.
 
 Use this 3-plane model:
 - **Operator plane** — user goal, approvals, active mode, and next gate.
 - **Cookbook plane** — which Pulse skill to invoke next.
 - **Scout plane** — repo truth: onboarding/tooling health, state mirrors, handoffs, checkpoints, and memory pointers.
 
-This skill is a pure router + scout brief. It does not replace downstream skill contracts, and it does not make onboarding or tool-readiness decisions.
+This skill is a pure router + scout brief inside a preflight-ready Pulse runtime. It does not replace downstream skill contracts, and it does not make onboarding/remediation or runtime-readiness decisions.
 
 ## Preflight Contract
 
 `pulse:preflight` is the sole readiness authority for a Pulse session.
 
-- If `.pulse/onboarding.json` is missing or stale, invoke `pulse:preflight`.
+- If preflight readiness is missing or stale in `.pulse/tooling-status.json`, invoke `pulse:preflight`.
 - If `.pulse/tooling-status.json` is missing, invoke `pulse:preflight`.
 - If preflight reported `FAIL` or `blocked`, stop and present that result instead of re-checking tooling here.
+- Missing `br`/`bv` is a preflight blocker for Pulse execution-capable routing; this skill must not treat missing bead tooling as a local workaround case.
 - If preflight reported `DEGRADED`, route within the approved downgrade and do not rerun onboarding or tool-health checks.
 - If dependency warnings are surfaced in preflight output, keep command-vs-MCP wording explicit:
   - `Missing commands: ...`
@@ -51,7 +52,7 @@ Do not run `onboard_pulse.mjs --apply` from this skill. Any onboarding or remedi
 
 1. Read `.pulse/tooling-status.json`.
 2. If `.pulse/scripts/pulse_status.mjs` exists, run `node .pulse/scripts/pulse_status.mjs --json`.
-3. If the scout script is missing, or onboarding/status artifacts are missing or stale, run `pulse:preflight` first.
+3. If the scout script is missing, or preflight readiness artifacts are missing/stale/blocked, run `pulse:preflight` first.
 4. Respect `recommended_mode` from preflight:
    - `swarm` → `pulse:swarming` allowed
    - `single-worker` → skip swarming, use `pulse:executing`
@@ -115,9 +116,9 @@ When updating or adding packaged Pulse skills, run:
 
 ---
 
-## Skill Catalog
+## Routing Cookbook
 
-Use this cookbook to route into the next specialist skill.
+Use this routing cookbook to route into the next specialist skill. It is a maintained using-pulse routing aid, not a complete packaged-skill inventory.
 
 | # | Skill | Load when... |
 |---|---|---|
@@ -126,7 +127,7 @@ Use this cookbook to route into the next specialist skill.
 | 1b | `pulse:brainstorming` | Intent is vague and design is not locked |
 | 2 | `pulse:exploring` | Feature intent exists but implementation decisions are fuzzy |
 | 3 | `pulse:planning` | Decisions are locked and implementation planning is next |
-| 4 | `pulse:validating` | Current phase and beads must be proven execution-ready |
+| 4 | `pulse:validating` | Current work and beads must be proven execution-ready |
 | 5 | `pulse:swarming` | `recommended_mode=swarm` and execution is approved |
 | 6 | `pulse:executing` | Direct implementation is happening |
 | 7 | `pulse:reviewing` | Execution is complete and quality gate is next |
@@ -138,6 +139,7 @@ Use this cookbook to route into the next specialist skill.
 | 13 | `pulse:dream` | User asks to consolidate runtime artifacts into machine-readable memory |
 | 14 | `pulse:writing-pulse-skills` | Editing Pulse skills |
 | 15 | `pulse:architecture-rescue` | Architecture cleanup report is requested |
+| 16 | `pulse:bootstrap-project-context` | Project-doc bootstrap or glossary setup is requested |
 
 ## Routing Logic
 
@@ -155,9 +157,9 @@ If a request introduces user-visible capability, workflow, subsystem, API surfac
 
 | Request type | First skill |
 |---|---|
-| Unformed idea / unclear design | `pulse:brainstorming` |
-| Vague/new feature | `pulse:exploring` |
-| Clear implementation request | `pulse:planning` |
+| Unformed idea / unclear design intent | `pulse:brainstorming` |
+| Feature intent is clear but implementation decisions are unresolved | `pulse:exploring` |
+| Clear implementation request with decisions already locked (approved `CONTEXT.md`) | `pulse:planning` |
 | Small low-risk fix | `pulse:planning` (`small_change`) |
 | "Review my code" | `pulse:reviewing` |
 | "Note this learning from this conversation" | `pulse:dev-note` |
@@ -172,14 +174,30 @@ If a request introduces user-visible capability, workflow, subsystem, API surfac
 | `/go` / full pipeline | Go Mode (`references/go-mode-pipeline.md`) |
 | Resume interrupted work | Resume logic from handoff manifest |
 
-When in doubt, start with `pulse:exploring`.
+Deterministic tie-breaker:
+- If the request is still unclear after a quick scout (problem, user, or success criteria not concrete), route to `pulse:brainstorming` first.
+- Otherwise, route to `pulse:exploring`.
+
+Maintenance rule: when adding/removing a first-skill routing row in the table above, update this Routing Cookbook in the same change.
+
+Do not route directly to `pulse:planning` unless an approved `history/<feature>/CONTEXT.md` already exists for this exact work slice.
+
+## Gate and State Ownership
+
+Entry-layer ownership is explicit:
+- `pulse:preflight` owns readiness artifacts (`.pulse/tooling-status.json`, `.pulse/state.json`, preflight status in `.pulse/STATE.md`).
+- `pulse:using-pulse` owns routing guidance only; it must not rewrite gate outcomes from later phases.
+- `pulse:exploring` owns writing `history/<feature>/CONTEXT.md` and handoff-ready state hints.
+- Gate 1 approval is a human decision on `history/<feature>/CONTEXT.md`; after approval, runtime state should carry `gate_status: approved`, `next_skill_recommended: pulse:planning`, and `next_action: manual_invoke` by default.
+
+Do not mark Gate 1 approved before explicit user approval.
 
 ## Resume Logic
 
 Resume handling stays in the scout plane.
 
 1. Read `.pulse/handoffs/manifest.json`.
-2. Present active handoffs by owner, skill, feature, phase, summary, and next action.
+2. Present active handoffs by owner, skill, feature, active work slice, summary, and next action.
 3. If multiple active entries exist, ask user which one to resume.
 4. Open only the selected owner file and resume from `summary`, `next_action`, `read_first`, and `payload.transfer`.
 5. Optionally use latest matching checkpoint as advisory aid.
@@ -199,8 +217,8 @@ Trigger:
 
 Non-negotiable gates:
 - Gate 1: approve `history/<feature>/CONTEXT.md`
-- Gate 2: approve `history/<feature>/phase-plan.md`
-- Gate 3: approve execution after validating
+- Gate 2: approve selected shape artifact (`work-shape.md`, `phase-plan.md`, or `epic-map.md`)
+- Gate 3: approve feasibility-validated current work execution
 - Gate 4: approve merge after reviewing (`P1` findings still block)
 
 Execution branch from preflight:
@@ -229,7 +247,7 @@ Pause and surface immediately when:
 - HIGH-risk plan has no `spike_question`
 - review is skipped outside approved lightweight `small_change` flow
 - active handoff manifest/file references are inconsistent
-- `state.json` or `STATE.md` is stale after phase transition
+- `state.json` or `STATE.md` is stale after active-work transition
 
 ## File Quick Reference
 
@@ -241,7 +259,9 @@ Pause and surface immediately when:
 .pulse/handoffs/manifest.json         <- active handoff index (authoritative)
 .pulse/checkpoints/<feature>/...      <- advisory checkpoint snapshots
 history/<feature>/CONTEXT.md          <- locked decisions from exploring
-history/<feature>/phase-plan.md       <- approved phase breakdown
+history/<feature>/work-shape.md       <- approved shape for direct/spike/small work
+history/<feature>/phase-plan.md       <- approved shape for milestone/phase-shaped work
+history/<feature>/epic-map.md         <- approved shape for capability/risk-shaped work
 history/<feature>/lifecycle-summary.md <- durable audit summary
 ```
 

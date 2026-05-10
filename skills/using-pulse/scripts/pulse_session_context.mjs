@@ -127,7 +127,7 @@ export async function collectPulseSessionStartNotes(repoRoot, options = {}) {
       "Pulse onboarding is installed for this repo. Read AGENTS.md, then run node .pulse/scripts/pulse_status.mjs --json for a quick scout before substantive work.",
     );
   } else {
-    notes.push("Pulse onboarding is missing in this repo. Load pulse:using-pulse before continuing.");
+    notes.push("Preflight readiness has not been established for this repo. Load pulse:using-pulse before continuing.");
   }
 
   if (fs.existsSync(criticalPatterns)) {

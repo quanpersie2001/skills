@@ -21,7 +21,7 @@ metadata:
 
 Codebase intelligence support skill for Pulse.
 
-If `.pulse/onboarding.json` is missing or stale for the current repo, stop and invoke `pulse:using-pulse` first.
+If preflight readiness is missing, stale, or blocked (check `.pulse/tooling-status.json`), stop and invoke `pulse:using-pulse` first.
 
 ## Start With The Repo Scout
 
@@ -85,7 +85,7 @@ Use it to answer:
 - which processes or execution flows are closest to the requested behavior
 - where the strongest existing patterns already live before deeper reads
 
-When discovery is being written down for planning, save the result or summary to `history/<feature>/discovery.md` under `## Architecture Snapshot`.
+When discovery is being written down for planning, save the result or summary into the active planning evidence artifact selected by the workflow (for example `history/<feature>/CONTEXT.md`) under the matching architecture/discovery section.
 
 ### 2. `context`
 
@@ -178,11 +178,11 @@ Use this skill mainly during `pulse:planning` discovery work.
 - `impact` feeds blast-radius and dependency notes when the plan changes shared code.
 - `api_impact` and friends are optional spot tools for API-heavy work, not the backbone of every workflow.
 
-If planning is producing `history/<feature>/discovery.md`, keep the saved output concise and evidence-based:
+If planning is producing a discovery/context artifact, keep the saved output concise and evidence-based:
 
-- `## Architecture Snapshot`
-- `## Existing Patterns`
-- `## Dependency Notes` when blast radius, callers, or API consumers materially affect the plan
+- architecture snapshot section
+- existing patterns section
+- dependency notes section when blast radius, callers, or API consumers materially affect the plan
 
 Do not dump raw tool output when a short grounded summary will do.
 
@@ -200,7 +200,7 @@ Useful fallbacks:
 
 Then read the relevant files directly.
 
-If planning is writing discovery output, note the fallback plainly in `history/<feature>/discovery.md`, for example:
+If planning is writing discovery/context output, note the fallback plainly in the active planning evidence artifact, for example:
 
 > GitNexus was unavailable or not configured for this repo/session, so discovery used `rg` and direct file inspection.
 
