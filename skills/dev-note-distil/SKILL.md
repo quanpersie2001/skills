@@ -37,6 +37,7 @@ This skill may create or update only these markdown artifacts in v1:
 
 - `dev-notes/distil/topics/<slug>/<slug>.md`
 - `dev-notes/distil/TOPICS.md`
+- `dev-notes/raws/YYYYMMDD.md` status fields for raw notes that were actually distilled
 
 Topic files must follow `references/topic-template.md`.
 The global index must follow `references/topics-index-template.md`.

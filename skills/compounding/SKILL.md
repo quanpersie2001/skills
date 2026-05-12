@@ -9,7 +9,7 @@ metadata:
     - id: beads-cli
       kind: command
       command: br
-      missing_effect: degraded
+      missing_effect: unavailable
       reason: Compounding reads bead history to reconstruct executed work.
 ---
 

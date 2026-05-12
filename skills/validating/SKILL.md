@@ -16,7 +16,7 @@ metadata:
     - id: beads-viewer
       kind: command
       command: bv
-      missing_effect: degraded
+      missing_effect: unavailable
       reason: Validating inspects the bead graph with bv before approving execution.
 ---
 

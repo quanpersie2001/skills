@@ -15,7 +15,7 @@ metadata:
     - id: beads-viewer
       kind: command
       command: bv
-      missing_effect: degraded
+      missing_effect: unavailable
       reason: Executing checks bead state with bv during the implementation loop.
 ---
 
@@ -387,7 +387,7 @@ git commit -m "feat(<bead-id>): <summary matching br close reason>"
 4. Commit only the files you declared in `READY_TO_COMMIT`.
 5. Report `COMMIT_DONE` with commit hash, or `COMMIT_BLOCKED` with the blocking reason.
 
-In standalone mode, run the same one-bead commit format directly.
+In standalone mode, run the same one-bead commit format directly only when no active swarm commit queue exists for the current branch/feature; otherwise route the commit through the coordinator-owned queue.
 
 ### 6d. Release file reservations (worker mode)
 

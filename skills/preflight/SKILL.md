@@ -175,7 +175,7 @@ Record impact instead:
 
 ## Phase 6: Decide Outcome
 
-Choose exactly one result:
+Choose exactly one result label:
 
 - `PASS`
   - all required tools for the requested mode are ready
@@ -185,6 +185,10 @@ Choose exactly one result:
 - `FAIL`
   - any required tool for the requested mode is unavailable
   - onboarding is `NEEDS_SETUP` or `NEEDS_ONBOARDING` and could not be resolved in Phase 2
+
+Normalize status casing explicitly:
+- `.pulse/tooling-status.json` uses lowercase machine values: `pass | degraded | fail`
+- `.pulse/state.json`, `.pulse/STATE.md`, and user-facing summaries may use uppercase labels: `PASS | DEGRADED | FAIL`
 
 Also choose `recommended_mode`:
 

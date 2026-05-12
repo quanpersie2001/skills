@@ -160,7 +160,7 @@ If a request introduces user-visible capability, workflow, subsystem, API surfac
 | Unformed idea / unclear design intent | `pulse:brainstorming` |
 | Feature intent is clear but implementation decisions are unresolved | `pulse:exploring` |
 | Clear implementation request with decisions already locked (approved `CONTEXT.md`) | `pulse:planning` |
-| Small low-risk fix | `pulse:planning` (`small_change`) |
+| Small low-risk fix | `pulse:exploring` for an approved mini `CONTEXT.md`, then `pulse:planning` (`small_change`) |
 | "Review my code" | `pulse:reviewing` |
 | "Note this learning from this conversation" | `pulse:dev-note` |
 | "Distill accumulated dev notes for reading" | `pulse:dev-note-distil` |

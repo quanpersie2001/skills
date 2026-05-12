@@ -26,14 +26,14 @@ This skill should behave like a domain-aware grilling loop:
 
 Load when the user presents a feature request, asks to build or change something, or when
 requirements are fuzzy enough that downstream agents would need to make implementation assumptions.
-Skip for one-line fixes where all decisions are self-evident.
+For Pulse `small_change`, produce an approved mini `CONTEXT.md` even when decisions are self-evident; skip only for trivial non-Pulse corrections outside the Pulse workflow.
 
 ## Config Check
 
-If `.pulse/config.json` contains `"skip_exploring": true`, this skill should be skipped in the pipeline. However:
-- Still require CONTEXT.md to exist before planning proceeds
-- If no CONTEXT.md exists and exploring is skipped, warn the user that planning will proceed without locked decisions
-- Quick mode already bypasses exploring — this config is for standard/deep features where the user has pre-written CONTEXT.md
+If `.pulse/config.json` contains `"skip_exploring": true`, this skill should be skipped only when `history/<feature>/CONTEXT.md` already exists and has explicit human approval. However:
+- Still require approved `CONTEXT.md` to exist before planning proceeds
+- If no approved `CONTEXT.md` exists and exploring is skipped, hard-stop and recommend that the human provide or approve a mini `CONTEXT.md` before planning
+- Quick/small-change paths still need an approved mini `CONTEXT.md`; this config is for standard/deep features where the user has pre-written CONTEXT.md
 
 ---
 
@@ -74,9 +74,12 @@ Then load prior context:
 
 ```
 Read (if exists):
+- history/<feature>/spec.md                ← approved brainstorming design, when present
 - .pulse/memory/critical-patterns.md       ← promoted critical learnings
 - .pulse/STATE.md                          ← any prior feature context
 ```
+
+If `history/<feature>/spec.md` exists, read it first and translate the approved design into locked decisions in `CONTEXT.md`; do not leave `spec.md` as a parallel source of truth.
 
 Build an internal summary of prior decisions. Use it to skip already-answered questions
 and annotate options with "Previously decided: X."
@@ -194,6 +197,7 @@ Path: history/<feature-slug>/CONTEXT.md
 
 Load `references/context-template.md` and populate every section. Rules:
 - Locked decisions must be concrete: "Card-based layout, not timeline" not "modern feel"
+- If `spec.md` exists, every approved design choice that affects implementation must become a locked decision or an explicit deferred/non-decision in `CONTEXT.md`
 - Code context must cite file paths found during the scout
 - Open questions must be split: "Resolve Before Planning" vs "Deferred to Planning"
 - Every locked decision must reference its stable ID (D1, D2...)

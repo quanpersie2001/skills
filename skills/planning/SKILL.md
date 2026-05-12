@@ -11,12 +11,12 @@ metadata:
     - id: beads-cli
       kind: command
       command: br
-      missing_effect: degraded
+      missing_effect: unavailable
       reason: Planning creates beads for validated current work through br.
     - id: beads-viewer
       kind: command
       command: bv
-      missing_effect: degraded
+      missing_effect: unavailable
       reason: Planning uses bv to verify bead graph structure.
     - id: gitnexus
       kind: mcp_server
@@ -56,6 +56,7 @@ For new feature work, define architecture/reality basis before shaping current w
 ## Hot-Path Rules
 
 - `history/<feature>/CONTEXT.md` is the source of truth; planning reads but never overrides locked decisions.
+- Every `small_change` still requires an approved mini `CONTEXT.md`; do not treat low risk as permission to skip locked decisions.
 - Read `.pulse/project-docs.json` first when present, then listed docs before relying only on feature history artifacts.
 - Start with a mode gate and record why smaller modes are insufficient when above `small_change`.
 - Gate 2 is mandatory: do not prepare current-work artifacts before explicit shape approval.
@@ -72,8 +73,7 @@ CONTEXT.md
   -> Phase 2 Synthesis                 (history/<feature>/approach.md)
   -> Phase 3 Mode Gate + Work Shape    (work-shape.md | phase-plan.md | epic-map.md)
   -> HARD-GATE (Gate 2): human approval required
-  -> default approved outcome: state sync + stop (`next_action: manual_invoke`, `next_skill_recommended: pulse:validating`)
-  -> optional approved outcome: continue now in the same context (`next_action: continue_now`)
+  -> approved outcome: continue inside planning to current-work prep
   -> Phase 4 Current-Work Prep         (current-story-pack.md | phase-<n>-contract.md + phase-<n>-story-map.md)
   -> Handoff: recommend pulse:validating (`next_action: manual_invoke` by default)
 ```
@@ -90,7 +90,7 @@ Load `references/planning-reference.md` for mode quality rules and artifact temp
 ### Before you start
 
 1. If `.pulse/scripts/pulse_status.mjs` exists, run `node .pulse/scripts/pulse_status.mjs --json`.
-2. Read `history/<feature>/CONTEXT.md`; if missing, stop and ask user to run `pulse:exploring`.
+2. Read `history/<feature>/CONTEXT.md`; if missing, stop and ask the human to provide or approve a mini `CONTEXT.md` through `pulse:exploring` before planning, even for `small_change`.
 3. Stop if `.pulse/tooling-status.json` reports `blocked`.
 4. Read project docs first (`.pulse/project-docs.json` when present; otherwise minimal relevant docs set).
 
@@ -123,14 +123,16 @@ Load `references/planning-reference.md` for mode quality rules and artifact temp
   - `epic-map.md` for capability/risk-shaped work
 - Set `Approval status: PENDING` and stop for user approval.
 - If revised, set or keep `REVISE_REQUIRED`; only set `APPROVED` after explicit approval.
-- Default approved path: update runtime state only, record `gate: GATE 2`, `gate_status: approved`, `next_skill_recommended: pulse:validating`, and `next_action: manual_invoke`, then stop.
-- Optional fast path: only enter Phase 4 immediately when the user explicitly chooses an equivalent of `Approve and continue now`; in that case set `next_action: continue_now` before continuing.
+- Gate 2 approval authorizes planning to continue into Phase 4; it does not invoke validating.
+- After approval, update runtime state with `gate: GATE 2`, `gate_status: approved`, and continue to current-work prep.
+- Planning is not complete until the approved current-work artifacts are written.
+- Only invoke `pulse:validating` in the same session when the user explicitly chooses an equivalent of `Approve and continue to validating now`; otherwise validating remains the next manual skill after planning completion.
 
 Approval sync checklist before moving forward:
 1. Update shape artifact approval state.
 2. Sync same state into `.pulse/STATE.md` and `.pulse/state.json`.
 3. Confirm both artifacts name the same approved current work.
-4. Do not enter current-work preparation unless the user explicitly asked to continue now in the same context.
+4. Enter current-work preparation after Gate 2 approval; do not invoke validating unless the user explicitly asked to continue to validating now in the same context.
 
 ### Phase 4: Current-Work Prep
 

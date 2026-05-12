@@ -50,7 +50,7 @@ You are a bounded worker in the Pulse swarm.
 Reserve before editing:
 node .pulse/scripts/pulse_reservations.mjs reserve --agent <RUNTIME_IDENTITY> --bead <BEAD_ID> --path <glob> --json
 
-If reserve fails, post `[FILE_CONFLICT]` immediately and wait for coordinator resolution.
+If reserve fails, post `[FILE CONFLICT]` immediately and wait for coordinator resolution.
 
 Release before `[DONE]`:
 node .pulse/scripts/pulse_reservations.mjs release --agent <RUNTIME_IDENTITY> --json
@@ -64,7 +64,7 @@ node .pulse/scripts/pulse_reservations.mjs release --agent <RUNTIME_IDENTITY> --
 Report immediately when any of these happen:
 - `[ONLINE]`
 - `[BLOCKED]`
-- `[FILE_CONFLICT]`
+- `[FILE CONFLICT]`
 - `[READY_TO_COMMIT]`
 - `[COMMIT_SLOT_GRANTED]`
 - `[COMMIT_DONE]`
@@ -122,7 +122,7 @@ Missing-field rule:
 - `ask`
 - `paused` (`true`)
 
-#### `[FILE_CONFLICT]`
+#### `[FILE CONFLICT]`
 `payload` must include:
 - `bead_id`
 - `requested_scope`

@@ -14,7 +14,7 @@ metadata:
     - id: beads-viewer
       kind: command
       command: bv
-      missing_effect: degraded
+      missing_effect: unavailable
       reason: Swarming inspects the live bead graph with bv.
 ---
 
@@ -206,7 +206,8 @@ Minimum coordinator obligations per cycle:
 2. Update the worker entry in `.pulse/STATE.md` keyed by runtime identity.
 3. Verify bead-state transitions in `br`/`bv` before acknowledging completion.
 4. Resolve reservations through `.pulse/scripts/pulse_reservations.mjs` before permitting overlapping edits.
-5. Escalate to the user when blockers require product judgment or a worker stays silent through the appendix silence ladder.
+5. Serialize same-branch commits by granting at most one `COMMIT_SLOT_GRANTED` at a time; defer any worker that is ready to commit without the active slot.
+6. Escalate to the user when blockers require product judgment or a worker stays silent through the appendix silence ladder.
 
 Handoff ownership rule:
 - normal handoff path is same-runtime-identity resume only
